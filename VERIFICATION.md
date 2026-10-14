@@ -15,11 +15,11 @@
 | --- | --- |
 | `cargo +stable-x86_64-pc-windows-msvc clippy --all-targets --locked -- -D warnings` | 通过 |
 | 核心单元测试 | 19 / 19 通过 |
-| 登录入口与 GPUI 窗口交互测试 | 26 / 26 通过 |
+| 登录入口与 GPUI 窗口交互测试 | 27 / 27 通过 |
 | 真实 Go / gopls 集成测试 | 3 / 3 通过 |
 | 真实浏览器请求脚本的 Node.js 模拟测试 | 1 / 1 通过，覆盖 7 种响应，不访问真实账号 |
 | `cargo build --profile desktop --locked` | 通过 |
-| `cargo build --release --locked` | 通过，新版 release 原生启动验证通过 |
+| Release 构建 | 新版已完成链接；旧 `target/release/leetdesk.exe` 正在运行而不能覆盖，新版另存为 `target/release/leetdesk-new.exe` 并通过原生启动检查 |
 | 无原生标题栏窗口的隐藏启动 | 通过，`titlebar: None`；未完成可见窗口逐像素检查 |
 | WebView2 原生授权弹窗打开、关闭 | 通过 |
 | LeetCode 中国站完整题库分页 | 4,470 / 4,470 道题已实际下载验证 |
@@ -57,6 +57,7 @@ ONLINE_CHECK detail=two-sum go_template=true
 最新黑色主题检查确认编辑区背景为 `#000000`，实际 Tree-sitter 渲染的 Go 关键字、字符串、数字分别为紫、绿、橙色。两个原生窗口入口均取消 GPUI 标题栏，源码与 Windows/macOS 后端确认不绘制系统标题行和控制按钮；应用顶部的题目文字与空白处可拖动窗口。Windows 隐藏原生启动成功，尚未用可见窗口逐像素确认外观。
 
 Go 模板检查覆盖 `for`、`make`、`append` 等前缀匹配、缩进及插入范围；真实编辑器窗口插入 `for` 后选中 `n`，替换成 `size`，Tab 跳到循环体，输入代码后 Shift+Tab 回到 `size`。真实 gopls 成员补全测试仍通过，严格 Clippy 检查通过。
+无系统关闭按钮后增加顶部“关闭”；窗口测试点击此按钮，确认退出前把当前 Go 源码写入每题工作区。
 
 Tab 修复检查从搜索框通过真实鼠标事件切回代码区，验证单光标 Tab、多行 Tab、Shift+Tab 和撤销；选中区末尾在下一行行首时不缩进该行。类型提示检查启动真实 gopls，验证 string、int、*ListNode 和 range 变量，以及同一行中文/emoji 后的位置。显示提示后代码为后续内容保留空间，点击标签映射到变量后的源码锚点，左右移动、复制和撤销不包含虚拟标签；提示不抢焦点，编辑后立即清空。另一个窗口检查验证包含提示的 Unicode 长行折行、关闭折行、行尾鼠标定位和复制源码。
 
