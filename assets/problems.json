@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "slug": "two-sum",
+    "title": "两数之和",
+    "difficulty": "简单",
+    "tags": ["数组", "哈希表"],
+    "description": "# 1. 两数之和\n\n给定整数数组 `nums` 和目标值 `target`，返回和为目标值的两个元素的下标。\n\n每组输入只有一个答案，同一元素不能使用两次。返回顺序不限。\n\n## 示例\n\n```text\nnums = [2, 7, 11, 15], target = 9\n输出：[0, 1]\n```\n\n## 约束\n\n- `2 <= nums.length <= 10⁴`\n- 只能使用两个不同位置的元素。\n\n尝试将时间复杂度优化到 O(n)。",
+    "starter": "package solution\n\nfunc twoSum(nums []int, target int) []int {\n\t// 在这里实现你的解法\n\treturn nil\n}\n",
+    "function": "twoSum",
+    "parameters": [{"name": "nums", "kind": "ints"}, {"name": "target", "kind": "int"}],
+    "returns": "ints",
+    "unordered": true,
+    "cases": [{"input": [[2, 7, 11, 15], 9], "expected": [0, 1]}, {"input": [[3, 2, 4], 6], "expected": [1, 2]}, {"input": [[3, 3], 6], "expected": [0, 1]}],
+    "explanation": "# 做法讲解：哈希表\n\n## 思路\n\n遍历数组时，记录已经看过的数字及其下标。对当前数字 `x`，查找之前是否出现过 `target - x`。\n\n## 为什么先查找再记录？\n\n先查找保证不会把当前元素使用两次。对于 `[3, 3]`，第二个 3 可以找到第一个 3。\n\n## 步骤\n\n1. 创建 `map[int]int`。\n2. 遍历数组，查找所需的另一个数。\n3. 找到则返回两个下标，否则记录当前数字。\n\n## 复杂度\n\n- 时间：O(n)。\n- 空间：O(n)。\n\n## 易错点\n\nGo 的 map 查找要使用 `index, ok := seen[value]`；不能根据下标是否为 0 判断存在性。"
+  },
+  {
+    "id": 20, "slug": "valid-parentheses", "title": "有效的括号", "difficulty": "简单", "tags": ["字符串", "栈"],
+    "description": "# 20. 有效的括号\n\n字符串只包含 `()[]{}`。判断每个右括号能否与正确类型的左括号按顺序配对。\n\n## 示例\n\n| 输入 | 输出 |\n| --- | --- |\n| `()[]{}` | true |\n| `(]` | false |\n| `([)]` | false |\n\n## 约束\n\n`1 <= s.length <= 10⁴`。",
+    "starter": "package solution\n\nfunc isValid(s string) bool {\n\treturn false\n}\n", "function": "isValid", "parameters": [{"name": "s", "kind": "string"}], "returns": "bool",
+    "cases": [{"input": ["()[]{}"], "expected": true}, {"input": ["(]"], "expected": false}, {"input": ["([)]"], "expected": false}, {"input": ["{[]}"], "expected": true}],
+    "explanation": "# 做法讲解：栈\n\n左括号入栈；右括号到来时，与栈顶检查配对。\n\n遇到右括号且栈为空，或者配对失败，就返回 false。遍历结束时栈必须为空。\n\n## Go 提示\n\n这里只包含 ASCII 字符，可以使用 `[]byte` 作为栈。\n\n## 复杂度\n\n时间 O(n)，空间 O(n)。"
+  },
+  {
+    "id": 206, "slug": "reverse-linked-list", "title": "反转链表", "difficulty": "简单", "tags": ["链表", "双指针"],
+    "description": "# 206. 反转链表\n\n给定单链表头节点 `head`，反转链表并返回新的头节点。\n\n```go\ntype ListNode struct {\n    Val int\n    Next *ListNode\n}\n```\n\n辅助类型已经在后台工作区定义，可以直接使用。\n\n## 示例\n\n输入 `[1,2,3,4,5]`，输出 `[5,4,3,2,1]`。\n\n## 边界\n\n空链表、单节点链表。测试用例中的链表采用数组形式。",
+    "starter": "package solution\n\nfunc reverseList(head *ListNode) *ListNode {\n\treturn head\n}\n", "function": "reverseList", "parameters": [{"name": "head", "kind": "list"}], "returns": "list",
+    "cases": [{"input": [[1,2,3,4,5]], "expected": [5,4,3,2,1]}, {"input": [[]], "expected": []}, {"input": [[1]], "expected": [1]}],
+    "explanation": "# 做法讲解：迭代反转\n\n维护 `prev` 和 `curr` 两个指针。每次先保存 `curr.Next`，再把当前节点指向 `prev`，最后移动两个指针。\n\n## 易错点\n\n必须先保存后继节点，否则修改 Next 后会丢失剩余链表。\n\n## 复杂度\n\n时间 O(n)，额外空间 O(1)。"
+  },
+  {
+    "id": 104, "slug": "maximum-depth-of-binary-tree", "title": "二叉树的最大深度", "difficulty": "简单", "tags": ["二叉树", "递归", "深度优先搜索"],
+    "description": "# 104. 二叉树的最大深度\n\n最大深度是根节点到最远叶子节点的路径上的节点数。\n\n```go\ntype TreeNode struct {\n    Val int\n    Left *TreeNode\n    Right *TreeNode\n}\n```\n\n## 示例\n\n层序输入 `[3,9,20,null,null,15,7]`，深度是 `3`。\n\n空树的深度是 0。测试用例采用层序数组，`null` 表示缺失节点。",
+    "starter": "package solution\n\nfunc maxDepth(root *TreeNode) int {\n\treturn 0\n}\n", "function": "maxDepth", "parameters": [{"name": "root", "kind": "tree"}], "returns": "int",
+    "cases": [{"input": [[3,9,20,null,null,15,7]], "expected": 3}, {"input": [[]], "expected": 0}, {"input": [[1,null,2]], "expected": 2}],
+    "explanation": "# 做法讲解：递归\n\n空节点返回 0。非空节点的深度等于左右子树深度的较大值加 1。\n\n## 复杂度\n\n时间 O(n)。递归栈空间 O(h)，h 为树高。"
+  },
+  {
+    "id": 704, "slug": "binary-search", "title": "二分查找", "difficulty": "简单", "tags": ["数组", "二分查找"],
+    "description": "# 704. 二分查找\n\n给定升序整数数组 `nums` 和 `target`，找到目标时返回下标，否则返回 -1。\n\n## 示例\n\n`nums = [-1,0,3,5,9,12]`，`target = 9`，返回 `4`。\n\n要求时间复杂度 O(log n)。",
+    "starter": "package solution\n\nfunc search(nums []int, target int) int {\n\treturn -1\n}\n", "function": "search", "parameters": [{"name": "nums", "kind": "ints"}, {"name": "target", "kind": "int"}], "returns": "int",
+    "cases": [{"input": [[-1,0,3,5,9,12], 9], "expected": 4}, {"input": [[-1,0,3,5,9,12], 2], "expected": -1}, {"input": [[5], 5], "expected": 0}],
+    "explanation": "# 做法讲解：闭区间二分\n\n使用 `[left, right]` 搜索区间。循环条件为 `left <= right`。\n\n中点偏小则令 `left = mid + 1`；中点偏大则令 `right = mid - 1`。\n\n## 易错点\n\n区间定义、循环条件和边界更新必须保持一致。\n\n时间 O(log n)，空间 O(1)。"
+  },
+  {
+    "id": 53, "slug": "maximum-subarray", "title": "最大子数组和", "difficulty": "中等", "tags": ["数组", "动态规划"],
+    "description": "# 53. 最大子数组和\n\n找出一个非空连续子数组，使元素和最大，返回这个最大和。\n\n## 示例\n\n`[-2,1,-3,4,-1,2,1,-5,4]` 的答案是 `6`，对应 `[4,-1,2,1]`。\n\n## 边界\n\n数组可能全部是负数，不能把答案初始化为 0。",
+    "starter": "package solution\n\nfunc maxSubArray(nums []int) int {\n\treturn 0\n}\n", "function": "maxSubArray", "parameters": [{"name": "nums", "kind": "ints"}], "returns": "int",
+    "cases": [{"input": [[-2,1,-3,4,-1,2,1,-5,4]], "expected": 6}, {"input": [[1]], "expected": 1}, {"input": [[-3,-1,-2]], "expected": -1}],
+    "explanation": "# 做法讲解：动态规划\n\n用 `ending` 表示以当前元素结尾的最大连续子数组和。对于 `x`，要么单独开始，要么接在之前的子数组后面：\n\n```text\nending = max(x, ending + x)\nbest = max(best, ending)\n```\n\n用第一个元素初始化 ending 和 best，正确处理全负数输入。\n\n时间 O(n)，空间 O(1)。"
+  }
+]

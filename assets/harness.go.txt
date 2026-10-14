@@ -1,0 +1,106 @@
+package solution
+
+import (
+    "encoding/json"
+    "fmt"
+    "sort"
+    "testing"
+)
+
+func TestLeetdesk(t *testing.T) {
+    var cases []struct { Input []json.RawMessage `json:"input"`; Expected json.RawMessage `json:"expected"` }
+    if err := json.Unmarshal([]byte({{CASES}}), &cases); err != nil { t.Fatal(err) }
+    for i, tc := range cases {
+        t.Run(fmt.Sprintf("case_%d", i+1), func(t *testing.T) {
+            record := map[string]any{"index":i, "input":tc.Input, "expected":tc.Expected, "actual":nil, "passed":false, "error":""}
+            defer func() {
+                if recovered := recover(); recovered != nil { record["error"] = fmt.Sprint(recovered); t.Fail() }
+                bytes, err := json.Marshal(record)
+                if err != nil { t.Fatal(err) }
+                fmt.Printf("LEETDESK_CASE:%s\n", bytes)
+            }()
+            {{DECODE}}
+            actual := {{CALL}}
+            record["actual"] = actual
+            actualJSON, err := json.Marshal(actual)
+            if err != nil { panic(err) }
+            passed := leetdeskCanonical(actualJSON, {{UNORDERED}}) == leetdeskCanonical(tc.Expected, {{UNORDERED}})
+            record["passed"] = passed
+            if !passed { t.Fail() }
+        })
+    }
+}
+
+func leetdeskCanonical(raw []byte, unordered bool) string {
+    var value any
+    if err := json.Unmarshal(raw, &value); err != nil { panic(err) }
+    if unordered {
+        if list, ok := value.([]any); ok {
+            sort.Slice(list, func(i, j int) bool { a,_ := json.Marshal(list[i]); b,_ := json.Marshal(list[j]); return string(a) < string(b) })
+        }
+    }
+    result, err := json.Marshal(value)
+    if err != nil { panic(err) }
+    return string(result)
+}
+
+func leetdeskList(values []int) *ListNode {
+    dummy := &ListNode{}
+    tail := dummy
+    for _, value := range values { tail.Next = &ListNode{Val:value}; tail = tail.Next }
+    return dummy.Next
+}
+
+func leetdeskListValues(head *ListNode) []int {
+    result := []int{}
+    seen := map[*ListNode]bool{}
+    for head != nil {
+        if seen[head] { panic("返回的链表存在环") }
+        if len(result) >= 100000 { panic("返回的链表过长") }
+        seen[head] = true
+        result = append(result, head.Val)
+        head = head.Next
+    }
+    return result
+}
+
+func leetdeskTree(values []*int) *TreeNode {
+    if len(values) == 0 { return nil }
+    if values[0] == nil {
+        if len(values) > 1 { panic("空根节点之后不能有其他节点") }
+        return nil
+    }
+    root := &TreeNode{Val:*values[0]}
+    queue := []*TreeNode{root}
+    index := 1
+    for len(queue) > 0 && index < len(values) {
+        node := queue[0]; queue = queue[1:]
+        if values[index] != nil { node.Left = &TreeNode{Val:*values[index]}; queue = append(queue, node.Left) }
+        index++
+        if index < len(values) {
+            if values[index] != nil { node.Right = &TreeNode{Val:*values[index]}; queue = append(queue, node.Right) }
+            index++
+        }
+    }
+    if index < len(values) { panic("层序数组包含无法连接到树的节点") }
+    return root
+}
+
+func leetdeskTreeValues(root *TreeNode) []*int {
+    result := []*int{}
+    if root == nil { return result }
+    queue := []*TreeNode{root}
+    seen := map[*TreeNode]bool{}
+    for len(queue) > 0 {
+        node := queue[0]; queue = queue[1:]
+        if node == nil { result = append(result, nil); continue }
+        if seen[node] { panic("返回的二叉树存在环或共享节点") }
+        if len(result) >= 100000 { panic("返回的二叉树过大") }
+        seen[node] = true
+        value := node.Val
+        result = append(result, &value)
+        queue = append(queue, node.Left, node.Right)
+    }
+    for len(result) > 0 && result[len(result)-1] == nil { result = result[:len(result)-1] }
+    return result
+}
