@@ -6,7 +6,7 @@ use gpui_kit::component::{
 };
 use gpui_kit::{
     Bounds, Entity, FontWeight, MouseButton, Subscription, Task, Window, WindowBounds,
-    WindowOptions, div, prelude::*, px, rgb, size,
+    WindowControlArea, WindowOptions, div, prelude::*, px, rgb, size,
 };
 use gpui_wry::WebView;
 use leetdesk::{
@@ -1027,26 +1027,36 @@ impl Render for AccountShell {
             .border_color(rgb(0x292929))
             .child(
                 div()
-                    .text_color(rgb(0x79e6bd))
-                    .font_weight(FontWeight::BOLD)
+                    .flex_1()
+                    .h_full()
+                    .flex()
+                    .items_center()
+                    .gap_3()
+                    .window_control_area(WindowControlArea::Drag)
                     .on_mouse_down(MouseButton::Left, |_, window, _| window.start_window_move())
-                    .child("LeetDesk"),
-            )
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(rgb(0xa9b0bb))
-                    .child(format!("{} · {account}", self.site.label())),
+                    .child(
+                        div()
+                            .text_color(rgb(0x79e6bd))
+                            .font_weight(FontWeight::BOLD)
+                            .child("LeetDesk"),
+                    )
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(rgb(0xa9b0bb))
+                            .child(format!("{} · {account}", self.site.label())),
+                    )
+                    .when(editing, |header| {
+                        header.child(
+                            div()
+                                .text_xs()
+                                .text_color(rgb(0x79e6bd))
+                                .child(format!("已通过 {} / {}", self.solved, self.catalogue_total)),
+                        )
+                    }),
             );
         if editing {
             header = header
-                .child(
-                    div()
-                        .text_xs()
-                        .text_color(rgb(0x79e6bd))
-                        .child(format!("已通过 {} / {}", self.solved, self.catalogue_total)),
-                )
-                .child(div().flex_1().h_full().on_mouse_down(MouseButton::Left, |_, window, _| window.start_window_move()))
                 .child(
                     Button::new("sync-account")
                         .label(if self.phase == Phase::Syncing {

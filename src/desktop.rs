@@ -13,7 +13,7 @@ use gpui_kit::component::{
 use gpui_kit::{
     AnyWindowHandle, App, Bounds, ClickEvent, ClipboardItem, Entity, Focusable, FontWeight,
     KeyBinding, MouseButton, PathPromptOptions, Subscription, Task, Window, WindowBounds,
-    WindowOptions, div, prelude::*, px, rgb, size,
+    WindowControlArea, WindowOptions, div, prelude::*, px, rgb, size,
 };
 use gpui_kit::{EventEmitter, uniform_list};
 use leetdesk::online;
@@ -1099,41 +1099,7 @@ impl Workspace {
     }
 
     fn format(&mut self, _: &Format, window: &mut Window, cx: &mut Context<Self>) {
-        let source = self.editor.read(cx).value().to_string();
-        let id = self.problem().id;
-        let generation = self.edit_generation;
-        let task = cx.background_executor().spawn(async move {
-            runner::format_go(&source).map(|text| {
-                let edits = leetdesk::editing::diff(&source, &text);
-                (text, edits)
-            })
-        });
-        cx.spawn_in(window, async move |this, cx| {
-            let result = task.await;
-            _ = this.update_in(cx, |this, window, cx| {
-                if this.problem().id != id || this.edit_generation != generation {
-                    this.notice = "代码已发生变化，请再次格式化".into();
-                    cx.notify();
-                    return;
-                }
-                match result {
-                    Ok((_, edits)) => {
-                        if !this.editor.update(cx, |state, cx| {
-                            state.apply_programmatic_edits(&edits, window, cx)
-                        }) {
-                            this.notice = "正在输入，请输入完成后再格式化".into();
-                            cx.notify();
-                            return;
-                        }
-                        this.changed(cx);
-                        this.notice = "已使用 gofmt 格式化 · 可撤销".into();
-                    }
-                    Err(error) => this.notice = format!("格式化失败：{error}"),
-                }
-                cx.notify();
-            });
-        })
-        .detach();
+        self.format_on_save(window, cx);
     }
 
     fn organize_imports(
@@ -1356,14 +1322,6 @@ impl Workspace {
         }
         let id = self.problem().id;
         let source = self.editor.read(cx).value().to_string();
-        if self
-            .problem()
-            .online
-            .as_ref()
-            .is_some_and(|m| !m.loaded || !m.go_supported)
-        {
-            return;
-        }
         let revision = self.editor.read(cx).document_revision();
         self.notice = "已保存，正在运行 gofmt…".into();
         let input = source.clone();
@@ -1400,6 +1358,7 @@ impl Workspace {
                             this.changed(cx);
                         }
                         this.notice = match this.save(cx) {
+                            Ok(()) if text == source => "已保存 · 代码已符合 gofmt 格式".into(),
                             Ok(()) => "已保存并使用 gofmt 格式化 · 可撤销".into(),
                             Err(error) => format!("格式化完成，保存失败：{error}"),
                         };
@@ -2488,13 +2447,17 @@ impl Render for Workspace {
                     )
                     .child(
                         div()
-                            .text_sm()
-                            .font_weight(FontWeight::SEMIBOLD)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .window_control_area(WindowControlArea::Drag)
                             .on_mouse_down(MouseButton::Left, |_, window, _| window.start_window_move())
-                            .child(title),
+                            .child(div().text_sm().font_weight(FontWeight::SEMIBOLD).child(title))
+                            .child(div().text_xs().text_color(rgb(ACCENT)).child(platform)),
                     )
-                    .child(div().text_xs().text_color(rgb(ACCENT)).child(platform))
-                    .child(div().flex_1().h_full().on_mouse_down(MouseButton::Left, |_, window, _| window.start_window_move()))
                     .child(
                         Button::new("import-md")
                             .label("导入 MD")
@@ -4027,6 +3990,30 @@ mod ui_tests {
                 view.read(cx).editor.read(cx).value().contains("return 1\t"),
                 "无补全菜单时 Tab 仍应缩进"
             );
+        })
+        .unwrap();
+    }
+
+    #[gpui_kit::test]
+    fn format_button_formats_and_saves_without_editor_focus(cx: &mut TestAppContext) {
+        let (handle, view, _temp) = practice_window(cx);
+        let draft = "package solution\nfunc answer( )int{return 1}";
+        let formatted = "package solution\n\nfunc answer() int { return 1 }\n";
+        cx.update_window(handle, |_, window, cx| {
+            view.read(cx)
+                .editor
+                .clone()
+                .update(cx, |state, cx| state.set_value(draft, window, cx));
+            window.render_frame(cx);
+            window.click("format", cx);
+        })
+        .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle, |_, _, cx| {
+            let workspace = view.read(cx);
+            assert_eq!(workspace.editor.read(cx).value().as_ref(), formatted);
+            assert_eq!(workspace.store.source(workspace.problem().id).unwrap(), formatted);
+            assert!(workspace.notice.contains("gofmt"));
         })
         .unwrap();
     }

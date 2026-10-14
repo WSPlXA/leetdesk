@@ -19,7 +19,7 @@
 | 真实 Go / gopls 集成测试 | 3 / 3 通过 |
 | 真实浏览器请求脚本的 Node.js 模拟测试 | 1 / 1 通过，覆盖 7 种响应，不访问真实账号 |
 | `cargo build --profile desktop --locked` | 通过 |
-| Release 构建 | 新版已完成链接；旧 `target/release/leetdesk.exe` 正在运行而不能覆盖，新版另存为 `target/release/leetdesk-new.exe` 并通过原生启动检查 |
+| `cargo +stable-x86_64-pc-windows-msvc build --release --locked` | 通过；用户关闭旧窗口后覆盖标准 release 可执行文件，原生启动检查通过 |
 | 无原生标题栏窗口的隐藏启动 | 通过，`titlebar: None`；未完成可见窗口逐像素检查 |
 | WebView2 原生授权弹窗打开、关闭 | 通过 |
 | LeetCode 中国站完整题库分页 | 4,470 / 4,470 道题已实际下载验证 |
@@ -79,7 +79,7 @@ Markdown 笔记检查实际粘贴标题、粗体、列表和 Go 代码块，点�
 
 判题 ID 校验修复：使用公开接口样例 `runcode_1627219627.5662382_EI7iasnhLm`，验证带小数点的测试 ID 可以直接进入 GET 轮询，待处理及完成响应不会重发 POST。仍拒绝路径分隔符、查询串、编码转义和单独的 `.`/`..`。无任务 ID 时显示平台提供的错误原因或缺少的字段，测试失败不再显示无关的提交记录提示。实际执行生成的 WebView JavaScript，模拟正常响应、401、403 验证页面、403 CSRF 错误、429、502 和 HTTP 200 登录 HTML，验证 HTTP 状态及说明得到保留；会话 Cookie 不传给 Rust。此项使用模拟 Fetch API，尚未在私人账号再次运行真实测试。
 
-本次性能、题面显示与复制崩溃修复已重新构建 `target/desktop/leetdesk.exe` 和 `target/release/leetdesk.exe`，两者原生启动检查通过。desktop 在隔离目录打开实际缓存的第 24 题并连接 gopls；release 在另一隔离目录打开 6 道内置题，Go 语法与语言服务均就绪。此前 release 被旧进程占用而无法覆盖的状态已解除。
+本次黑色主题、窗口标题栏和模板补全更新已重新构建 `target/desktop/leetdesk.exe` 和 `target/release/leetdesk.exe`，两者用独立数据目录完成原生启动检查，Go 语法与语言服务均就绪。构建期间旧 release 进程曾占用文件；用户关闭后标准 release 文件已成功更新。
 
 语言服务集成检查启动真实 gopls，验证错误诊断产生及清除、ListNode/TreeNode 识别、Next 字段与 fmt.Println 补全、悬浮说明、定义跳转和缺失 import 整理。
 
