@@ -81,6 +81,12 @@ Markdown 笔记检查实际粘贴标题、粗体、列表和 Go 代码块，点�
 
 本次黑色主题、窗口标题栏和模板补全更新已重新构建 `target/desktop/leetdesk.exe` 和 `target/release/leetdesk.exe`，两者用独立数据目录完成原生启动检查，Go 语法与语言服务均就绪。构建期间旧 release 进程曾占用文件；用户关闭后标准 release 文件已成功更新。
 
+格式化与顶部拖动修复：格式化按钮现在与 Ctrl+S 共用“先保存草稿、后台 gofmt、写回结果”的路径，已符合格式的代码会明确提示，在线题详情未加载时也不再静默跳过。新增 GPUI 窗口测试，实际点击格式化按钮验证编辑器与磁盘内容一致；原有格式化、撤销和无效草稿测试继续通过。Windows 顶部账号栏与题目面包屑使用系统拖动命中区域；隔离启动新版 release 后，以原生 `WM_NCHITTEST` 验证面包屑与空白区域返回 `HTCAPTION`（2），右侧按钮返回普通命中（0）。新版 release 隐藏启动检查通过。
+
+底部工作区美化：测试输入区、运行结果、代码问题改为统一的黑色卡片和高对比度状态色；本地运行结果按用例分组，错误、警告和提示分别标识。新增 GPUI 窗口测试，依次点击三个标签并渲染包含通过/失败用例及诊断的位置。29 项桌面测试和 `clippy --all-targets -- -D warnings` 通过；最终 release 和 desktop 可执行文件均已重建，release 隐藏启动及 Windows 标题拖动命中复查通过。`start.ps1` 使用 Windows MSVC 工具链构建并打开交互窗口。
+
+Windows 控制台窗口修复：主程序启用 GUI 子系统；PE 可执行文件头从 Console（3）变为 Windows GUI（2），`--help` 在终端调用时仍可输出。Go、gopls 和 gofmt 子进程原有 `CREATE_NO_WINDOW` 设置保持。29 项桌面测试、严格 Clippy 通过；对最终 release 使用隐藏原生启动与重定向输出，确认退出码 0、窗口和 Go 语言服务就绪。
+
 语言服务集成检查启动真实 gopls，验证错误诊断产生及清除、ListNode/TreeNode 识别、Next 字段与 fmt.Println 补全、悬浮说明、定义跳转和缺失 import 整理。
 
 运行器集成检查真正编译并执行 6 道题目，覆盖数组、字符串、链表、二叉树、无序结果比较、错误答案、编译错误、panic 及无限循环超时。

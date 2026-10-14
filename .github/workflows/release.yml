@@ -1,0 +1,111 @@
+name: Build and release
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.artifact }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            target: x86_64-pc-windows-msvc
+            artifact: leetdesk-windows-x86_64
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            artifact: leetdesk-macos-x86_64
+          - os: macos-15
+            target: aarch64-apple-darwin
+            artifact: leetdesk-macos-aarch64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check release version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)
+          test "$GITHUB_REF_NAME" = "v$version"
+
+      - name: Install Rust toolchain
+        shell: bash
+        run: rustup toolchain install stable-${{ matrix.target }} --profile minimal
+
+      - name: Install Go for Windows tests
+        if: runner.os == 'Windows'
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache: false
+
+      - name: Install gopls for Windows tests
+        if: runner.os == 'Windows'
+        shell: bash
+        run: go install golang.org/x/tools/gopls@latest
+
+      - name: Build
+        shell: bash
+        run: cargo +stable-${{ matrix.target }} build --release --locked --target ${{ matrix.target }}
+
+      - name: Test Windows desktop
+        if: runner.os == 'Windows'
+        shell: bash
+        run: cargo +stable-${{ matrix.target }} test --locked --bin leetdesk --target ${{ matrix.target }}
+
+      - name: Package Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path package -Force | Out-Null
+          Copy-Item target/${{ matrix.target }}/release/leetdesk.exe package/leetdesk.exe
+          Copy-Item README.md, LICENSE package/
+          Compress-Archive -Path package/* -DestinationPath '${{ matrix.artifact }}.zip'
+
+      - name: Package macOS
+        if: runner.os == 'macOS'
+        shell: bash
+        run: bash scripts/package-macos.sh target/${{ matrix.target }}/release/leetdesk '${{ matrix.artifact }}.zip'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.zip
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Create or update release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          files=(dist/*.zip)
+          test "${#files[@]}" -eq 3
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "${files[@]}" --repo "$GITHUB_REPOSITORY" --title "LeetDesk $GITHUB_REF_NAME" --generate-notes --verify-tag
+          fi

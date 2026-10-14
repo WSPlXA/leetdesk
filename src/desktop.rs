@@ -2239,29 +2239,121 @@ impl Workspace {
                 .size_full()
                 .flex()
                 .flex_col()
-                .child(div().px_3().py_1().text_xs().text_color(rgb(MUTED)).child(
-                    if self.problem().online.is_some() {
-                        "官方测试输入 · 每个参数占一行，可编辑后在线运行"
-                    } else {
-                        "input 按函数参数顺序填写 · 链表用数组 · 树用层序数组/null"
-                    },
-                ))
                 .child(
-                    Editor::new(&self.cases_editor)
-                        .size_full()
-                        .font_family(CODE_FONT)
-                        .text_size(px(13.)),
+                    div()
+                        .px_4()
+                        .py_2()
+                        .border_b_1()
+                        .border_color(rgb(LINE))
+                        .flex()
+                        .items_center()
+                        .gap_3()
+                        .child(div().text_xs().font_weight(FontWeight::SEMIBOLD).text_color(rgb(ACCENT)).child(
+                            if self.problem().online.is_some() { "在线测试输入" } else { "本地测试数据" },
+                        ))
+                        .child(div().text_xs().text_color(rgb(MUTED)).child(
+                            if self.problem().online.is_some() {
+                                "每个参数占一行 · 修改后点击上方测试"
+                            } else {
+                                "按参数顺序填写 JSON · 链表和树使用数组"
+                            },
+                        )),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .min_h_0()
+                        .m_3()
+                        .rounded_md()
+                        .border_1()
+                        .border_color(rgb(LINE))
+                        .bg(rgb(BG))
+                        .child(
+                            Editor::new(&self.cases_editor)
+                                .size_full()
+                                .font_family(CODE_FONT)
+                                .text_size(px(13.)),
+                        ),
                 )
                 .into_any_element(),
-            BottomTab::Results => div()
-                .id("results-scroll")
-                .size_full()
-                .overflow_y_scroll()
-                .p_4()
-                .font_family(CODE_FONT)
-                .text_sm()
-                .child(self.output.clone())
-                .into_any_element(),
+            BottomTab::Results => {
+                let output = self.output.trim();
+                let heading = output.lines().next().unwrap_or("尚无运行结果");
+                let failed = output.contains("失败")
+                    || output.contains("错误")
+                    || output.contains("✗")
+                    || output.contains("Wrong Answer")
+                    || output.contains("Runtime Error")
+                    || output.contains("Compile Error")
+                    || output.contains("Time Limit Exceeded");
+                let passed = !failed && (output.contains("通过") || output.contains("Accepted"));
+                let tone = if failed { 0xff928c } else if passed { ACCENT } else { MUTED };
+                let detail = output.split_once('\n').map_or("", |(_, detail)| detail).replace("\r\n", "\n");
+                div()
+                    .id("results-scroll")
+                    .size_full()
+                    .overflow_y_scroll()
+                    .p_3()
+                    .flex()
+                    .flex_col()
+                    .gap_2()
+                    .font_family(CODE_FONT)
+                    .child(
+                        div()
+                            .px_3()
+                            .py_2()
+                            .rounded_md()
+                            .bg(rgb(if failed { 0x231313 } else if passed { 0x102018 } else { CODE_BG }))
+                            .border_l_2()
+                            .border_color(rgb(tone))
+                            .text_sm()
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(rgb(tone))
+                            .child(heading.to_string()),
+                    )
+                    .when(output.is_empty(), |panel| {
+                        panel.child(div().px_3().text_xs().text_color(rgb(MUTED)).child("运行代码后，这里会显示每个用例的输入、预期和实际结果。"))
+                    })
+                    .children(detail.split("\n\n").filter(|section| !section.trim().is_empty()).map(|section| {
+                        let case_ok = section.trim_start().starts_with('✓');
+                        let case_failed = section.trim_start().starts_with('✗');
+                        div()
+                            .p_3()
+                            .rounded_md()
+                            .border_1()
+                            .border_color(rgb(if case_ok { 0x285440 } else if case_failed { 0x61332f } else { LINE }))
+                            .bg(rgb(CODE_BG))
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .children(section.lines().filter(|line| !line.trim().is_empty()).map(|line| {
+                                let line = line.trim();
+                                if line.starts_with('✓') || line.starts_with('✗') {
+                                    let ok = line.starts_with('✓');
+                                    div()
+                                        .text_sm()
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .text_color(rgb(if ok { ACCENT } else { 0xff928c }))
+                                        .child(line.to_string())
+                                        .into_any_element()
+                                } else if let Some((label, value)) = line.split_once('：') {
+                                    let is_error = label.contains("错误") || label.contains("失败");
+                                    div()
+                                        .flex()
+                                        .items_start()
+                                        .gap_3()
+                                        .text_xs()
+                                        .child(div().w(px(64.)).flex_shrink_0().text_color(rgb(MUTED)).child(label.to_string()))
+                                        .child(div().flex_1().min_w_0().text_color(rgb(if is_error { 0xff928c } else { INK })).child(value.trim().to_string()))
+                                        .into_any_element()
+                                } else {
+                                    div().text_xs().text_color(rgb(INK)).child(line.to_string()).into_any_element()
+                                }
+                            }))
+                            .into_any_element()
+                    }))
+                    .into_any_element()
+            },
             BottomTab::Diagnostics => div()
                 .id("diagnostics-scroll")
                 .size_full()
@@ -2271,13 +2363,23 @@ impl Workspace {
                 .flex_col()
                 .gap_2()
                 .when(self.diagnostics.is_empty(), |el| {
-                    el.child(div().text_sm().text_color(rgb(MUTED)).child(
-                        if self.language.is_some() {
-                            "当前没有代码问题（等待实时检查时列表会暂时清空）"
-                        } else {
-                            "语言服务尚未连接，暂时无法检查代码"
-                        },
-                    ))
+                    el.child(
+                        div()
+                            .p_4()
+                            .rounded_md()
+                            .border_1()
+                            .border_color(rgb(LINE))
+                            .bg(rgb(CODE_BG))
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .child(div().text_sm().font_weight(FontWeight::SEMIBOLD).text_color(rgb(if self.language.is_some() { ACCENT } else { MUTED })).child(
+                                if self.language.is_some() { "✓ 暂无代码问题" } else { "等待 Go 语言服务" },
+                            ))
+                            .child(div().text_xs().text_color(rgb(MUTED)).child(
+                                if self.language.is_some() { "继续编写代码，检查结果会实时更新。" } else { "连接后会在这里显示错误和警告。" },
+                            )),
+                    )
                 })
                 .children(
                     self.diagnostics
@@ -2285,10 +2387,18 @@ impl Workspace {
                         .enumerate()
                         .map(|(index, diagnostic)| {
                             let position = diagnostic.range.start;
+                            let (kind, color) = match diagnostic.severity {
+                                Some(lsp_types::DiagnosticSeverity::ERROR) => ("错误", 0xff928c),
+                                Some(lsp_types::DiagnosticSeverity::WARNING) => ("警告", 0xffcf79),
+                                _ => ("提示", 0x89baff),
+                            };
                             div()
                                 .id(("diagnostic", index))
-                                .p_2()
+                                .p_3()
                                 .rounded_md()
+                                .bg(rgb(CODE_BG))
+                                .border_l_2()
+                                .border_color(rgb(color))
                                 .cursor_pointer()
                                 .hover(|el| el.bg(rgb(LINE)))
                                 .on_click(cx.listener(move |this, _, window, cx| {
@@ -2298,12 +2408,16 @@ impl Workspace {
                                     });
                                     cx.notify();
                                 }))
-                                .child(div().text_xs().text_color(rgb(0xf0a18e)).child(format!(
-                                    "{}:{}  {}",
-                                    position.line + 1,
-                                    position.character + 1,
-                                    diagnostic.message
-                                )))
+                                .child(
+                                    div()
+                                        .flex()
+                                        .items_center()
+                                        .gap_3()
+                                        .text_xs()
+                                        .child(div().font_weight(FontWeight::SEMIBOLD).text_color(rgb(color)).child(kind))
+                                        .child(div().text_color(rgb(MUTED)).child(format!("{}:{}", position.line + 1, position.character + 1))),
+                                )
+                                .child(div().mt_1().text_sm().text_color(rgb(INK)).child(diagnostic.message.clone()))
                         }),
                 )
                 .into_any_element(),
@@ -2328,17 +2442,25 @@ impl Workspace {
                         } else {
                             label.into()
                         };
-                        Button::new(("bottom-tab", index))
-                            .label(label)
-                            .small()
-                            .ghost()
-                            .when(self.bottom_tab == tab, |button| {
-                                button.text_color(rgb(ACCENT))
-                            })
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                this.bottom_tab = tab;
-                                cx.notify();
-                            }))
+                        div()
+                            .h_full()
+                            .flex()
+                            .items_center()
+                            .border_b_2()
+                            .border_color(rgb(if self.bottom_tab == tab { ACCENT } else { PANEL }))
+                            .child(
+                                Button::new(("bottom-tab", index))
+                                    .label(label)
+                                    .small()
+                                    .ghost()
+                                    .when(self.bottom_tab == tab, |button| {
+                                        button.text_color(rgb(ACCENT))
+                                    })
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.bottom_tab = tab;
+                                        cx.notify();
+                                    })),
+                            )
                     })),
             )
             .child(div().flex_1().min_h_0().child(content))
@@ -3990,6 +4112,28 @@ mod ui_tests {
                 view.read(cx).editor.read(cx).value().contains("return 1\t"),
                 "无补全菜单时 Tab 仍应缩进"
             );
+        })
+        .unwrap();
+    }
+
+    #[gpui_kit::test]
+    fn bottom_tabs_render_cases_results_and_diagnostics(cx: &mut TestAppContext) {
+        let (handle, view, _temp) = practice_window(cx);
+        cx.update_window(handle, |_, window, cx| {
+            view.update(cx, |workspace, cx| {
+                workspace.output = "本地用例：1/2 通过\n\n✓ 用例 1\n输入：[1]\n预期：1\n实际：1\n\n✗ 用例 2\n输入：[2]\n预期：2\n实际：3\n错误：答案不匹配".into();
+                workspace.diagnostics = vec![serde_json::from_value(json!({
+                    "range": {"start": {"line": 1, "character": 2}, "end": {"line": 1, "character": 5}},
+                    "message": "undefined: value", "severity": 1
+                })).unwrap()];
+                cx.notify();
+            });
+            for index in [1usize, 2, 0] {
+                window.render_frame(cx);
+                window.click(("bottom-tab", index), cx);
+                window.render_frame(cx);
+            }
+            assert!(view.read(cx).bottom_tab == BottomTab::Cases);
         })
         .unwrap();
     }

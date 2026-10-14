@@ -2,6 +2,12 @@
 
 使用 **Rust + GPUI** 构建的原生 LeetCode 练习工作区，第一版专注 **Go**。
 
+## 下载发布版
+
+在 [GitHub Releases](https://github.com/WSPlXA/leetdesk/releases) 下载对应系统的压缩包：Windows x64 使用 `leetdesk-windows-x86_64.zip`，Apple Silicon 使用 `leetdesk-macos-aarch64.zip`，Intel Mac 使用 `leetdesk-macos-x86_64.zip`。解压后运行 `leetdesk.exe` 或 `LeetDesk.app`。运行代码与语法检查仍需要本机安装 Go 和 gopls；Windows 登录还需要 WebView2 Runtime。macOS 发布包目前为临时签名，未做 Apple 公证，首次打开可能需要在系统安全设置中允许。
+
+推送 `v*` 标签会触发 GitHub Actions 在 Windows、Intel Mac 和 Apple Silicon runner 上分别构建；三个构建都成功后才创建 Release 并上传三个压缩包。推送 `master` 或手动运行工作流只构建并保存 Actions 产物，不发布 Release。
+
 应用把题目描述、Markdown 做法讲解、代码编辑、测试用例和复盘笔记放在同一个可调整的工作区中。
 
 ## 已实现
@@ -55,7 +61,7 @@ cargo +stable-x86_64-pc-windows-msvc run --locked
 
 Go 与 gopls 必须可运行。gopls 默认从 PATH 查找，也会检测 `%USERPROFILE%/go/bin/gopls.exe`。可以设置 `LEETDESK_GOPLS` 指定可执行文件。
 
-默认数据目录是启动目录下的 `data/`。可用 `--data-dir PATH` 或 `LEETDESK_DATA` 指定其他位置。
+Windows 默认数据目录是启动目录下的 `data/`；macOS 默认使用 `~/Library/Application Support/LeetDesk/`。两端都可用 `--data-dir PATH` 或 `LEETDESK_DATA` 指定其他位置。
 
 点击官方登录页的微信按钮会打开授权弹窗；扫码后返回主窗口，程序自动检查登录，也可以点击“我已登录，开始同步”。关闭旧版窗口，再用 `./start.ps1` 启动新版；旧的 `target/release/leetdesk.exe` 不会被此脚本更新。
 

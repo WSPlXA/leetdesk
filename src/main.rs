@@ -1,3 +1,5 @@
+#![cfg_attr(windows, windows_subsystem = "windows")]
+
 extern crate gpui_kit as gpui;
 mod auth;
 mod desktop;
@@ -54,7 +56,7 @@ fn run() -> Result<()> {
     } else if let Some(path) = std::env::var_os("LEETDESK_DATA") {
         PathBuf::from(path)
     } else {
-        std::env::current_dir()?.join("data")
+        default_data_dir()?
     };
     let store = Store::open(root)?;
     if let Some(index) = args.iter().position(|arg| arg == "--import-catalog") {
@@ -76,4 +78,12 @@ fn run() -> Result<()> {
             plan_probe,
         )
     }
+}
+
+fn default_data_dir() -> Result<PathBuf> {
+    #[cfg(target_os = "macos")]
+    if let Some(home) = std::env::var_os("HOME") {
+        return Ok(PathBuf::from(home).join("Library/Application Support/LeetDesk"));
+    }
+    Ok(std::env::current_dir()?.join("data"))
 }
