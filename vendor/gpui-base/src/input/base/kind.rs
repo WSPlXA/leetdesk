@@ -22,6 +22,7 @@
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::ops::Range;
 
 use gpui::{Div, Entity, Stateful, Window};
 use ropey::Rope;
@@ -245,6 +246,14 @@ pub trait InputModeKind: sealed::Sealed + Sized + 'static {
         false
     }
 
+    fn move_snippet_field(
+        _state: &mut InputBaseState<Self>,
+        _backwards: bool,
+        _cx: &mut gpui::Context<InputBaseState<Self>>,
+    ) -> bool {
+        false
+    }
+
     /// Whether an inline completion is waiting to be accepted.
     fn has_inline_completion(_state: &InputBaseState<Self>) -> bool {
         false
@@ -359,6 +368,7 @@ impl InputModeKind for TextareaMode {
 
 /// What a code editor adds on top of multi-line text: language features.
 pub struct EditorExtras {
+    pub(crate) snippet: Option<SnippetSession>,
     pub(crate) inlay_hints: Vec<(usize, gpui::SharedString)>,
     pub(crate) lsp: Lsp,
     pub(crate) decorations: DecorationCollections,
@@ -373,6 +383,7 @@ pub struct EditorExtras {
 impl Default for EditorExtras {
     fn default() -> Self {
         Self {
+            snippet: None,
             inlay_hints: Vec::new(),
             lsp: Lsp::default(),
             decorations: DecorationCollections::default(),
@@ -383,5 +394,26 @@ impl Default for EditorExtras {
             hover_definition: HoverDefinition::default(),
             context_menu_task: Task::ready(Ok(())),
         }
+    }
+}
+
+/// Byte ranges of the editable fields in a locally supplied completion.
+/// Edits inside the current field slide later fields; unrelated edits end it.
+pub(crate) struct SnippetSession {
+    pub(crate) fields: Vec<Range<usize>>,
+    pub(crate) current: usize,
+}
+
+impl SnippetSession {
+    pub(crate) fn adjust_for_edit(&mut self, range: &Range<usize>, new_len: usize) -> bool {
+        let active = &self.fields[self.current];
+        if range.start < active.start || range.end > active.end { return false; }
+        let delta = new_len as isize - range.len() as isize;
+        self.fields[self.current].end = self.fields[self.current].end.saturating_add_signed(delta);
+        for field in self.fields.iter_mut().skip(self.current + 1) {
+            field.start = field.start.saturating_add_signed(delta);
+            field.end = field.end.saturating_add_signed(delta);
+        }
+        true
     }
 }

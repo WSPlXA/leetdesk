@@ -6,17 +6,19 @@
 
 ## 已实现
 
-- 启动先连接 LeetCode 中国站或国际站，在 WebView2 官方页面登录；支持微信授权弹窗，浏览器在本机保留会话。
+- 启动先连接 LeetCode 中国站或国际站，在系统 WebView 官方页面登录；支持微信授权弹窗，浏览器在本机保留会话。Windows 使用 WebView2，macOS 使用 WKWebView。
 - 首次登录分页同步在线题库、官方分类和当前账号的“已通过 / 尝试过 / 未解答”状态；切题加载题面和官方 Go 模板。
 - 后续启动优先使用当前账号的本地缓存，“同步题库”按钮更新题目列表、分类和解题状态，不进行定时同步。下载过的题面与模板也会缓存。
 - 分类导航可收起，题目列表使用虚拟滚动；可按难度和解题状态筛选，支持全屏专注代码布局。
 - 默认显示“题单 / 主题 / 我的标签”导航，支持官方热题 100，以及链表、字符串、双指针、图、树、动态规划等中文主题；题单、主题、完成状态、难度和搜索可以组合筛选。
 - Windows 程序、窗口及任务栏使用 LeetDesk 图标，提供多尺寸 ICO。源图与生成说明见 [assets/icon-design.md](assets/icon-design.md)。
+- 窗口不显示系统标题栏及最小化、最大化按钮；拖动应用顶部的题目名称或空白区域移动窗口，使用顶部“关闭”安全保存并退出。界面为纯黑底，Go 关键字、字符串、数字、类型、函数分别使用高对比度颜色。
 - 题库搜索、分类与进度使用内存缓存，编辑重绘复用筛选结果和题面；未变化的自动保存跳过文件替换及数据库更新。性能基准见 [PERFORMANCE.md](PERFORMANCE.md)。
 - 题面使用明确的暗色文字/代码配色；行内代码背景先于文字绘制，示例保留原有换行。
 - HTML 段落分别缓存布局，跨段拖选、复制及调整面板宽度时保持正确文本；复制校验中文和 emoji 的字节边界。
 - Go 代码编辑：Tree-sitter 高亮、行号、折叠、自动缩进、括号配对、撤销和搜索。
 - 真实 `gopls` 接入：实时诊断、输入自动触发上下文补全、Tab / Enter 接受候选、悬浮类型说明、F12/Ctrl+点击跳转定义。
+- Go 本地模板补全包括 `for`、`forr`、`forc`、`make`、`makemap`、`makechan`、`append`、`if`、`switch`；选择后用 Tab / Shift+Tab 切换填写位置。gopls 启动期间仍可使用本地模板。
 - 变量名后显示暗灰色类型提示（如 `count: int`、`node: *ListNode`），支持短变量声明和 range 变量。提示由 gopls 推导，只参与显示和折行，不进入源码、剪贴板、格式化或提交内容；编辑后重新获取，丢弃过期响应。
 - Tab 由当前编辑器处理：没有候选时插入缩进，选中多行时块缩进；Shift+Tab 反缩进，有补全候选时 Tab 接受候选。
 - Go 硬 Tab 按四列制表位显示，嵌套缩进、类型提示和折行共用源码坐标；文件中仍保留 gofmt 使用的 Tab。
@@ -40,12 +42,13 @@
 
 ## Windows 启动
 
-需要 Rust **MSVC** 工具链、Visual Studio C++ Build Tools、Microsoft Edge WebView2 Runtime、Go（建议 1.22 或更新版本）和 gopls。本项目的 `rust-toolchain.toml` 为当前 Windows 开发环境选择 MSVC 工具链。
+需要 Rust **MSVC** 工具链、Visual Studio C++ Build Tools、Microsoft Edge WebView2 Runtime、Go（建议 1.22 或更新版本）和 gopls。仓库的 `rust-toolchain.toml` 使用跨平台 `stable`；Windows 命令显式选择 MSVC，避免系统默认 GNU 工具链缺少链接器。
 
 ```powershell
 go install golang.org/x/tools/gopls@latest
-cargo run --locked -- --doctor
-cargo run --locked
+rustup toolchain install stable-x86_64-pc-windows-msvc
+cargo +stable-x86_64-pc-windows-msvc run --locked -- --doctor
+cargo +stable-x86_64-pc-windows-msvc run --locked
 ```
 
 也可以执行 `./start.ps1`，构建后启动桌面窗口。此脚本使用 `desktop` 构建配置，程序输出到 `target/desktop/leetdesk.exe`。更新后请先关闭旧窗口，再启动新版，避免两个窗口同时编辑同一数据目录。
@@ -55,6 +58,18 @@ Go 与 gopls 必须可运行。gopls 默认从 PATH 查找，也会检测 `%USER
 默认数据目录是启动目录下的 `data/`。可用 `--data-dir PATH` 或 `LEETDESK_DATA` 指定其他位置。
 
 点击官方登录页的微信按钮会打开授权弹窗；扫码后返回主窗口，程序自动检查登录，也可以点击“我已登录，开始同步”。关闭旧版窗口，再用 `./start.ps1` 启动新版；旧的 `target/release/leetdesk.exe` 不会被此脚本更新。
+
+## macOS 启动
+
+源码和依赖具备 macOS 路径：GPUI 窗口与系统 WKWebView、Go/gopls、路径和字体均按平台处理。需在 Mac 上安装 Xcode Command Line Tools、Rust stable、Go 和 gopls，然后在仓库目录运行：
+
+```sh
+xcode-select --install
+go install golang.org/x/tools/gopls@latest
+sh ./start.sh
+```
+
+`start.sh` 使用 Mac 本机 Rust 工具链构建并运行 `target/release/leetdesk`。Apple Silicon 与 Intel Mac 需分别在各自机器上本机构建；当前 Windows 环境已核对 macOS 依赖解析，但尚无 Mac 机器可验证编译、登录弹窗和窗口交互。窗口顶部题目名称及空白区域可拖动，关闭程序使用系统“退出”菜单或 Cmd+Q。
 
 网络不可用时，登录页的“使用离线缓存”可以打开已同步题库。`--offline` 跳过登录并打开本地数据；新数据目录使用内置题库。缓存中尚未下载的题面需要联网登录后加载。会员题目及部分题目是否有 Go 模板由平台决定。
 
@@ -68,14 +83,14 @@ Go 与 gopls 必须可运行。gopls 默认从 PATH 查找，也会检测 `%USER
 
 | 操作 | 快捷键 |
 | --- | --- |
-| 保存 | Ctrl+S |
+| 保存 | Ctrl+S；Mac 也支持 Cmd+S |
 | 切换自动折行 | Alt+Z |
-| 运行用例 | Ctrl+Enter |
-| 提交解答 | Ctrl+Shift+Enter |
+| 运行用例 | Ctrl+Enter；Mac 也支持 Cmd+Enter |
+| 提交解答 | Ctrl+Shift+Enter；Mac 也支持 Cmd+Shift+Enter |
 | 格式化 | Ctrl+Shift+F |
 | 整理/补充 import | Ctrl+Shift+O |
-| 手动补全 | Ctrl+Space |
-| 接受补全 | Tab / Enter |
+| 手动补全 | Ctrl+Space；Mac 也支持 Cmd+J |
+| 接受补全 / 模板下一处 | Tab / Enter；模板填写处用 Tab / Shift+Tab |
 | 撤销 / 重做 | Ctrl+Z / Ctrl+Shift+Z（也支持 Ctrl+Y） |
 | 跳转定义 | F12 / Ctrl+点击 |
 | 导入讲解 | Ctrl+I |
@@ -83,7 +98,7 @@ Go 与 gopls 必须可运行。gopls 默认从 PATH 查找，也会检测 `%USER
 
 保留 `solution.go` 的 `package solution` 声明。复制解法时会自动移除此声明。辅助节点类型已有定义，无需重复声明。外部文件的定义跳转在只读视图打开，点击“返回解法”继续练习。
 
-语法高亮由 Tree-sitter 负责，类型分析、补全和错误诊断由 gopls 负责。编辑器不会把“语言服务连接失败”伪装成没有错误；状态栏可以重连。第一次加载 Go 标准库和第一次编译可能需要建立缓存。
+语法高亮由 Tree-sitter 负责，类型分析、符号补全和错误诊断由 gopls 负责；循环与容器模板由编辑器本地提供。编辑器不会把“语言服务连接失败”伪装成没有错误；状态栏可以重连。第一次加载 Go 标准库和第一次编译可能需要建立缓存。
 
 当前编辑组件尚不自动应用补全项附带的 import 修改，因此不展示尚未导入包的补全；可以先输入调用，再点击“整理导入”补充 import，随后获得完整成员补全。
 
@@ -146,12 +161,12 @@ cargo run --locked -- --import-catalog ./my-problems.json
 ## 验证
 
 ```powershell
-cargo check --locked
-cargo test --lib --locked
-cargo test --bin leetdesk --locked
-cargo test --no-default-features --test go_integration --locked -- --ignored --test-threads=1
-cargo clippy --all-targets --locked -- -D warnings
-cargo build --profile desktop --locked
+cargo +stable-x86_64-pc-windows-msvc check --locked
+cargo +stable-x86_64-pc-windows-msvc test --lib --locked
+cargo +stable-x86_64-pc-windows-msvc test --bin leetdesk --locked
+cargo +stable-x86_64-pc-windows-msvc test --no-default-features --test go_integration --locked -- --ignored --test-threads=1
+cargo +stable-x86_64-pc-windows-msvc clippy --all-targets --locked -- -D warnings
+cargo +stable-x86_64-pc-windows-msvc build --profile desktop --locked
 ./target/desktop/leetdesk.exe --smoke-test --data-dir ./target/native-check
 ./target/desktop/leetdesk.exe --online-check --data-dir ./target/online-check
 ./target/desktop/leetdesk.exe --study-plan-check --data-dir ./target/topic-probe

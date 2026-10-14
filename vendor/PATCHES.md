@@ -14,6 +14,7 @@
 - `src/input/base/undo_manager.rs`：允许上述替换起始的输入事务继续合并相邻字符。
 - `src/input/base/rope_ext.rs`：LSP Position 的列统一使用 UTF-16，修复 emoji 后的光标、补全、诊断坐标，并更新相应断言。
 - `src/input/editor/indent.rs`：Tab 在当前编辑器内接受补全候选或执行缩进；多行选择区末尾位于下一行行首时，不缩进未选中的下一行。
+- `src/input/base/kind.rs`、`src/input/editor/lsp/overlay.rs`、`src/input/editor/mod.rs`、`src/input/editor/indent.rs`：本地 Go 模板插入纯源码并选择第一个填写处；Tab / Shift+Tab 切换填写处，编辑字段时后续位置跟随字节偏移，移出模板时恢复普通缩进。
 - `src/input/base/kind.rs`、`src/input/editor/mod.rs`：提供源码外的类型提示存储与更新接口，编辑时立即清除旧提示。
 - `src/input/base/element.rs`、`src/input/editor/display_map/inline_line.rs`、`text_wrapper.rs`：用零源码长度的片段为提示保留宽度，软折行使用同样的测量，鼠标落在提示上时映射到源码锚点；键盘移动和剪贴板仍操作原始文本。
 - 上述显示层同时按制表位展开 Tab，并为其一个源码字节保留实际宽度，修复 Go 文件缩进显示过窄；折行续行保留前导 Tab 的缩进，源码不改为空格。按文档版本、提示、字体与制表宽度缓存测量，避免每次重绘重新测量整个文件。

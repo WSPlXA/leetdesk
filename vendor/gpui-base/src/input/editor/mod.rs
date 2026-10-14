@@ -36,6 +36,7 @@ impl InputModeKind for EditorMode {
     }
 
     fn reset_annotations(state: &mut InputBaseState<Self>) {
+        state.extras.snippet = None;
         state.extras.hover_popover = None;
         state.extras.decorations.clear();
         state.extras.range_decorations.clear();
@@ -50,6 +51,9 @@ impl InputModeKind for EditorMode {
         range: &std::ops::Range<usize>,
         new_len: usize,
     ) {
+        if state.extras.snippet.as_mut().is_some_and(|session| !session.adjust_for_edit(range, new_len)) {
+            state.extras.snippet = None;
+        }
         state.extras.decorations.adjust_for_edit(range, new_len);
         state
             .extras
@@ -72,6 +76,14 @@ impl InputModeKind for EditorMode {
         cx: &mut gpui::Context<InputBaseState<Self>>,
     ) -> bool {
         state.accept_inline_completion(window, cx)
+    }
+
+    fn move_snippet_field(
+        state: &mut InputBaseState<Self>,
+        backwards: bool,
+        cx: &mut gpui::Context<InputBaseState<Self>>,
+    ) -> bool {
+        state.move_snippet_field(backwards, cx)
     }
 
     fn has_inline_completion(state: &InputBaseState<Self>) -> bool {

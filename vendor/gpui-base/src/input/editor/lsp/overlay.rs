@@ -170,6 +170,7 @@ impl InputBaseState<EditorMode> {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.extras.snippet = None;
         let mut range = fallback_range;
         let mut new_text = item.label.clone();
         if let Some(edit) = item.text_edit.as_ref() {
@@ -189,11 +190,47 @@ impl InputBaseState<EditorMode> {
             new_text.clone_from(insert_text);
             range = range.end..range.end;
         }
+        let fields = item.data.as_ref()
+            .and_then(|data| data.get("leetdesk_tabstops"))
+            .and_then(serde_json::Value::as_array)
+            .map(|stops| stops.iter().filter_map(|stop| {
+                let stop = stop.as_array()?;
+                let start = usize::try_from(stop.first()?.as_u64()?).ok()?;
+                let end = usize::try_from(stop.get(1)?.as_u64()?).ok()?;
+                (start <= end && end <= new_text.len()).then_some(range.start + start..range.start + end)
+            }).collect::<Vec<_>>())
+            .filter(|fields| !fields.is_empty());
         self.completion_inserting = true;
-        let range = self.range_to_utf16(&range);
-        self.replace_text_in_range_silent(Some(range), &new_text, window, cx);
+        let range_utf16 = self.range_to_utf16(&range);
+        self.replace_text_in_range_silent(Some(range_utf16), &new_text, window, cx);
         self.completion_inserting = false;
+        if let Some(fields) = fields {
+            let first = fields[0].clone();
+            self.extras.snippet = Some(crate::input::kind::SnippetSession { fields, current: 0 });
+            self.set_selected_range(first, cx);
+        }
         self.focus(window, cx);
+    }
+
+    /// Move through the editable fields of a local completion. Ordinary Tab
+    /// resumes as soon as the caret leaves the template or the final stop ends.
+    pub(crate) fn move_snippet_field(&mut self, backwards: bool, cx: &mut Context<Self>) -> bool {
+        let Some(session) = self.extras.snippet.as_ref() else { return false; };
+        let active = &session.fields[session.current];
+        let selection = self.selected_range();
+        if selection.start < active.start || selection.end > active.end {
+            self.extras.snippet = None;
+            return false;
+        }
+        let next = if backwards { session.current.saturating_sub(1) } else { session.current + 1 };
+        if next >= session.fields.len() {
+            self.extras.snippet = None;
+            return true;
+        }
+        let range = session.fields[next].clone();
+        self.extras.snippet.as_mut().unwrap().current = next;
+        self.set_selected_range(range, cx);
+        true
     }
 
     #[doc(hidden)]

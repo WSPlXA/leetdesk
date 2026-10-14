@@ -5,7 +5,7 @@ use gpui_kit::component::{
     button::{Button, ButtonVariants},
 };
 use gpui_kit::{
-    Bounds, Entity, FontWeight, Subscription, Task, TitlebarOptions, Window, WindowBounds,
+    Bounds, Entity, FontWeight, MouseButton, Subscription, Task, Window, WindowBounds,
     WindowOptions, div, prelude::*, px, rgb, size,
 };
 use gpui_wry::WebView;
@@ -1024,17 +1024,18 @@ impl Render for AccountShell {
             .items_center()
             .gap_3()
             .border_b_1()
-            .border_color(rgb(0x263247))
+            .border_color(rgb(0x292929))
             .child(
                 div()
-                    .text_color(rgb(0x78ddbd))
+                    .text_color(rgb(0x79e6bd))
                     .font_weight(FontWeight::BOLD)
+                    .on_mouse_down(MouseButton::Left, |_, window, _| window.start_window_move())
                     .child("LeetDesk"),
             )
             .child(
                 div()
                     .text_xs()
-                    .text_color(rgb(0x8b9ab1))
+                    .text_color(rgb(0xa9b0bb))
                     .child(format!("{} · {account}", self.site.label())),
             );
         if editing {
@@ -1042,10 +1043,10 @@ impl Render for AccountShell {
                 .child(
                     div()
                         .text_xs()
-                        .text_color(rgb(0x78ddbd))
+                        .text_color(rgb(0x79e6bd))
                         .child(format!("已通过 {} / {}", self.solved, self.catalogue_total)),
                 )
-                .child(div().flex_1())
+                .child(div().flex_1().h_full().on_mouse_down(MouseButton::Left, |_, window, _| window.start_window_move()))
                 .child(
                     Button::new("sync-account")
                         .label(if self.phase == Phase::Syncing {
@@ -1113,13 +1114,22 @@ impl Render for AccountShell {
                             }))
                     }));
         }
+        header = header.child(
+            Button::new("close-account-window")
+                .label("关闭")
+                .small()
+                .ghost()
+                .on_click(cx.listener(|this, _, window, cx| {
+                    if this.flush(cx) { window.remove_window(); }
+                })),
+        );
         let mut root = div()
             .size_full()
             .flex()
             .flex_col()
-            .bg(rgb(0x0e1420))
-            .text_color(rgb(0xdce5f2))
-            .font_family("Microsoft YaHei")
+            .bg(rgb(0x000000))
+            .text_color(rgb(0xf4f5f7))
+            .font_family(crate::desktop::ui_font())
             .child(header);
         if editing {
             root = root.child(
@@ -1180,7 +1190,7 @@ impl Render for AccountShell {
                             .child(
                                 div()
                                     .text_sm()
-                                    .text_color(rgb(0x8b9ab1))
+                                    .text_color(rgb(0xa9b0bb))
                                     .child(self.message.clone()),
                             ),
                     )
@@ -1200,11 +1210,11 @@ impl Render for AccountShell {
                         .flex()
                         .items_center()
                         .justify_center()
-                        .text_color(rgb(0x78ddbd))
+                        .text_color(rgb(0x79e6bd))
                         .child(self.message.clone()),
                 );
             }
-            root = root.child(div().px_5().py_2().text_xs().text_color(rgb(0x8b9ab1)).child("在官方页面自行完成登录。登录会话由此设备的浏览器保存，程序不读取你的密码或会话 Cookie。"));
+            root = root.child(div().px_5().py_2().text_xs().text_color(rgb(0xa9b0bb)).child("在官方页面自行完成登录。登录会话由此设备的浏览器保存，程序不读取你的密码或会话 Cookie。"));
         }
         root
     }
@@ -1223,10 +1233,7 @@ pub fn launch(store: Store, probe: bool, plan_probe: bool) -> Result<()> {
             crate::desktop::bind_keys(cx);
             let (_, view) = gpui_kit::open_window(
                 WindowOptions {
-                    titlebar: Some(TitlebarOptions {
-                        title: Some("LeetDesk · LeetCode Go 工作区".into()),
-                        ..Default::default()
-                    }),
+                    titlebar: None,
                     window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
                         None,
                         size(px(1480.), px(960.)),
@@ -1239,6 +1246,7 @@ pub fn launch(store: Store, probe: bool, plan_probe: bool) -> Result<()> {
                 },
                 cx,
                 move |window, cx| {
+                    window.set_window_title("LeetDesk · LeetCode Go 工作区");
                     cx.new(|cx| {
                         let mut shell = AccountShell::new(root, window, cx);
                         shell.probe = probe;

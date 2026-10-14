@@ -214,6 +214,10 @@ impl<M: InputModeKind> InputBaseState<M> {
         ) {
             return;
         }
+        // A template owns Tab until its last editable field is visited.
+        if M::move_snippet_field(self, false, cx) {
+            return;
+        }
         // Then try an inline completion, otherwise insert/indent normally.
         if M::accept_inline_completion(self, window, cx) {
             return;
@@ -231,6 +235,9 @@ impl<M: InputModeKind> InputBaseState<M> {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if M::move_snippet_field(self, true, cx) {
+            return;
+        }
         self.outdent(false, window, cx);
     }
 

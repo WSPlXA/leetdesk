@@ -357,14 +357,17 @@ pub fn gopls_executable() -> std::ffi::OsString {
 }
 
 pub fn file_uri(path: &Path) -> Result<String> {
-    let mut path = path.to_path_buf();
     #[cfg(windows)]
-    {
+    let path = {
+        let mut path = path.to_path_buf();
         let text = path.to_string_lossy();
         if let Some(value) = text.strip_prefix(r"\\?\") {
             path = value.into();
         }
-    }
+        path
+    };
+    #[cfg(not(windows))]
+    let path = path.to_path_buf();
     url::Url::from_file_path(&path)
         .map(|uri| uri.to_string())
         .map_err(|_| anyhow!("无法转换文件路径 {}", path.display()))

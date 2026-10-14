@@ -12,7 +12,7 @@ use gpui_kit::component::{
 };
 use gpui_kit::{
     AnyWindowHandle, App, Bounds, ClickEvent, ClipboardItem, Entity, Focusable, FontWeight,
-    KeyBinding, PathPromptOptions, Subscription, Task, TitlebarOptions, Window, WindowBounds,
+    KeyBinding, MouseButton, PathPromptOptions, Subscription, Task, Window, WindowBounds,
     WindowOptions, div, prelude::*, px, rgb, size,
 };
 use gpui_kit::{EventEmitter, uniform_list};
@@ -21,7 +21,7 @@ use leetdesk::{
     catalog::{self, Case, Problem},
     catalog_view::CatalogView,
     language::{self, GoLanguage},
-    runner,
+    runner, snippets,
     store::{Progress, Store},
 };
 use lsp_types::{CompletionContext, CompletionResponse, Hover, LocationLink, Position};
@@ -52,12 +52,24 @@ gpui_kit::actions!(
     ]
 );
 
-const BG: u32 = 0x0e1420;
-const PANEL: u32 = 0x141d2b;
-const LINE: u32 = 0x263247;
-const MUTED: u32 = 0x8b9ab1;
-const INK: u32 = 0xdce5f2;
-const ACCENT: u32 = 0x78ddbd;
+const BG: u32 = 0x000000;
+const PANEL: u32 = 0x0a0a0a;
+const LINE: u32 = 0x292929;
+const MUTED: u32 = 0xa9b0bb;
+const INK: u32 = 0xf4f5f7;
+const ACCENT: u32 = 0x79e6bd;
+const CODE_BG: u32 = 0x101010;
+
+#[cfg(target_os = "macos")]
+const UI_FONT: &str = "PingFang SC";
+#[cfg(not(target_os = "macos"))]
+const UI_FONT: &str = "Microsoft YaHei";
+#[cfg(target_os = "macos")]
+const CODE_FONT: &str = "Menlo";
+#[cfg(not(target_os = "macos"))]
+const CODE_FONT: &str = "Consolas";
+
+pub(crate) fn ui_font() -> &'static str { UI_FONT }
 
 type DocumentCache = ((u32, usize, u8), Entity<TextViewState>, Option<PathBuf>);
 
@@ -95,8 +107,10 @@ impl CompletionProvider for GoProvider {
         cx: &mut App,
     ) -> Task<Result<CompletionResponse>> {
         let source = text.to_string();
+        let local = snippets::completions(&source, offset);
         if let Err(error) = self.service.sync(&source) {
-            return Task::ready(Err(error));
+            if local.is_empty() { return Task::ready(Err(error)); }
+            return Task::ready(Ok(CompletionResponse::Array(local)));
         }
         let mut params = self.service.at(&source, offset);
         // Identifier typing should invoke completion; only '.' is a gopls
@@ -110,11 +124,19 @@ impl CompletionProvider for GoProvider {
         params["context"] = serde_json::to_value(trigger).unwrap();
         let service = self.service.clone();
         cx.background_executor().spawn(async move {
-            let value = service.request("textDocument/completion", params)?;
-            if value.is_null() {
-                return Ok(CompletionResponse::Array(vec![]));
+            let value = match service.request("textDocument/completion", params) {
+                Ok(value) => value,
+                Err(_error) if !local.is_empty() => return Ok(CompletionResponse::Array(local)),
+                Err(error) => return Err(error),
+            };
+            let mut items = local;
+            if !value.is_null() {
+                match serde_json::from_value::<CompletionResponse>(value)? {
+                    CompletionResponse::Array(found) => items.extend(found),
+                    CompletionResponse::List(found) => items.extend(found.items),
+                }
             }
-            Ok(serde_json::from_value(value)?)
+            Ok(CompletionResponse::Array(items))
         })
     }
     fn is_completion_trigger(&self, _: usize, text: &str, _: &mut App) -> bool {
@@ -1467,13 +1489,13 @@ impl Workspace {
             .px_3()
             .py_2()
             .border_b_1()
-            .border_color(rgb(0x1c2838))
+            .border_color(rgb(LINE))
             .cursor_pointer()
             .overflow_hidden()
             .when(index == self.current, |el| {
-                el.bg(rgb(0x203647)).border_l_2().border_color(rgb(ACCENT))
+                el.bg(rgb(0x18352a)).border_l_2().border_color(rgb(ACCENT))
             })
-            .hover(|el| el.bg(rgb(0x1c2b3c)))
+            .hover(|el| el.bg(rgb(0x181818)))
             .on_click(
                 cx.listener(move |this, _, window, cx| this.select_problem(index, window, cx)),
             )
@@ -1550,7 +1572,7 @@ impl Workspace {
                                 } else {
                                     INK
                                 }))
-                                .when(self.study_plan_filter == label, |el| el.bg(rgb(0x1b3635)))
+                                .when(self.study_plan_filter == label, |el| el.bg(rgb(0x18352a)))
                                 .on_click(cx.listener(move |this, _, _, cx| {
                                     this.study_plan_filter = label.into();
                                     cx.notify();
@@ -1626,7 +1648,7 @@ impl Workspace {
         .text_sm()
         .cursor_pointer()
         .text_color(rgb(if selected { ACCENT } else { MUTED }))
-        .when(selected, |el| el.bg(rgb(0x1b3635)))
+        .when(selected, |el| el.bg(rgb(0x18352a)))
         .on_click(cx.listener(move |this, _, _, cx| {
             this.filter = value.clone();
             cx.notify();
@@ -1798,7 +1820,7 @@ impl Workspace {
                     .flex_1()
                     .min_h_0()
                     .min_w_0()
-                    .font_family("Consolas")
+                    .font_family(CODE_FONT)
                     .text_size(px(14.)),
             )
             .into_any_element();
@@ -2155,7 +2177,7 @@ impl Workspace {
                         .min_w_0()
                         .flex_1()
                         .min_h_0()
-                        .font_family("Consolas")
+                        .font_family(CODE_FONT)
                         .text_size(px(15.)),
                 )
                 .into_any_element();
@@ -2241,7 +2263,7 @@ impl Workspace {
                     .min_w_0()
                     .flex_1()
                     .min_h_0()
-                    .font_family("Consolas")
+                    .font_family(CODE_FONT)
                     .text_size(px(16.)),
             )
             .into_any_element()
@@ -2268,7 +2290,7 @@ impl Workspace {
                 .child(
                     Editor::new(&self.cases_editor)
                         .size_full()
-                        .font_family("Consolas")
+                        .font_family(CODE_FONT)
                         .text_size(px(13.)),
                 )
                 .into_any_element(),
@@ -2277,7 +2299,7 @@ impl Workspace {
                 .size_full()
                 .overflow_y_scroll()
                 .p_4()
-                .font_family("Consolas")
+                .font_family(CODE_FONT)
                 .text_sm()
                 .child(self.output.clone())
                 .into_any_element(),
@@ -2436,7 +2458,7 @@ impl Render for Workspace {
             .flex_col()
             .bg(rgb(BG))
             .text_color(rgb(INK))
-            .font_family("Microsoft YaHei")
+            .font_family(UI_FONT)
             .on_action(cx.listener(Self::save_action))
             .on_action(cx.listener(Self::run_cases))
             .on_action(cx.listener(Self::submit))
@@ -2468,10 +2490,11 @@ impl Render for Workspace {
                         div()
                             .text_sm()
                             .font_weight(FontWeight::SEMIBOLD)
+                            .on_mouse_down(MouseButton::Left, |_, window, _| window.start_window_move())
                             .child(title),
                     )
                     .child(div().text_xs().text_color(rgb(ACCENT)).child(platform))
-                    .child(div().flex_1())
+                    .child(div().flex_1().h_full().on_mouse_down(MouseButton::Left, |_, window, _| window.start_window_move()))
                     .child(
                         Button::new("import-md")
                             .label("导入 MD")
@@ -2562,6 +2585,21 @@ impl Render for Workspace {
                             .small()
                             .ghost()
                             .on_click(move |_, _, cx| cx.open_url(&link)),
+                    )
+                    .child(
+                        Button::new("close-window")
+                            .label("关闭")
+                            .small()
+                            .ghost()
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                match this.save(cx) {
+                                    Ok(_) => window.remove_window(),
+                                    Err(error) => {
+                                        this.notice = format!("保存失败，窗口保持打开：{error}");
+                                        cx.notify();
+                                    }
+                                }
+                            })),
                     ),
             )
             .child(div().flex_1().min_h_0().child(panels))
@@ -2650,35 +2688,9 @@ pub fn launch(store: Store, smoke: bool) -> Result<()> {
             gpui_kit::init(cx);
             apply_theme(cx);
             cx.on_action(|_: &Quit, cx| cx.quit());
-            cx.bind_keys([
-                KeyBinding::new("ctrl-s", Save, Some("LeetDesk")),
-                KeyBinding::new("alt-z", ToggleWrap, Some("LeetDesk")),
-                KeyBinding::new("ctrl-enter", RunCases, Some("LeetDesk")),
-                KeyBinding::new("ctrl-shift-enter", Submit, Some("LeetDesk")),
-                KeyBinding::new(
-                    "ctrl-shift-z",
-                    gpui_kit::component::input::Redo,
-                    Some("LeetDesk > Input"),
-                ),
-                KeyBinding::new("ctrl-shift-f", Format, Some("LeetDesk")),
-                KeyBinding::new("ctrl-shift-o", OrganizeImports, Some("LeetDesk")),
-                KeyBinding::new("ctrl-i", ImportNotes, Some("LeetDesk")),
-                KeyBinding::new(
-                    "ctrl-space",
-                    gpui_kit::component::input::ShowCompletions,
-                    Some("Input && mode == editor"),
-                ),
-                KeyBinding::new(
-                    "f12",
-                    gpui_kit::component::input::GoToDefinition,
-                    Some("Input && mode == editor"),
-                ),
-            ]);
+            bind_keys(cx);
             let options = WindowOptions {
-                titlebar: Some(TitlebarOptions {
-                    title: Some("LeetDesk · Go 刷题工作区".into()),
-                    ..Default::default()
-                }),
+                titlebar: None,
                 window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
                     None,
                     size(px(1380.), px(900.)),
@@ -2690,6 +2702,7 @@ pub fn launch(store: Store, smoke: bool) -> Result<()> {
                 ..Default::default()
             };
             let (_, view) = gpui_kit::open_window(options, cx, move |window, cx| {
+                window.set_window_title("LeetDesk · Go 刷题工作区");
                 cx.new(|cx| Workspace::new(store, window, cx).expect("无法初始化刷题工作区"))
             })
             .expect("无法打开窗口");
@@ -2769,12 +2782,38 @@ pub fn launch(store: Store, smoke: bool) -> Result<()> {
 pub fn apply_theme(cx: &mut App) {
     gpui_kit::component::Theme::change(gpui_kit::component::ThemeMode::Dark, None, cx);
     let theme = gpui_kit::component::Theme::global_mut(cx);
+    theme.shadow = false;
+    theme.colors.background = rgb(BG).into();
+    theme.colors.foreground = rgb(INK).into();
+    theme.colors.border = rgb(LINE).into();
+    theme.colors.muted_foreground = rgb(MUTED).into();
+    theme.colors.input = rgb(PANEL).into();
+    theme.colors.popover = rgb(PANEL).into();
+    theme.colors.popover_foreground = rgb(INK).into();
+    theme.colors.sidebar = rgb(PANEL).into();
+    theme.colors.sidebar_foreground = rgb(INK).into();
+    theme.colors.sidebar_border = rgb(LINE).into();
+    theme.colors.selection = rgb(0x255c49).into();
     let syntax = Arc::make_mut(&mut theme.highlight_theme);
-    syntax.style.editor_background = Some(rgb(0x111a27).into());
-    syntax.style.editor_gutter_background = Some(rgb(0x111a27).into());
+    syntax.style.editor_background = Some(rgb(BG).into());
+    syntax.style.editor_gutter_background = Some(rgb(BG).into());
     syntax.style.editor_foreground = Some(rgb(INK).into());
-    syntax.style.editor_active_line = Some(rgb(0x1a2a3b).into());
+    syntax.style.editor_active_line = Some(rgb(0x171717).into());
     syntax.style.editor_line_number = Some(rgb(MUTED).into());
+    syntax.style.syntax = serde_json::from_value(json!({
+        "keyword": {"color": gpui_kit::Hsla::from(rgb(0xd3a7ff))},
+        "string": {"color": gpui_kit::Hsla::from(rgb(0x91e7a5))},
+        "number": {"color": gpui_kit::Hsla::from(rgb(0xffb86b))},
+        "boolean": {"color": gpui_kit::Hsla::from(rgb(0xffb86b))},
+        "function": {"color": gpui_kit::Hsla::from(rgb(0x86c9ff))},
+        "type": {"color": gpui_kit::Hsla::from(rgb(0x79e5e1))},
+        "variable": {"color": gpui_kit::Hsla::from(rgb(INK))},
+        "property": {"color": gpui_kit::Hsla::from(rgb(0xe8dbff))},
+        "constant": {"color": gpui_kit::Hsla::from(rgb(0xffd084))},
+        "operator": {"color": gpui_kit::Hsla::from(rgb(0xff91b7))},
+        "comment": {"color": gpui_kit::Hsla::from(rgb(0x9ba2ac))},
+        "punctuation": {"color": gpui_kit::Hsla::from(rgb(0xc9d0da))}
+    })).expect("Go 高亮颜色有效");
 }
 
 fn document_style() -> TextViewStyle {
@@ -2787,10 +2826,10 @@ fn document_style() -> TextViewStyle {
         .with_link(rgb(ACCENT).into())
         .with_border(rgb(LINE).into())
         .with_selection(rgb(ACCENT).opacity(0.22).into())
-        .with_code_background(rgb(0x202c3c).into())
+        .with_code_background(rgb(CODE_BG).into())
         .with_inline_code(gpui_kit::HighlightStyle {
             color: Some(rgb(INK).into()),
-            background_color: Some(rgb(0x202c3c).into()),
+            background_color: Some(rgb(CODE_BG).into()),
             ..Default::default()
         })
         .with_code_block(code_block)
@@ -2820,6 +2859,16 @@ pub fn bind_keys(cx: &mut App) {
             gpui_kit::component::input::GoToDefinition,
             Some("Input && mode == editor"),
         ),
+    ]);
+    #[cfg(target_os = "macos")]
+    cx.bind_keys([
+        KeyBinding::new("cmd-s", Save, Some("LeetDesk")),
+        KeyBinding::new("cmd-enter", RunCases, Some("LeetDesk")),
+        KeyBinding::new("cmd-shift-enter", Submit, Some("LeetDesk")),
+        KeyBinding::new("cmd-shift-f", Format, Some("LeetDesk")),
+        KeyBinding::new("cmd-shift-o", OrganizeImports, Some("LeetDesk")),
+        KeyBinding::new("cmd-i", ImportNotes, Some("LeetDesk")),
+        KeyBinding::new("cmd-j", gpui_kit::component::input::ShowCompletions, Some("Input && mode == editor")),
     ]);
 }
 
@@ -3004,7 +3053,7 @@ mod ui_tests {
                     "{text:?}"
                 );
                 assert!(text.as_str().contains("0 <= Node.val <= 100"));
-                let code: gpui_kit::Background = rgb(0x202c3c).into();
+                let code: gpui_kit::Background = rgb(CODE_BG).into();
                 assert!(
                     window
                         .painted_quads()
@@ -3027,7 +3076,7 @@ mod ui_tests {
             fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
                 div()
                     .w(px(200.))
-                    .font_family("Microsoft YaHei")
+                    .font_family(UI_FONT)
                     .text_size(px(15.))
                     .text_bg(rgb(TEXT_MARKER))
                     .child(TextView::new(&self.state).style(document_style()))
@@ -3050,7 +3099,7 @@ mod ui_tests {
             }
             let quads = window.painted_quads();
             let marker: gpui_kit::Background = rgb(TEXT_MARKER).into();
-            let code: gpui_kit::Background = rgb(0x202c3c).into();
+            let code: gpui_kit::Background = rgb(CODE_BG).into();
             let first_text = quads
                 .iter()
                 .position(|q| q.background == marker)
@@ -3577,6 +3626,51 @@ mod ui_tests {
     }
 
     #[gpui_kit::test]
+    fn go_snippet_replaces_prefix_and_tab_tracks_edited_fields(cx: &mut TestAppContext) {
+        let (handle, view, _temp) = practice_window(cx);
+        let source = "package solution\n\nfunc f() {\n\tfo\n}";
+        let offset = source.find("\tfo").unwrap() + 3;
+        cx.update_window(handle, |_, window, cx| {
+            let editor = view.read(cx).editor.clone();
+            editor.update(cx, |state, cx| {
+                state.set_value(source, window, cx);
+                state.set_cursor_position(language::byte_position(source, offset), window, cx);
+                let item = snippets::completions(source, offset)
+                    .into_iter().find(|item| item.label.starts_with("for ·")).unwrap();
+                state.insert_completion(&item, offset - 2..offset, window, cx);
+            });
+            window.render_frame(cx);
+            assert_eq!(editor.read(cx).selected_value().as_ref(), "n");
+            window.input("size", cx);
+            assert_eq!(editor.read(cx).selected_value().as_ref(), "");
+            window.press("tab", cx);
+            let at_body = editor.read(cx).cursor();
+            let body = editor.read(cx).value().to_string();
+            assert!(body.contains("for i := 0; i < size; i++ {\n\t\t\n\t}"));
+            assert_eq!(body.as_bytes()[at_body - 1], b'\t');
+            window.input("sum += i", cx);
+            window.press("shift-tab", cx);
+            assert_eq!(editor.read(cx).selected_value().as_ref(), "size");
+        }).unwrap();
+    }
+
+    #[gpui_kit::test]
+    fn close_button_saves_current_solution(cx: &mut TestAppContext) {
+        let (handle, view, temp) = practice_window(cx);
+        let source = "package solution\n\nfunc answer() int { return 42 }\n";
+        let id = cx.update(|cx| view.read(cx).problem().id);
+        cx.update_window(handle, |_, window, cx| {
+            view.read(cx).editor.clone().update(cx, |state, cx| {
+                state.set_value(source, window, cx);
+            });
+            window.render_frame(cx);
+            window.click("close-window", cx);
+        }).unwrap();
+        let saved = temp.path().join("data").join("workspaces").join(id.to_string()).join("solution.go");
+        assert_eq!(std::fs::read_to_string(saved).unwrap(), source);
+    }
+
+    #[gpui_kit::test]
     fn unicode_navigation_selection_and_clipboard_are_reversible(cx: &mut TestAppContext) {
         let (handle, view, _temp) = practice_window(cx);
         cx.update_window(handle, |_, window, cx| {
@@ -3633,6 +3727,10 @@ mod ui_tests {
             let number = color(source.find("42").unwrap()).expect("Go 数字应该着色");
             assert_ne!(keyword, string);
             assert_ne!(keyword, number);
+            assert_eq!(keyword, rgb(0xd3a7ff).into());
+            assert_eq!(string, rgb(0x91e7a5).into());
+            assert_eq!(number, rgb(0xffb86b).into());
+            assert_eq!(theme.style.editor_background, Some(rgb(BG).into()));
         });
     }
 

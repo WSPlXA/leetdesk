@@ -4,5 +4,6 @@ pub mod editing;
 pub mod language;
 pub mod online;
 pub mod runner;
+pub mod snippets;
 pub mod store;
 pub mod topics;
