@@ -1,13 +1,13 @@
 [package]
 name = "leetdesk"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "A native GPUI workspace for practicing LeetCode in Go"
 license = "MIT"
 
 [features]
 default = ["desktop"]
-desktop = ["dep:gpui-kit", "dep:gpui-wry", "dep:wry"]
+desktop = ["dep:gpui-kit", "dep:gpui-wry", "dep:wry", "dep:ratex-parser", "dep:ratex-layout", "dep:ratex-svg", "dep:ratex-types"]
 
 [[bin]]
 name = "leetdesk"
@@ -20,6 +20,10 @@ gpui-kit = { version = "=0.7.3", optional = true, features = ["tree-sitter-go", 
 gpui-wry = { version = "=0.7.3", optional = true }
 wry = { package = "lb-wry", version = "=0.53.3", optional = true }
 lsp-types = "0.97"
+ratex-parser = { version = "=0.1.14", optional = true }
+ratex-layout = { version = "=0.1.14", optional = true }
+ratex-svg = { version = "=0.1.14", features = ["embed-fonts"], optional = true }
+ratex-types = { version = "=0.1.14", optional = true }
 rusqlite = { version = "0.38", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

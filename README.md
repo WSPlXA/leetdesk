@@ -2,7 +2,7 @@
 
 **用 Rust + GPUI 构建的原生 LeetCode 刷题工作区，目前专注 Go。** 在一个窗口里读题、按主题找题、写代码、运行用例、提交解答，并用 Markdown 记录做法与复盘。
 
-支持 Windows x64、Intel Mac 和 Apple Silicon Mac。下载已发布的 [v0.1.0 压缩包](https://github.com/WSPlXA/leetdesk/releases/tag/v0.1.0)。
+支持 Windows x64、Intel Mac 和 Apple Silicon Mac。下载已发布的 [v0.1.1 压缩包](https://github.com/WSPlXA/leetdesk/releases/tag/v0.1.1)。
 
 ## 安装与首次使用
 
@@ -57,7 +57,7 @@ Go 解法保留 `package solution`。内置的 `ListNode`、`TreeNode` 类型由
 
 ## Markdown 讲解与笔记
 
-点击 **导入 MD** 可选择文件或文件夹；原文件不会被改写。关联题目的顺序是：文档元数据中的 `problem_id`、文件名前缀题号、文档中唯一的 LeetCode 题目链接。都没有时，关联到导入时选中的题目。
+点击 **导入 MD 文件** 选择一篇或多篇 `.md` / `.markdown`；点击 **导入文件夹** 递归导入其中的讲解。原文件不会被改写。关联题目的顺序是：文档元数据中的 `problem_id`、文件名前缀题号、文档中唯一的 LeetCode 题目链接。都没有时，关联到导入时选中的题目。
 
 ```markdown
 ---
@@ -74,7 +74,7 @@ tags: [哈希表, 面试复习]
 时间 O(n)，空间 O(n)。
 ```
 
-更多示例见 [examples/1-two-sum.md](examples/1-two-sum.md)。讲解支持标题、表格、代码块及相对路径图片；使用图片时请保留其原目录。**我的笔记** 按题保存为 `workspaces/<题目 ID>/notes.md`，点击保存或按 `Ctrl+S` / `Cmd+S` 后自动渲染，也可以点击 **打开 MD** 在外部编辑。
+更多示例见 [examples/1-two-sum.md](examples/1-two-sum.md)。讲解支持标题、表格、保留缩进的代码块、相对路径图片，以及 `$O(n)$` 行内公式和独占一段的 `$$…$$` 公式；使用图片时请保留其原目录。**我的笔记** 按题保存为 `workspaces/<题目 ID>/notes.md`，点击保存或按 `Ctrl+S` / `Cmd+S` 后自动渲染，也可以点击 **打开 MD** 在外部编辑。
 
 ## 数据与离线模式
 

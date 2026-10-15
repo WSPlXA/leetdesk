@@ -1162,16 +1162,29 @@ impl Workspace {
     }
 
     fn import_notes(&mut self, _: &ImportNotes, window: &mut Window, cx: &mut Context<Self>) {
+        self.import_notes_from(false, window, cx);
+    }
+
+    fn import_notes_from(
+        &mut self,
+        directories: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if let Err(error) = self.save(cx) {
             self.notice = error.to_string();
             cx.notify();
             return;
         }
         let prompt = cx.prompt_for_paths(PathPromptOptions {
-            files: true,
-            directories: true,
+            files: !directories,
+            directories,
             multiple: true,
-            prompt: Some("导入 Markdown 文件或文件夹；未标明题号的文件将关联当前题目".into()),
+            prompt: Some(if directories {
+                "选择包含 Markdown 的文件夹".into()
+            } else {
+                "选择 Markdown 文件".into()
+            }),
         });
         cx.spawn_in(window, async move |this, cx| {
             let selected = prompt.await;
@@ -1181,6 +1194,11 @@ impl Workspace {
                         let mut files = vec![];
                         for path in paths {
                             collect_markdown(&path, &mut files);
+                        }
+                        if files.is_empty() {
+                            this.notice = "所选位置没有 .md 或 .markdown 文件".into();
+                            cx.notify();
+                            return;
                         }
                         let mut success = 0;
                         let mut errors = vec![];
@@ -1817,7 +1835,9 @@ impl Workspace {
                     .when(!self.saved_note.is_empty(), |el| {
                         el.child(
                             TextView::new(&self.note_preview)
+                                .markdown_extensions(crate::markdown::extensions())
                                 .selectable(true)
+                                .style(document_style())
                                 .text_size(px(15.))
                                 .image_source(move |uri| {
                                     local_document_path(uri.as_ref(), Some(&image_origin))
@@ -1996,7 +2016,8 @@ impl Workspace {
                     self.explanations
                         .get(self.selected_note)
                         .map(|(_, body)| catalog::markdown_body(body).to_string())
-                        .unwrap_or_else(|| "还没有讲解。点击“导入 MD”添加。".into())
+                        .filter(|body| !body.trim().is_empty())
+                        .unwrap_or_else(|| "还没有做法讲解。点击顶部“导入 MD 文件”选择 .md，或选择“导入文件夹”。".into())
                 };
                 let state =
                     if self.document_tab == DocumentTab::Description && problem.online.is_some() {
@@ -2020,6 +2041,7 @@ impl Workspace {
             let image_origin = origin.clone();
             content = content.overflow_y_scroll().p_5().child(
                 TextView::new(state)
+                    .markdown_extensions(crate::markdown::extensions())
                     .image_source(move |uri| {
                         if let Some(path) =
                             local_document_path(uri.as_ref(), image_origin.as_deref())
@@ -2576,17 +2598,33 @@ impl Render for Workspace {
                             .items_center()
                             .gap_2()
                             .window_control_area(WindowControlArea::Drag)
-                            .on_mouse_down(MouseButton::Left, |_, window, _| window.start_window_move())
-                            .child(div().text_sm().font_weight(FontWeight::SEMIBOLD).child(title))
+                            .on_mouse_down(MouseButton::Left, |_, window, _| {
+                                window.start_window_move()
+                            })
+                            .child(
+                                div()
+                                    .text_sm()
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .child(title),
+                            )
                             .child(div().text_xs().text_color(rgb(ACCENT)).child(platform)),
                     )
                     .child(
                         Button::new("import-md")
-                            .label("导入 MD")
+                            .label("导入 MD 文件")
                             .small()
                             .ghost()
                             .on_click(cx.listener(|this, _, window, cx| {
                                 this.import_notes(&ImportNotes, window, cx)
+                            })),
+                    )
+                    .child(
+                        Button::new("import-md-folder")
+                            .label("导入文件夹")
+                            .small()
+                            .ghost()
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.import_notes_from(true, window, cx)
                             })),
                     )
                     .child(
@@ -2908,6 +2946,20 @@ fn document_style() -> TextViewStyle {
         .with_dark(true)
         .with_foreground(rgb(INK).into())
         .with_muted_foreground(rgb(MUTED).into())
+        .with_paragraph_gap(gpui_kit::rems(0.9))
+        .with_heading(|level| {
+            let mut heading = gpui_kit::StyleRefinement::default();
+            heading.text.color = Some(
+                rgb(match level {
+                    1 => ACCENT,
+                    2 => 0xa8d7ff,
+                    3 => 0xd9c0ff,
+                    _ => INK,
+                })
+                .into(),
+            );
+            heading
+        })
         .with_link(rgb(ACCENT).into())
         .with_border(rgb(LINE).into())
         .with_selection(rgb(ACCENT).opacity(0.22).into())
@@ -2962,6 +3014,47 @@ mod ui_tests {
     use super::*;
     use gpui_kit::TestAppContext;
     use gpui_kit::test::TestWindowExt;
+
+    #[gpui_kit::test]
+    fn markdown_import_picker_selects_files_and_folder_picker_selects_folders(
+        cx: &mut TestAppContext,
+    ) {
+        let (handle, view, temp) = practice_window(cx);
+        let file = temp.path().join("method.md");
+        fs::write(&file, "# 双指针做法\n\n从两侧收缩。\n").unwrap();
+
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            window.click("import-md", cx);
+        })
+        .unwrap();
+        cx.simulate_path_prompt_response({
+            let file = file.clone();
+            move |options| {
+                assert!(options.files && !options.directories && options.multiple);
+                Some(vec![file])
+            }
+        });
+        cx.run_until_parked();
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            let workspace = view.read(cx);
+            assert!(
+                workspace
+                    .explanations
+                    .iter()
+                    .any(|(_, body)| body.contains("双指针做法"))
+            );
+            assert!(workspace.document_tab == DocumentTab::Explanation);
+            window.click("import-md-folder", cx);
+        })
+        .unwrap();
+        cx.simulate_path_prompt_response(move |options| {
+            assert!(!options.files && options.directories && options.multiple);
+            None
+        });
+        cx.run_until_parked();
+    }
 
     #[gpui_kit::test]
     fn hot100_topic_status_and_difficulty_buttons_intersect_and_reset(cx: &mut TestAppContext) {
@@ -3255,7 +3348,7 @@ mod ui_tests {
     #[gpui_kit::test]
     fn markdown_notes_save_render_autosave_and_restore_per_problem(cx: &mut TestAppContext) {
         let (handle, view, _temp) = practice_window(cx);
-        let markdown = "# 中文思路🙂\n\n使用 **哈希表**，复杂度 O(n)。\n\n- 边界：空数组\n\n```go\n\treturn 42\n```\n";
+        let markdown = "# 中文思路🙂\n\n使用 **哈希表**，复杂度 $O(n)$。\n\n$$\n\\sum_{i=1}^{n} i\n$$\n\n- 边界：空数组\n\n```go\n\treturn 42\n```\n";
         let path = cx
             .update_window(handle, |_, window, cx| {
                 window.render_frame(cx);

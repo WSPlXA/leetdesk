@@ -2210,6 +2210,8 @@ impl CodeBlock {
                     .child(lang)
             });
 
+        let mut horizontal_scroll = StyleRefinement::default();
+        horizontal_scroll.overflow.x = Some(Overflow::Scroll);
         let block = div()
             .w_full()
             .min_w_0()
@@ -2226,7 +2228,9 @@ impl CodeBlock {
             .font_family(cx.theme().tokens.typography.mono.clone())
             .text_size(cx.theme().tokens.typography.mono_md.size)
             .line_height(relative(1.6))
+            .whitespace_nowrap()
             .relative()
+            .refine_style(&horizontal_scroll)
             .refine_style(&style.code_block())
             .child(
                 Inline::new(

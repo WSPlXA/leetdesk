@@ -3,6 +3,7 @@
 extern crate gpui_kit as gpui;
 mod auth;
 mod desktop;
+mod markdown;
 
 use anyhow::{Context, Result};
 use leetdesk::store::Store;

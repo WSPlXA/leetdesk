@@ -478,9 +478,28 @@ fn aligned_source_segments(
     decode_entities: bool,
     decode_escapes: bool,
 ) -> Vec<SourceSegment> {
+    aligned_source_segments_impl(
+        raw,
+        rendered,
+        source_offset,
+        decode_entities,
+        decode_escapes,
+        false,
+    )
+}
+
+fn aligned_source_segments_impl(
+    raw: &str,
+    rendered: &str,
+    source_offset: usize,
+    decode_entities: bool,
+    decode_escapes: bool,
+    expanded_tabs: bool,
+) -> Vec<SourceSegment> {
     let mut segments = Vec::new();
     let mut raw_cursor = 0;
     let mut rendered_start = 0;
+    let mut column = 0;
     let mut whitespace_end = 0;
     let mut source_positions = None;
     let mut entity_cursor = None;
@@ -514,6 +533,7 @@ fn aligned_source_segments(
             );
             rendered_start = rendered_end;
             raw_cursor += *source_len;
+            column += decoded.chars().count();
             continue;
         }
 
@@ -523,6 +543,23 @@ fn aligned_source_segments(
             .expect("rendered cursor must be on a character boundary");
         let rendered_end = rendered_start + rendered_char.len_utf8();
         let remainder = &raw[raw_cursor..];
+        if expanded_tabs && rendered_char == ' ' && remainder.starts_with('\t') {
+            let spaces = 4 - column % 4;
+            if rendered[rendered_start..].starts_with(&"    "[..spaces]) {
+                push_source_segment(
+                    &mut segments,
+                    SourceSegment {
+                        rendered: rendered_start..rendered_start + spaces,
+                        source: source_offset + raw_cursor..source_offset + raw_cursor + 1,
+                        linear: false,
+                    },
+                );
+                rendered_start += spaces;
+                raw_cursor += 1;
+                column += spaces;
+                continue;
+            }
+        }
         if rendered_char == ' ' && raw_cursor >= whitespace_end {
             // Reuse this boundary while consuming a run of literal spaces.
             // Otherwise a long horizontal-whitespace run also costs O(n^2).
@@ -562,6 +599,7 @@ fn aligned_source_segments(
             // rendered-byte mapping. Leave a rendered gap for this
             // character, but keep aligning later characters in the node.
             rendered_start = rendered_end;
+            column = if rendered_char == '\n' { 0 } else { column + 1 };
             continue;
         };
         let source_start = raw_cursor + relative_start;
@@ -576,6 +614,7 @@ fn aligned_source_segments(
         );
         raw_cursor = source_end;
         rendered_start = rendered_end;
+        column = if rendered_char == '\n' { 0 } else { column + 1 };
     }
     segments
 }
@@ -691,12 +730,13 @@ fn code_source_segments(
         (0, raw.len())
     };
 
-    aligned_source_segments(
+    aligned_source_segments_impl(
         &raw[body_start..body_end],
         code,
         span.start + body_start,
         false,
         false,
+        true,
     )
 }
 
@@ -1037,9 +1077,13 @@ fn ast_to_node(source: &str, value: mdast::Node, cx: &mut NodeContext) -> BlockN
         },
         Node::Code(raw) => {
             let span = new_span(raw.position, cx);
-            let segments = code_source_segments(source, &raw.value, span, cx.offset);
+            // GPUI's text shaping does not give tab characters a stable
+            // visual advance inside a Markdown code block. Expand them for
+            // display while mapping selections back to the original source.
+            let code = expand_code_tabs(&raw.value);
+            let segments = code_source_segments(source, &code, span, cx.offset);
             BlockNode::CodeBlock(
-                CodeBlock::new(raw.value.into(), raw.lang.map(Into::into), span)
+                CodeBlock::new(code.into(), raw.lang.map(Into::into), span)
                     .source_segments(segments),
             )
         }
@@ -1164,6 +1208,29 @@ fn ast_to_node(source: &str, value: mdast::Node, cx: &mut NodeContext) -> BlockN
     }
 }
 
+fn expand_code_tabs(code: &str) -> String {
+    let mut expanded = String::with_capacity(code.len());
+    let mut column = 0;
+    for character in code.chars() {
+        match character {
+            '\t' => {
+                let spaces = 4 - column % 4;
+                expanded.extend(std::iter::repeat_n(' ', spaces));
+                column += spaces;
+            }
+            '\n' => {
+                expanded.push('\n');
+                column = 0;
+            }
+            _ => {
+                expanded.push(character);
+                column += 1;
+            }
+        }
+    }
+    expanded
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1195,6 +1262,18 @@ mod tests {
             | BlockNode::ListItem { children, .. } => children.iter().find_map(first_code_block),
             _ => None,
         }
+    }
+
+    #[test]
+    fn fenced_code_expands_tabs_without_losing_source_mapping() {
+        let source = "```go\nfunc solve() {\n\treturn 42\n}\n```";
+        let mut cx = NodeContext::default();
+        let document = parse(source, &mut cx).unwrap();
+        let code = first_code_block(&document.blocks[0]).unwrap();
+        assert!(code.code().contains("\n    return 42"));
+        code.set_selection(0..code.code().len());
+        let selected = code.selected_source_range().into_range().unwrap();
+        assert!(source[selected].contains("\treturn 42"));
     }
 
     fn selected_rendered_range(source: &str, selection: Range<usize>) -> Option<Range<usize>> {
