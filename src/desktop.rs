@@ -69,7 +69,9 @@ const CODE_FONT: &str = "Menlo";
 #[cfg(not(target_os = "macos"))]
 const CODE_FONT: &str = "Consolas";
 
-pub(crate) fn ui_font() -> &'static str { UI_FONT }
+pub(crate) fn ui_font() -> &'static str {
+    UI_FONT
+}
 
 type DocumentCache = ((u32, usize, u8), Entity<TextViewState>, Option<PathBuf>);
 
@@ -109,7 +111,9 @@ impl CompletionProvider for GoProvider {
         let source = text.to_string();
         let local = snippets::completions(&source, offset);
         if let Err(error) = self.service.sync(&source) {
-            if local.is_empty() { return Task::ready(Err(error)); }
+            if local.is_empty() {
+                return Task::ready(Err(error));
+            }
             return Task::ready(Ok(CompletionResponse::Array(local)));
         }
         let mut params = self.service.at(&source, offset);
@@ -746,11 +750,11 @@ impl Workspace {
                             this.note_editor.update(cx, |state, cx| {
                                 state.set_value(this.saved_note.clone(), window, cx)
                             });
-                            this.note_preview.update(cx, |state, cx| {
-                                state.set_text(&this.saved_note, cx)
-                            });
+                            this.note_preview
+                                .update(cx, |state, cx| state.set_text(&this.saved_note, cx));
                             this.note_dirty = false;
-                            this.explanations = this.store.notes(this.problem()).unwrap_or_default();
+                            this.explanations =
+                                this.store.notes(this.problem()).unwrap_or_default();
                             this.document_view = None;
                             format!(
                                 "已导入 {} 篇个人笔记、{} 篇讲解；{} 篇与现有笔记合并",
@@ -1205,47 +1209,88 @@ impl Workspace {
         self.format_on_save(window, cx);
     }
 
+    fn initialize_code(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
+        if self
+            .problem()
+            .online
+            .as_ref()
+            .is_some_and(|remote| !remote.loaded)
+        {
+            self.notice = "题目尚未加载完成，请稍后再初始化代码".into();
+            cx.notify();
+            return;
+        }
+        let starter = self.problem().starter.clone();
+        let source = self.editor.read(cx).value().to_string();
+        if source == starter {
+            self.notice = "当前代码已经是题目初始模板".into();
+            cx.notify();
+            return;
+        }
+        let directory = self.store.workspace(self.problem().id);
+        let backup = (1..)
+            .map(|number| directory.join(format!("solution-before-reset-{number}.go")))
+            .find(|path| !path.exists())
+            .unwrap();
+        if let Err(error) = leetdesk::store::atomic_write(&backup, source.as_bytes()) {
+            self.notice = format!("备份当前代码失败，初始化已取消：{error:#}");
+            cx.notify();
+            return;
+        }
+        let edits = leetdesk::editing::diff(&source, &starter);
+        if !self.editor.update(cx, |state, cx| {
+            state.apply_programmatic_edits(&edits, window, cx)
+        }) {
+            self.notice = "正在输入，请结束输入后再初始化代码".into();
+            cx.notify();
+            return;
+        }
+        self.changed(cx);
+        self.notice = match self.save(cx) {
+            Ok(()) => format!(
+                "已恢复题目初始代码；原代码备份在 {} · 可撤销",
+                backup.display()
+            ),
+            Err(error) => format!("代码已初始化，保存失败：{error:#}"),
+        };
+        cx.notify();
+    }
+
     fn organize_imports(
         &mut self,
         _: &OrganizeImports,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(service) = self.language.clone() else {
-            self.notice = "请等待 gopls 连接，或点击重连".into();
-            cx.notify();
-            return;
-        };
         let source = self.editor.read(cx).value().to_string();
         let id = self.problem().id;
-        let generation = self.edit_generation;
+        let revision = self.editor.read(cx).document_revision();
+        let workspace = self.store.workspace(id);
+        self.notice = "正在整理 Go 导入…".into();
+        let input = source.clone();
         let task = cx.background_executor().spawn(async move {
-            service.sync(&source)?;
-            let actions = service.request("textDocument/codeAction", json!({"textDocument":{"uri":service.uri()}, "range":{"start":{"line":0,"character":0},"end":language::byte_position(&source,source.len())}, "context":{"diagnostics":[],"only":["source.organizeImports"]}}))?;
-            let mut edits = vec![];
-            if let Some(actions) = actions.as_array() {
-                for action in actions {
-                    if let Some(changes) = action["edit"]["documentChanges"].as_array() {
-                        for change in changes { if change["textDocument"]["uri"] == service.uri() { edits.extend(serde_json::from_value::<Vec<lsp_types::TextEdit>>(change["edits"].clone())?); } }
-                    }
-                    if let Some(changes) = action["edit"]["changes"].as_object()
-                        && let Some(values) = changes.get(service.uri()) { edits.extend(serde_json::from_value::<Vec<lsp_types::TextEdit>>(values.clone())?); }
-                }
-            }
-            let text = language::apply_edits(&source, &edits)?;
-            let patch = leetdesk::editing::diff(&source, &text);
-            Ok((text, patch))
+            let text = runner::organize_go_imports(&input, &workspace)?;
+            let patch = leetdesk::editing::diff(&input, &text);
+            Ok::<_, anyhow::Error>((text, patch))
         });
         cx.spawn_in(window, async move |this, cx| {
             let result: Result<(String, leetdesk::editing::Edits)> = task.await;
             _ = this.update_in(cx, |this, window, cx| {
-                if this.problem().id != id || this.edit_generation != generation {
+                if this.problem().id != id
+                    || this.editor.read(cx).document_revision() != revision
+                    || this.editor.read(cx).value().as_ref() != source
+                {
                     this.notice = "代码已发生变化，请再次整理导入".into();
                     cx.notify();
                     return;
                 }
                 match result {
-                    Ok((_, edits)) => {
+                    Ok((text, edits)) => {
+                        if text == source {
+                            this.notice = "导入已是最新，无需调整".into();
+                            cx.notify();
+                            return;
+                        }
                         if !this.editor.update(cx, |state, cx| {
                             state.apply_programmatic_edits(&edits, window, cx)
                         }) {
@@ -1254,14 +1299,18 @@ impl Workspace {
                             return;
                         }
                         this.changed(cx);
-                        this.notice = "已整理 Go 导入 · 可撤销".into();
+                        this.notice = match this.save(cx) {
+                            Ok(()) => "已整理 Go 导入并保存 · 可撤销".into(),
+                            Err(error) => format!("导入已整理，保存失败：{error}"),
+                        };
                     }
-                    Err(error) => this.notice = error.to_string(),
+                    Err(error) => this.notice = format!("整理导入失败：{error:#}"),
                 }
                 cx.notify();
             });
         })
         .detach();
+        cx.notify();
     }
 
     fn import_notes(&mut self, _: &ImportNotes, window: &mut Window, cx: &mut Context<Self>) {
@@ -2032,7 +2081,8 @@ impl Workspace {
                                                     .workspace(this.problem().id)
                                                     .join("notes.md");
                                                 if let Err(error) = this.save_notes_document(cx) {
-                                                    this.notice = format!("笔记保存失败：{error:#}");
+                                                    this.notice =
+                                                        format!("笔记保存失败：{error:#}");
                                                 } else if let Ok(uri) = language::file_uri(&path) {
                                                     cx.open_url(&uri);
                                                 }
@@ -2141,7 +2191,10 @@ impl Workspace {
                         .get(self.selected_note)
                         .map(|(_, body)| catalog::markdown_body(body).to_string())
                         .filter(|body| !body.trim().is_empty())
-                        .unwrap_or_else(|| "还没有做法讲解。点击顶部“导入 MD 文件”选择 .md，或选择“导入文件夹”。".into())
+                        .unwrap_or_else(|| {
+                            "还没有做法讲解。点击顶部“导入 MD 文件”选择 .md，或选择“导入文件夹”。"
+                                .into()
+                        })
                 };
                 let state =
                     if self.document_tab == DocumentTab::Description && problem.online.is_some() {
@@ -2294,9 +2347,12 @@ impl Workspace {
             .flex_col()
             .child(
                 div()
-                    .h(px(36.))
-                    .px_4()
+                    .min_h(px(36.))
+                    .px_3()
+                    .py_1()
                     .flex()
+                    .flex_wrap()
+                    .gap_1()
                     .items_center()
                     .justify_between()
                     .bg(rgb(PANEL))
@@ -2329,6 +2385,13 @@ impl Workspace {
                             .flex()
                             .gap_1()
                             .items_center()
+                            .child(
+                                Button::new("initialize-code")
+                                    .label("初始化代码")
+                                    .small()
+                                    .ghost()
+                                    .on_click(cx.listener(Self::initialize_code)),
+                            )
                             .child(
                                 Button::new("organize-imports")
                                     .label("整理导入")
@@ -2394,9 +2457,17 @@ impl Workspace {
                         .flex()
                         .items_center()
                         .gap_3()
-                        .child(div().text_xs().font_weight(FontWeight::SEMIBOLD).text_color(rgb(ACCENT)).child(
-                            if self.problem().online.is_some() { "在线测试输入" } else { "本地测试数据" },
-                        ))
+                        .child(
+                            div()
+                                .text_xs()
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(rgb(ACCENT))
+                                .child(if self.problem().online.is_some() {
+                                    "在线测试输入"
+                                } else {
+                                    "本地测试数据"
+                                }),
+                        )
                         .child(div().text_xs().text_color(rgb(MUTED)).child(
                             if self.problem().online.is_some() {
                                 "每个参数占一行 · 修改后点击上方测试"
@@ -2433,8 +2504,17 @@ impl Workspace {
                     || output.contains("Compile Error")
                     || output.contains("Time Limit Exceeded");
                 let passed = !failed && (output.contains("通过") || output.contains("Accepted"));
-                let tone = if failed { 0xff928c } else if passed { ACCENT } else { MUTED };
-                let detail = output.split_once('\n').map_or("", |(_, detail)| detail).replace("\r\n", "\n");
+                let tone = if failed {
+                    0xff928c
+                } else if passed {
+                    ACCENT
+                } else {
+                    MUTED
+                };
+                let detail = output
+                    .split_once('\n')
+                    .map_or("", |(_, detail)| detail)
+                    .replace("\r\n", "\n");
                 div()
                     .id("results-scroll")
                     .size_full()
@@ -2449,7 +2529,13 @@ impl Workspace {
                             .px_3()
                             .py_2()
                             .rounded_md()
-                            .bg(rgb(if failed { 0x231313 } else if passed { 0x102018 } else { CODE_BG }))
+                            .bg(rgb(if failed {
+                                0x231313
+                            } else if passed {
+                                0x102018
+                            } else {
+                                CODE_BG
+                            }))
                             .border_l_2()
                             .border_color(rgb(tone))
                             .text_sm()
@@ -2458,48 +2544,97 @@ impl Workspace {
                             .child(heading.to_string()),
                     )
                     .when(output.is_empty(), |panel| {
-                        panel.child(div().px_3().text_xs().text_color(rgb(MUTED)).child("运行代码后，这里会显示每个用例的输入、预期和实际结果。"))
+                        panel.child(
+                            div()
+                                .px_3()
+                                .text_xs()
+                                .text_color(rgb(MUTED))
+                                .child("运行代码后，这里会显示每个用例的输入、预期和实际结果。"),
+                        )
                     })
-                    .children(detail.split("\n\n").filter(|section| !section.trim().is_empty()).map(|section| {
-                        let case_ok = section.trim_start().starts_with('✓');
-                        let case_failed = section.trim_start().starts_with('✗');
-                        div()
-                            .p_3()
-                            .rounded_md()
-                            .border_1()
-                            .border_color(rgb(if case_ok { 0x285440 } else if case_failed { 0x61332f } else { LINE }))
-                            .bg(rgb(CODE_BG))
-                            .flex()
-                            .flex_col()
-                            .gap_1()
-                            .children(section.lines().filter(|line| !line.trim().is_empty()).map(|line| {
-                                let line = line.trim();
-                                if line.starts_with('✓') || line.starts_with('✗') {
-                                    let ok = line.starts_with('✓');
-                                    div()
-                                        .text_sm()
-                                        .font_weight(FontWeight::SEMIBOLD)
-                                        .text_color(rgb(if ok { ACCENT } else { 0xff928c }))
-                                        .child(line.to_string())
-                                        .into_any_element()
-                                } else if let Some((label, value)) = line.split_once('：') {
-                                    let is_error = label.contains("错误") || label.contains("失败");
-                                    div()
-                                        .flex()
-                                        .items_start()
-                                        .gap_3()
-                                        .text_xs()
-                                        .child(div().w(px(64.)).flex_shrink_0().text_color(rgb(MUTED)).child(label.to_string()))
-                                        .child(div().flex_1().min_w_0().text_color(rgb(if is_error { 0xff928c } else { INK })).child(value.trim().to_string()))
-                                        .into_any_element()
-                                } else {
-                                    div().text_xs().text_color(rgb(INK)).child(line.to_string()).into_any_element()
-                                }
-                            }))
-                            .into_any_element()
-                    }))
+                    .children(
+                        detail
+                            .split("\n\n")
+                            .filter(|section| !section.trim().is_empty())
+                            .map(|section| {
+                                let case_ok = section.trim_start().starts_with('✓');
+                                let case_failed = section.trim_start().starts_with('✗');
+                                div()
+                                    .p_3()
+                                    .rounded_md()
+                                    .border_1()
+                                    .border_color(rgb(if case_ok {
+                                        0x285440
+                                    } else if case_failed {
+                                        0x61332f
+                                    } else {
+                                        LINE
+                                    }))
+                                    .bg(rgb(CODE_BG))
+                                    .flex()
+                                    .flex_col()
+                                    .gap_1()
+                                    .children(
+                                        section.lines().filter(|line| !line.trim().is_empty()).map(
+                                            |line| {
+                                                let line = line.trim();
+                                                if line.starts_with('✓') || line.starts_with('✗')
+                                                {
+                                                    let ok = line.starts_with('✓');
+                                                    div()
+                                                        .text_sm()
+                                                        .font_weight(FontWeight::SEMIBOLD)
+                                                        .text_color(rgb(if ok {
+                                                            ACCENT
+                                                        } else {
+                                                            0xff928c
+                                                        }))
+                                                        .child(line.to_string())
+                                                        .into_any_element()
+                                                } else if let Some((label, value)) =
+                                                    line.split_once('：')
+                                                {
+                                                    let is_error = label.contains("错误")
+                                                        || label.contains("失败");
+                                                    div()
+                                                        .flex()
+                                                        .items_start()
+                                                        .gap_3()
+                                                        .text_xs()
+                                                        .child(
+                                                            div()
+                                                                .w(px(64.))
+                                                                .flex_shrink_0()
+                                                                .text_color(rgb(MUTED))
+                                                                .child(label.to_string()),
+                                                        )
+                                                        .child(
+                                                            div()
+                                                                .flex_1()
+                                                                .min_w_0()
+                                                                .text_color(rgb(if is_error {
+                                                                    0xff928c
+                                                                } else {
+                                                                    INK
+                                                                }))
+                                                                .child(value.trim().to_string()),
+                                                        )
+                                                        .into_any_element()
+                                                } else {
+                                                    div()
+                                                        .text_xs()
+                                                        .text_color(rgb(INK))
+                                                        .child(line.to_string())
+                                                        .into_any_element()
+                                                }
+                                            },
+                                        ),
+                                    )
+                                    .into_any_element()
+                            }),
+                    )
                     .into_any_element()
-            },
+            }
             BottomTab::Diagnostics => div()
                 .id("diagnostics-scroll")
                 .size_full()
@@ -2519,11 +2654,27 @@ impl Workspace {
                             .flex()
                             .flex_col()
                             .gap_1()
-                            .child(div().text_sm().font_weight(FontWeight::SEMIBOLD).text_color(rgb(if self.language.is_some() { ACCENT } else { MUTED })).child(
-                                if self.language.is_some() { "✓ 暂无代码问题" } else { "等待 Go 语言服务" },
-                            ))
+                            .child(
+                                div()
+                                    .text_sm()
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(rgb(if self.language.is_some() {
+                                        ACCENT
+                                    } else {
+                                        MUTED
+                                    }))
+                                    .child(if self.language.is_some() {
+                                        "✓ 暂无代码问题"
+                                    } else {
+                                        "等待 Go 语言服务"
+                                    }),
+                            )
                             .child(div().text_xs().text_color(rgb(MUTED)).child(
-                                if self.language.is_some() { "继续编写代码，检查结果会实时更新。" } else { "连接后会在这里显示错误和警告。" },
+                                if self.language.is_some() {
+                                    "继续编写代码，检查结果会实时更新。"
+                                } else {
+                                    "连接后会在这里显示错误和警告。"
+                                },
                             )),
                     )
                 })
@@ -2560,10 +2711,25 @@ impl Workspace {
                                         .items_center()
                                         .gap_3()
                                         .text_xs()
-                                        .child(div().font_weight(FontWeight::SEMIBOLD).text_color(rgb(color)).child(kind))
-                                        .child(div().text_color(rgb(MUTED)).child(format!("{}:{}", position.line + 1, position.character + 1))),
+                                        .child(
+                                            div()
+                                                .font_weight(FontWeight::SEMIBOLD)
+                                                .text_color(rgb(color))
+                                                .child(kind),
+                                        )
+                                        .child(div().text_color(rgb(MUTED)).child(format!(
+                                            "{}:{}",
+                                            position.line + 1,
+                                            position.character + 1
+                                        ))),
                                 )
-                                .child(div().mt_1().text_sm().text_color(rgb(INK)).child(diagnostic.message.clone()))
+                                .child(
+                                    div()
+                                        .mt_1()
+                                        .text_sm()
+                                        .text_color(rgb(INK))
+                                        .child(diagnostic.message.clone()),
+                                )
                         }),
                 )
                 .into_any_element(),
@@ -2593,7 +2759,11 @@ impl Workspace {
                             .flex()
                             .items_center()
                             .border_b_2()
-                            .border_color(rgb(if self.bottom_tab == tab { ACCENT } else { PANEL }))
+                            .border_color(rgb(if self.bottom_tab == tab {
+                                ACCENT
+                            } else {
+                                PANEL
+                            }))
                             .child(
                                 Button::new(("bottom-tab", index))
                                     .label(label)
@@ -2838,13 +3008,11 @@ impl Render for Workspace {
                             .label("关闭")
                             .small()
                             .ghost()
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                match this.save(cx) {
-                                    Ok(_) => window.remove_window(),
-                                    Err(error) => {
-                                        this.notice = format!("保存失败，窗口保持打开：{error}");
-                                        cx.notify();
-                                    }
+                            .on_click(cx.listener(|this, _, window, cx| match this.save(cx) {
+                                Ok(_) => window.remove_window(),
+                                Err(error) => {
+                                    this.notice = format!("保存失败，窗口保持打开：{error}");
+                                    cx.notify();
                                 }
                             })),
                     ),
@@ -3075,7 +3243,8 @@ pub fn apply_theme(cx: &mut App) {
         "operator": {"color": gpui_kit::Hsla::from(rgb(0xff91b7))},
         "comment": {"color": gpui_kit::Hsla::from(rgb(0x9ba2ac))},
         "punctuation": {"color": gpui_kit::Hsla::from(rgb(0xc9d0da))}
-    })).expect("Go 高亮颜色有效");
+    }))
+    .expect("Go 高亮颜色有效");
 }
 
 fn document_style() -> TextViewStyle {
@@ -3144,7 +3313,11 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("cmd-shift-f", Format, Some("LeetDesk")),
         KeyBinding::new("cmd-shift-o", OrganizeImports, Some("LeetDesk")),
         KeyBinding::new("cmd-i", ImportNotes, Some("LeetDesk")),
-        KeyBinding::new("cmd-j", gpui_kit::component::input::ShowCompletions, Some("Input && mode == editor")),
+        KeyBinding::new(
+            "cmd-j",
+            gpui_kit::component::input::ShowCompletions,
+            Some("Input && mode == editor"),
+        ),
     ]);
 }
 
@@ -3997,7 +4170,9 @@ mod ui_tests {
                 state.set_value(source, window, cx);
                 state.set_cursor_position(language::byte_position(source, offset), window, cx);
                 let item = snippets::completions(source, offset)
-                    .into_iter().find(|item| item.label.starts_with("for ·")).unwrap();
+                    .into_iter()
+                    .find(|item| item.label.starts_with("for ·"))
+                    .unwrap();
                 state.insert_completion(&item, offset - 2..offset, window, cx);
             });
             window.render_frame(cx);
@@ -4012,7 +4187,8 @@ mod ui_tests {
             window.input("sum += i", cx);
             window.press("shift-tab", cx);
             assert_eq!(editor.read(cx).selected_value().as_ref(), "size");
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     #[gpui_kit::test]
@@ -4026,8 +4202,14 @@ mod ui_tests {
             });
             window.render_frame(cx);
             window.click("close-window", cx);
-        }).unwrap();
-        let saved = temp.path().join("data").join("workspaces").join(id.to_string()).join("solution.go");
+        })
+        .unwrap();
+        let saved = temp
+            .path()
+            .join("data")
+            .join("workspaces")
+            .join(id.to_string())
+            .join("solution.go");
         assert_eq!(std::fs::read_to_string(saved).unwrap(), source);
     }
 
@@ -4432,8 +4614,80 @@ mod ui_tests {
         cx.update_window(handle, |_, _, cx| {
             let workspace = view.read(cx);
             assert_eq!(workspace.editor.read(cx).value().as_ref(), formatted);
-            assert_eq!(workspace.store.source(workspace.problem().id).unwrap(), formatted);
+            assert_eq!(
+                workspace.store.source(workspace.problem().id).unwrap(),
+                formatted
+            );
             assert!(workspace.notice.contains("gofmt"));
+        })
+        .unwrap();
+    }
+
+    #[gpui_kit::test]
+    fn initialize_code_restores_starter_and_backs_up_current_solution(cx: &mut TestAppContext) {
+        let (handle, view, _temp) = practice_window(cx);
+        let draft = "package solution\n\nfunc answer() int { return 42 }\n";
+        let starter = cx.update(|cx| view.read(cx).problem().starter.clone());
+        cx.update_window(handle, |_, window, cx| {
+            view.read(cx).editor.clone().update(cx, |state, cx| {
+                state.set_value(draft, window, cx);
+                state.focus(window, cx);
+            });
+            window.render_frame(cx);
+            window.click("initialize-code", cx);
+        })
+        .unwrap();
+        cx.update_window(handle, |_, window, cx| {
+            let workspace = view.read(cx);
+            assert_eq!(workspace.editor.read(cx).value().as_ref(), starter);
+            assert_eq!(
+                workspace.store.source(workspace.problem().id).unwrap(),
+                starter
+            );
+            assert_eq!(
+                fs::read_to_string(
+                    workspace
+                        .store
+                        .workspace(workspace.problem().id)
+                        .join("solution-before-reset-1.go")
+                )
+                .unwrap(),
+                draft
+            );
+            assert!(workspace.notice.contains("已恢复题目初始代码"));
+            window.press("ctrl-z", cx);
+            assert_eq!(view.read(cx).editor.read(cx).value().as_ref(), draft);
+        })
+        .unwrap();
+    }
+
+    #[gpui_kit::test]
+    fn organize_imports_button_updates_the_editor_and_saved_file(cx: &mut TestAppContext) {
+        if std::process::Command::new(language::gopls_executable())
+            .arg("version")
+            .output()
+            .is_err()
+        {
+            return;
+        }
+        let (handle, view, _temp) = practice_window(cx);
+        let draft = "package solution\n\nfunc answer() { fmt.Println(1) }\n";
+        cx.update_window(handle, |_, window, cx| {
+            view.read(cx)
+                .editor
+                .clone()
+                .update(cx, |state, cx| state.set_value(draft, window, cx));
+            window.render_frame(cx);
+            window.click("organize-imports", cx);
+        })
+        .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle, |_, _, cx| {
+            let workspace = view.read(cx);
+            let source = workspace.editor.read(cx).value().to_string();
+            assert!(source.contains("import \"fmt\""), "{source}");
+            assert_eq!(workspace.store.source(workspace.problem().id).unwrap(), source);
+            assert!(workspace.notice.contains("已整理 Go 导入并保存"));
         })
         .unwrap();
     }

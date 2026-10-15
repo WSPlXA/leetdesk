@@ -33,7 +33,7 @@ fn run() -> Result<()> {
         for (label, tool, argument) in [
             ("Go", std::ffi::OsString::from("go"), "version"),
             ("gopls", leetdesk::language::gopls_executable(), "version"),
-            ("gofmt", "gofmt".into(), "-h"),
+            ("gofmt", leetdesk::language::gofmt_executable(), "-h"),
         ] {
             let mut command = Command::new(tool);
             leetdesk::language::hide_console(&mut command);

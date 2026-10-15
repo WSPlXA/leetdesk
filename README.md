@@ -2,7 +2,7 @@
 
 **用 Rust + GPUI 构建的原生 LeetCode 刷题工作区，目前专注 Go。** 在一个窗口里读题、按主题找题、写代码、运行用例、提交解答，并用 Markdown 记录做法与复盘。
 
-支持 Windows x64、Intel Mac 和 Apple Silicon Mac。下载已发布的 [v0.1.2 压缩包](https://github.com/WSPlXA/leetdesk/releases/tag/v0.1.2)。
+支持 Windows x64、Intel Mac 和 Apple Silicon Mac。下载[最新发布版](https://github.com/WSPlXA/leetdesk/releases/latest)。
 
 ## 安装与首次使用
 
@@ -20,7 +20,7 @@
    go install golang.org/x/tools/gopls@latest
    ```
 
-   确保 `go`、`gofmt`、`gopls` 可以从终端运行。若 `gopls` 不在 `PATH` 中，可以用 `LEETDESK_GOPLS` 指向它。Windows 登录窗口还需要 WebView2 Runtime。
+   确保 `go`、`gofmt`、`gopls` 可以从终端运行。若它们不在 `PATH` 中，可用 `LEETDESK_GOPLS` 和 `LEETDESK_GOFMT` 指向对应程序。Windows 登录窗口还需要 WebView2 Runtime。
 
 3. 启动应用，在 LeetCode 中国站或国际站的官方页面登录。登录后同步题库、分类和当前账号的解题状态；后续启动先读取本地缓存，需要更新时点击 **同步题库**。登录暂时不可用时，可选择使用离线缓存。
 
@@ -33,6 +33,7 @@ macOS 包已在对应架构的 GitHub Actions runner 上构建。当前使用临
 - **找题：** 支持热题 100、链表、字符串、双指针、图、树、动态规划等题单与主题。搜索、主题、难度、解题状态可以组合筛选；收藏、待复习和自定义标签用于安排下一轮练习。
 - **读题：** 在线加载题面与官方 Go 模板，下载后缓存。题面、做法讲解、个人笔记和代码可在同一工作区查看，面板宽度可调整。
 - **写代码：** Tree-sitter 语法高亮；`gopls` 提供诊断、补全、类型提示与跳转定义。内置 `for`、`make`、`append` 等模板补全；支持自动缩进、括号配对、长行折行、撤销及搜索。`Ctrl+S`（Mac 为 `Cmd+S`）保存并用 `gofmt` 格式化 Go 代码。
+- **代码工具：** **初始化代码** 恢复当前题目的 Go 模板，并将原代码备份为 `solution-before-reset-*.go`；**整理导入** 使用 `gopls imports` 补全缺失的导入并删除多余导入；**格式化** 使用 `gofmt` 排版。代码有语法错误而无法格式化时，原草稿仍会保存，底部状态栏显示具体错误。
 - **验证：** 本地用例会实际编译并运行 Go，逐例显示预期值、实际值、错误和耗时。在线题目还可调用平台测试与提交接口；通过后更新当前题目的状态缓存。正在判题时停止等待不会撤销平台已接收的任务。
 - **复盘：** 每道题有独立的 Markdown 笔记，保存后更新预览；也可导入已有的 MD 做法讲解。代码、笔记与进度会自动保存，重新打开继续上次练习。
 
@@ -125,6 +126,6 @@ Windows 也可显式指定 `+stable-x86_64-pc-windows-msvc`。真实 Go/gopls �
 
 ## 发布
 
-[GitHub Actions 工作流](.github/workflows/release.yml) 在推送到 `master`、发起 PR 或手动运行时构建 Windows x64、Intel Mac 和 Apple Silicon Mac 包；推送与 `Cargo.toml` 版本一致的 `v*` 标签后，三个构建都成功才会创建 Release 并上传压缩包。Windows 构建还会运行桌面端测试。
+[GitHub Actions 工作流](.github/workflows/release.yml) 只在手动运行时构建 Windows x64、Intel Mac 和 Apple Silicon Mac 包，不会因推送提交或标签自动启动。到仓库的 **Actions → Build and release → Run workflow**，留空 `release_tag` 只生成 Actions 产物；填入已推送、与 `Cargo.toml` 版本一致的标签（如 `v0.1.3`）则在三个构建都成功后创建 Release 并上传压缩包。Windows 构建还会运行桌面端测试。
 
 项目使用 [MIT License](LICENSE)。

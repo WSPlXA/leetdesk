@@ -1,6 +1,6 @@
 use crate::{
     catalog::{Case, Kind, Problem, validate_cases},
-    language::hide_console,
+    language::{gofmt_executable, gopls_executable, hide_console},
     store::NODE_TYPES,
 };
 use anyhow::{Context, Result, bail};
@@ -209,14 +209,14 @@ pub fn execute(
 }
 
 pub fn format_go(source: &str) -> Result<String> {
-    let mut command = Command::new("gofmt");
+    let mut command = Command::new(gofmt_executable());
     hide_console(&mut command);
     let mut child = command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .context("无法启动 gofmt")?;
+        .context("无法启动 gofmt；请安装 Go，或设置 LEETDESK_GOFMT")?;
     let mut input = child.stdin.take().unwrap();
     let source = source.to_owned();
     let writer = thread::spawn(move || input.write_all(source.as_bytes()));
@@ -229,6 +229,22 @@ pub fn format_go(source: &str) -> Result<String> {
         bail!("{}", String::from_utf8_lossy(&output.stderr));
     }
     Ok(String::from_utf8(output.stdout)?)
+}
+
+pub fn organize_go_imports(source: &str, workspace: &Path) -> Result<String> {
+    let temporary = tempfile::Builder::new()
+        .prefix(".leetdesk-imports-")
+        .tempdir_in(workspace)?;
+    let path = temporary.path().join("solution.go");
+    fs::write(&path, source)?;
+    let mut command = Command::new(gopls_executable());
+    command.arg("imports").arg("-w").arg(&path);
+    let (success, output) = execute(command, Duration::from_secs(45), &AtomicBool::new(false))
+        .context("无法整理导入；请安装 gopls")?;
+    if !success {
+        bail!("gopls 整理导入失败：{}", output.trim());
+    }
+    Ok(fs::read_to_string(path)?)
 }
 
 pub fn harness(problem: &Problem, cases: &[Case]) -> Result<String> {

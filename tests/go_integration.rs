@@ -14,6 +14,17 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[test]
+#[ignore = "requires gopls"]
+fn goimports_adds_missing_imports_from_an_unsaved_draft() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = "package solution\n\nfunc answer() { fmt.Println(1) }\n";
+    let organized = runner::organize_go_imports(source, temp.path()).unwrap();
+    assert!(organized.contains("import \"fmt\""), "{organized}");
+    assert!(organized.contains("fmt.Println(1)"));
+    assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 0);
+}
+
 fn wait_diagnostics(service: &GoLanguage, expected_error: bool) {
     let start = Instant::now();
     loop {

@@ -356,6 +356,30 @@ pub fn gopls_executable() -> std::ffi::OsString {
     "gopls".into()
 }
 
+pub fn gofmt_executable() -> std::ffi::OsString {
+    if let Some(path) = std::env::var_os("LEETDESK_GOFMT") {
+        return path;
+    }
+    if let Some(root) = std::env::var_os("GOROOT") {
+        let path = std::path::PathBuf::from(root)
+            .join("bin")
+            .join(if cfg!(windows) { "gofmt.exe" } else { "gofmt" });
+        if path.is_file() {
+            return path.into_os_string();
+        }
+    }
+    #[cfg(windows)]
+    {
+        if let Some(program_files) = std::env::var_os("ProgramFiles") {
+            let path = std::path::PathBuf::from(program_files).join("Go/bin/gofmt.exe");
+            if path.is_file() {
+                return path.into_os_string();
+            }
+        }
+    }
+    "gofmt".into()
+}
+
 pub fn file_uri(path: &Path) -> Result<String> {
     #[cfg(windows)]
     let path = {
