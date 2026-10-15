@@ -2,7 +2,7 @@
 
 **用 Rust + GPUI 构建的原生 LeetCode 刷题工作区，目前专注 Go。** 在一个窗口里读题、按主题找题、写代码、运行用例、提交解答，并用 Markdown 记录做法与复盘。
 
-支持 Windows x64、Intel Mac 和 Apple Silicon Mac。下载已发布的 [v0.1.1 压缩包](https://github.com/WSPlXA/leetdesk/releases/tag/v0.1.1)。
+支持 Windows x64、Intel Mac 和 Apple Silicon Mac。下载已发布的 [v0.1.2 压缩包](https://github.com/WSPlXA/leetdesk/releases/tag/v0.1.2)。
 
 ## 安装与首次使用
 
@@ -75,6 +75,8 @@ tags: [哈希表, 面试复习]
 ```
 
 更多示例见 [examples/1-two-sum.md](examples/1-two-sum.md)。讲解支持标题、表格、保留缩进的代码块、相对路径图片，以及 `$O(n)$` 行内公式和独占一段的 `$$…$$` 公式；使用图片时请保留其原目录。**我的笔记** 按题保存为 `workspaces/<题目 ID>/notes.md`，点击保存或按 `Ctrl+S` / `Cmd+S` 后自动渲染，也可以点击 **打开 MD** 在外部编辑。
+
+需要在另一台电脑继续写笔记时，打开 **我的笔记**，点击 **导出全部笔记** 保存一个 ZIP 文件。它包含所有题目的个人笔记、导入过的做法讲解，以及文档引用的相对路径本地图片；找不到的图片会在导出后提示。把 ZIP 带到另一台电脑后，在同一位置点击 **导入笔记包**。重复导入相同内容会跳过；若同一题的个人笔记在两台电脑都已修改，导入内容会追加到现有笔记，并单独保留一份 `notes-imported-*.md`。笔记包只承载笔记，不包含 LeetCode 登录信息或代码。
 
 ## 数据与离线模式
 

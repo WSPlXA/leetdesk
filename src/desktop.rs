@@ -21,7 +21,7 @@ use leetdesk::{
     catalog::{self, Case, Problem},
     catalog_view::CatalogView,
     language::{self, GoLanguage},
-    runner, snippets,
+    note_bundle, runner, snippets,
     store::{Progress, Store},
 };
 use lsp_types::{CompletionContext, CompletionResponse, Hover, LocationLink, Position};
@@ -663,6 +663,109 @@ impl Workspace {
         };
         cx.notify();
     }
+
+    fn export_note_bundle(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
+        if let Err(error) = self.save_notes_document(cx) {
+            self.notice = format!("笔记保存失败：{error:#}");
+            cx.notify();
+            return;
+        }
+        let directory = default_note_export_directory(&self.store.root);
+        let prompt = cx.prompt_for_new_path(&directory, Some("leetdesk-notes.zip"));
+        let root = self.store.root.clone();
+        cx.spawn_in(window, async move |this, cx| {
+            let selected = prompt.await;
+            let result = match selected {
+                Ok(Ok(Some(path))) => {
+                    let path = path.with_extension("zip");
+                    let task = cx.background_executor().spawn(async move {
+                        let store = Store::open(root)?;
+                        let summary = note_bundle::export(&store, &path)?;
+                        Ok::<_, anyhow::Error>((path, summary))
+                    });
+                    Some(task.await)
+                }
+                Ok(Ok(None)) => None,
+                Ok(Err(error)) => Some(Err(error)),
+                Err(error) => Some(Err(error.into())),
+            };
+            if let Some(result) = result {
+                _ = this.update_in(cx, |this, _, cx| {
+                    this.notice = match result {
+                        Ok((path, summary)) => format!(
+                            "已导出 {} 篇个人笔记、{} 篇讲解和 {} 张图片到 {}{}",
+                            summary.personal,
+                            summary.explanations,
+                            summary.images,
+                            path.display(),
+                            if summary.missing_images > 0 {
+                                format!("；{} 张引用图片未找到", summary.missing_images)
+                            } else {
+                                String::new()
+                            }
+                        ),
+                        Err(error) => format!("导出笔记失败：{error:#}"),
+                    };
+                    cx.notify();
+                });
+            }
+        })
+        .detach();
+    }
+
+    fn import_note_bundle(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
+        if let Err(error) = self.save_notes_document(cx) {
+            self.notice = format!("笔记保存失败：{error:#}");
+            cx.notify();
+            return;
+        }
+        let prompt = cx.prompt_for_paths(PathPromptOptions {
+            files: true,
+            directories: false,
+            multiple: false,
+            prompt: Some("选择 LeetDesk 笔记包（.zip）".into()),
+        });
+        cx.spawn_in(window, async move |this, cx| {
+            let selected = prompt.await;
+            _ = this.update_in(cx, |this, window, cx| {
+                let result = match selected {
+                    Ok(Ok(Some(paths))) => paths
+                        .first()
+                        .map(|path| note_bundle::import(&this.store, path)),
+                    Ok(Ok(None)) => None,
+                    Ok(Err(error)) => Some(Err(error)),
+                    Err(error) => Some(Err(error.into())),
+                };
+                if let Some(result) = result {
+                    this.notice = match result {
+                        Ok(summary) => {
+                            this.saved_note = fs::read_to_string(
+                                this.store.workspace(this.problem().id).join("notes.md"),
+                            )
+                            .unwrap_or_default();
+                            this.note_editor.update(cx, |state, cx| {
+                                state.set_value(this.saved_note.clone(), window, cx)
+                            });
+                            this.note_preview.update(cx, |state, cx| {
+                                state.set_text(&this.saved_note, cx)
+                            });
+                            this.note_dirty = false;
+                            this.explanations = this.store.notes(this.problem()).unwrap_or_default();
+                            this.document_view = None;
+                            format!(
+                                "已导入 {} 篇个人笔记、{} 篇讲解；{} 篇与现有笔记合并",
+                                summary.personal, summary.explanations, summary.merged
+                            )
+                        }
+                        Err(error) => format!("导入笔记包失败：{error:#}"),
+                    };
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
+    }
+
     pub fn set_online_enabled(&mut self, enabled: bool) {
         self.online_enabled = enabled;
     }
@@ -1888,6 +1991,7 @@ impl Workspace {
                     .child(
                         div()
                             .flex()
+                            .flex_wrap()
                             .justify_between()
                             .items_center()
                             .child(div().text_xs().text_color(rgb(MUTED)).child(format!(
@@ -1899,22 +2003,42 @@ impl Workspace {
                                 }
                             )))
                             .child(
-                                Button::new("open-notes-file")
-                                    .small()
-                                    .ghost()
-                                    .label("打开 MD")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        let path = this
-                                            .store
-                                            .workspace(this.problem().id)
-                                            .join("notes.md");
-                                        if let Err(error) = this.save_notes_document(cx) {
-                                            this.notice = format!("笔记保存失败：{error:#}");
-                                        } else if let Ok(uri) = language::file_uri(&path) {
-                                            cx.open_url(&uri);
-                                        }
-                                        cx.notify();
-                                    })),
+                                div()
+                                    .flex()
+                                    .flex_wrap()
+                                    .gap_1()
+                                    .child(
+                                        Button::new("import-note-bundle")
+                                            .small()
+                                            .ghost()
+                                            .label("导入笔记包")
+                                            .on_click(cx.listener(Self::import_note_bundle)),
+                                    )
+                                    .child(
+                                        Button::new("export-note-bundle")
+                                            .small()
+                                            .ghost()
+                                            .label("导出全部笔记")
+                                            .on_click(cx.listener(Self::export_note_bundle)),
+                                    )
+                                    .child(
+                                        Button::new("open-notes-file")
+                                            .small()
+                                            .ghost()
+                                            .label("打开 MD")
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                let path = this
+                                                    .store
+                                                    .workspace(this.problem().id)
+                                                    .join("notes.md");
+                                                if let Err(error) = this.save_notes_document(cx) {
+                                                    this.notice = format!("笔记保存失败：{error:#}");
+                                                } else if let Ok(uri) = language::file_uri(&path) {
+                                                    cx.open_url(&uri);
+                                                }
+                                                cx.notify();
+                                            })),
+                                    ),
                             ),
                     )
                     .child(
@@ -2794,6 +2918,21 @@ fn local_document_path(value: &str, base: Option<&std::path::Path>) -> Option<Pa
     base.map(|base| base.join(value))
 }
 
+fn default_note_export_directory(fallback: &std::path::Path) -> PathBuf {
+    let home = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME"));
+    if let Some(home) = home {
+        let home = PathBuf::from(home);
+        let documents = home.join("Documents");
+        if documents.is_dir() {
+            return documents;
+        }
+        if home.is_dir() {
+            return home;
+        }
+    }
+    fallback.to_path_buf()
+}
+
 impl Drop for Workspace {
     fn drop(&mut self) {
         if let Some(cancel) = &self.cancellation {
@@ -3054,6 +3193,50 @@ mod ui_tests {
             None
         });
         cx.run_until_parked();
+    }
+
+    #[gpui_kit::test]
+    fn notes_toolbar_exports_and_imports_a_portable_bundle(cx: &mut TestAppContext) {
+        let (handle, view, temp) = practice_window(cx);
+        let bundle = temp.path().join("take-home.zip");
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            window.click(("document-tab", 2_usize), cx);
+            view.read(cx).note_editor.clone().update(cx, |state, cx| {
+                state.set_value("# 带回家的笔记", window, cx)
+            });
+            window.render_frame(cx);
+            window.click("export-note-bundle", cx);
+        })
+        .unwrap();
+        cx.simulate_new_path_selection({
+            let bundle = bundle.clone();
+            move |directory| {
+                assert!(directory.is_dir());
+                Some(bundle)
+            }
+        });
+        cx.run_until_parked();
+        assert!(bundle.is_file());
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            assert!(view.read(cx).notice.contains("已导出 1 篇个人笔记"));
+            window.click("import-note-bundle", cx);
+        })
+        .unwrap();
+        cx.simulate_path_prompt_response({
+            let bundle = bundle.clone();
+            move |options| {
+                assert!(options.files && !options.directories && !options.multiple);
+                Some(vec![bundle])
+            }
+        });
+        cx.run_until_parked();
+        cx.update_window(handle, |_, _, cx| {
+            assert!(view.read(cx).notice.contains("已导入 0 篇个人笔记"));
+            assert_eq!(view.read(cx).saved_note, "# 带回家的笔记");
+        })
+        .unwrap();
     }
 
     #[gpui_kit::test]

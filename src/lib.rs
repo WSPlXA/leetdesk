@@ -2,6 +2,7 @@ pub mod catalog;
 pub mod catalog_view;
 pub mod editing;
 pub mod language;
+pub mod note_bundle;
 pub mod online;
 pub mod runner;
 pub mod snippets;
