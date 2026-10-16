@@ -12,15 +12,99 @@ struct Template {
 }
 
 const TEMPLATES: &[Template] = &[
-    Template { prefix: "for", label: "for · 计数循环", detail: "for i := 0; i < n; i++", body: "for i := 0; i < ${1:n}; i++ {\n\t$0\n}" },
-    Template { prefix: "forr", label: "forr · range 循环", detail: "遍历切片、映射或字符串", body: "for ${1:_, value} := range ${2:values} {\n\t$0\n}" },
-    Template { prefix: "forc", label: "forc · 条件循环", detail: "for condition", body: "for ${1:condition} {\n\t$0\n}" },
-    Template { prefix: "make", label: "make · 切片", detail: "make([]T, n)", body: "make([]${1:int}, ${2:n})$0" },
-    Template { prefix: "makemap", label: "makemap · 映射", detail: "make(map[K]V)", body: "make(map[${1:string}]${2:int})$0" },
-    Template { prefix: "makechan", label: "makechan · 通道", detail: "make(chan T)", body: "make(chan ${1:int})$0" },
-    Template { prefix: "append", label: "append · 追加元素", detail: "append(slice, value)", body: "append(${1:slice}, ${2:value})$0" },
-    Template { prefix: "if", label: "if · 条件分支", detail: "if condition", body: "if ${1:condition} {\n\t$0\n}" },
-    Template { prefix: "switch", label: "switch · 分支", detail: "switch value", body: "switch ${1:value} {\ncase ${2:caseValue}:\n\t$0\n}" },
+    Template {
+        prefix: "for",
+        label: "for · 计数循环",
+        detail: "for i := 0; i < n; i++",
+        body: "for i := 0; i < ${1:n}; i++ {\n\t$0\n}",
+    },
+    Template {
+        prefix: "forr",
+        label: "forr · range 循环",
+        detail: "遍历切片、映射或字符串",
+        body: "for ${1:_, value} := range ${2:values} {\n\t$0\n}",
+    },
+    Template {
+        prefix: "forc",
+        label: "forc · 条件循环",
+        detail: "for condition",
+        body: "for ${1:condition} {\n\t$0\n}",
+    },
+    Template {
+        prefix: "make",
+        label: "make · 切片",
+        detail: "make([]T, n)",
+        body: "make([]${1:int}, ${2:n})$0",
+    },
+    Template {
+        prefix: "makemap",
+        label: "makemap · 映射",
+        detail: "make(map[K]V)",
+        body: "make(map[${1:string}]${2:int})$0",
+    },
+    Template {
+        prefix: "makechan",
+        label: "makechan · 通道",
+        detail: "make(chan T)",
+        body: "make(chan ${1:int})$0",
+    },
+    Template {
+        prefix: "append",
+        label: "append · 追加元素",
+        detail: "append(slice, value)",
+        body: "append(${1:slice}, ${2:value})$0",
+    },
+    Template {
+        prefix: "if",
+        label: "if · 条件分支",
+        detail: "if condition",
+        body: "if ${1:condition} {\n\t$0\n}",
+    },
+    Template {
+        prefix: "switch",
+        label: "switch · 分支",
+        detail: "switch value",
+        body: "switch ${1:value} {\ncase ${2:caseValue}:\n\t$0\n}",
+    },
+];
+
+const JAVA_TEMPLATES: &[Template] = &[
+    Template {
+        prefix: "for",
+        label: "for · 计数循环",
+        detail: "for (int i = 0; i < n; i++)",
+        body: "for (int ${1:i} = 0; ${1:i} < ${2:n}; ${1:i}++) {\n    $0\n}",
+    },
+    Template {
+        prefix: "foreach",
+        label: "foreach · 遍历数组",
+        detail: "for (int value : values)",
+        body: "for (int ${1:value} : ${2:values}) {\n    $0\n}",
+    },
+    Template {
+        prefix: "if",
+        label: "if · 条件分支",
+        detail: "if (condition)",
+        body: "if (${1:condition}) {\n    $0\n}",
+    },
+    Template {
+        prefix: "while",
+        label: "while · 循环",
+        detail: "while (condition)",
+        body: "while (${1:condition}) {\n    $0\n}",
+    },
+    Template {
+        prefix: "newmap",
+        label: "newmap · HashMap",
+        detail: "new HashMap<>()",
+        body: "new java.util.HashMap<${1:Integer}, ${2:Integer}>()$0",
+    },
+    Template {
+        prefix: "newlist",
+        label: "newlist · ArrayList",
+        detail: "new ArrayList<>()",
+        body: "new java.util.ArrayList<${1:Integer}>()$0",
+    },
 ];
 
 /// Render the subset of snippet syntax used by our templates into ordinary Go
@@ -72,17 +156,35 @@ fn expand(template: &str, indent: &str) -> (String, Vec<Range<usize>>) {
 }
 
 pub fn completions(source: &str, offset: usize) -> Vec<CompletionItem> {
-    let Some(prefix_source) = source.get(..offset) else { return vec![] };
-    let word_bytes: usize = prefix_source.chars().rev()
+    complete(source, offset, TEMPLATES)
+}
+
+pub fn java_completions(source: &str, offset: usize) -> Vec<CompletionItem> {
+    complete(source, offset, JAVA_TEMPLATES)
+}
+
+fn complete(source: &str, offset: usize, templates: &[Template]) -> Vec<CompletionItem> {
+    let Some(prefix_source) = source.get(..offset) else {
+        return vec![];
+    };
+    let word_bytes: usize = prefix_source
+        .chars()
+        .rev()
         .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
-        .map(char::len_utf8).sum();
+        .map(char::len_utf8)
+        .sum();
     let start = offset - word_bytes;
-    if start > 0 && source.as_bytes()[start - 1] == b'.' { return vec![]; }
+    if start > 0 && source.as_bytes()[start - 1] == b'.' {
+        return vec![];
+    }
     let query = &source[start..offset];
     let line_start = prefix_source.rfind('\n').map_or(0, |at| at + 1);
     let line = &source[line_start..start];
-    let indent = line.chars().take_while(|ch| *ch == ' ' || *ch == '\t').collect::<String>();
-    TEMPLATES.iter().enumerate().filter(|(_, template)| {
+    let indent = line
+        .chars()
+        .take_while(|ch| *ch == ' ' || *ch == '\t')
+        .collect::<String>();
+    templates.iter().enumerate().filter(|(_, template)| {
         query.is_empty() || template.prefix.starts_with(query)
     }).map(|(rank, template)| {
         let (body, fields) = expand(template.body, &indent);
@@ -109,17 +211,53 @@ mod tests {
     fn go_templates_have_real_tab_stops_and_keep_indentation() {
         let source = "func solve() {\n\tfo";
         let items = completions(source, source.len());
-        let item = items.iter().find(|item| item.label.starts_with("for ·")).unwrap();
-        let CompletionTextEdit::Edit(edit) = item.text_edit.as_ref().unwrap() else { panic!("expected edit") };
+        let item = items
+            .iter()
+            .find(|item| item.label.starts_with("for ·"))
+            .unwrap();
+        let CompletionTextEdit::Edit(edit) = item.text_edit.as_ref().unwrap() else {
+            panic!("expected edit")
+        };
         assert_eq!(edit.range.start, lsp_types::Position::new(1, 1));
         assert_eq!(edit.new_text, "for i := 0; i < n; i++ {\n\t\t\n\t}");
-        assert_eq!(item.data.as_ref().unwrap()["leetdesk_tabstops"], json!([[16,17],[27,27]]));
+        assert_eq!(
+            item.data.as_ref().unwrap()["leetdesk_tabstops"],
+            json!([[16, 17], [27, 27]])
+        );
         let make = completions("make", 4);
         assert!(make.iter().any(|item| item.label == "make · 切片"));
         assert!(make.iter().any(|item| item.label == "makemap · 映射"));
         let append = completions("append", 6);
         assert_eq!(append.len(), 1);
-        assert_eq!(append[0].data.as_ref().unwrap()["leetdesk_tabstops"], json!([[7,12],[14,19],[20,20]]));
+        assert_eq!(
+            append[0].data.as_ref().unwrap()["leetdesk_tabstops"],
+            json!([[7, 12], [14, 19], [20, 20]])
+        );
         assert!(completions("fmt.app", 7).is_empty());
+    }
+    #[test]
+    fn java_loop_and_collections_complete_with_tab_stops() {
+        let source = "class Solution {\n    fo";
+        let items = java_completions(source, source.len());
+        let loop_item = items
+            .iter()
+            .find(|item| item.label.starts_with("for ·"))
+            .unwrap();
+        let CompletionTextEdit::Edit(edit) = loop_item.text_edit.as_ref().unwrap() else {
+            panic!("expected edit")
+        };
+        assert!(edit.new_text.contains("for (int i = 0; i < n; i++)"));
+        assert!(
+            loop_item.data.as_ref().unwrap()["leetdesk_tabstops"]
+                .as_array()
+                .unwrap()
+                .len()
+                >= 2
+        );
+        assert!(
+            java_completions("newmap", 6)
+                .iter()
+                .any(|item| item.label.starts_with("newmap"))
+        );
     }
 }

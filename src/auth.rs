@@ -913,6 +913,7 @@ impl AccountShell {
             }
             WorkspaceEvent::Run {
                 problem,
+                language,
                 source,
                 input,
                 generation,
@@ -939,9 +940,9 @@ impl AccountShell {
                     return;
                 }
                 let request = if *submit {
-                    online::submit_request(problem, source)
+                    online::submit_request(problem, *language, source)
                 } else {
-                    online::run_request(problem, source, input)
+                    online::run_request(problem, *language, source, input)
                 };
                 match request {
                     Ok(request) => {
@@ -1017,44 +1018,43 @@ impl Render for AccountShell {
                 "等待登录".into()
             }
         });
-        let mut header = div()
-            .h(px(if editing { 36. } else { 62. }))
-            .px_4()
-            .flex()
-            .items_center()
-            .gap_3()
-            .border_b_1()
-            .border_color(rgb(0x292929))
-            .child(
-                div()
-                    .flex_1()
-                    .h_full()
-                    .flex()
-                    .items_center()
-                    .gap_3()
-                    .window_control_area(WindowControlArea::Drag)
-                    .on_mouse_down(MouseButton::Left, |_, window, _| window.start_window_move())
-                    .child(
-                        div()
-                            .text_color(rgb(0x79e6bd))
-                            .font_weight(FontWeight::BOLD)
-                            .child("LeetDesk"),
-                    )
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(rgb(0xa9b0bb))
-                            .child(format!("{} · {account}", self.site.label())),
-                    )
-                    .when(editing, |header| {
-                        header.child(
+        let mut header =
+            div()
+                .h(px(if editing { 36. } else { 62. }))
+                .px_4()
+                .flex()
+                .items_center()
+                .gap_3()
+                .border_b_1()
+                .border_color(rgb(0x292929))
+                .child(
+                    div()
+                        .flex_1()
+                        .h_full()
+                        .flex()
+                        .items_center()
+                        .gap_3()
+                        .window_control_area(WindowControlArea::Drag)
+                        .on_mouse_down(MouseButton::Left, |_, window, _| window.start_window_move())
+                        .child(
+                            div()
+                                .text_color(rgb(0x79e6bd))
+                                .font_weight(FontWeight::BOLD)
+                                .child("LeetDesk"),
+                        )
+                        .child(
                             div()
                                 .text_xs()
-                                .text_color(rgb(0x79e6bd))
-                                .child(format!("已通过 {} / {}", self.solved, self.catalogue_total)),
+                                .text_color(rgb(0xa9b0bb))
+                                .child(format!("{} · {account}", self.site.label())),
                         )
-                    }),
-            );
+                        .when(editing, |header| {
+                            header.child(div().text_xs().text_color(rgb(0x79e6bd)).child(format!(
+                                "已通过 {} / {}",
+                                self.solved, self.catalogue_total
+                            )))
+                        }),
+                );
         if editing {
             header = header
                 .child(
@@ -1130,7 +1130,9 @@ impl Render for AccountShell {
                 .small()
                 .ghost()
                 .on_click(cx.listener(|this, _, window, cx| {
-                    if this.flush(cx) { window.remove_window(); }
+                    if this.flush(cx) {
+                        window.remove_window();
+                    }
                 })),
         );
         let mut root = div()

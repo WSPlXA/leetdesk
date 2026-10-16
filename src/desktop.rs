@@ -18,7 +18,7 @@ use gpui_kit::{
 use gpui_kit::{EventEmitter, uniform_list};
 use leetdesk::online;
 use leetdesk::{
-    catalog::{self, Case, Problem},
+    catalog::{self, Case, PracticeLanguage, Problem},
     catalog_view::CatalogView,
     language::{self, GoLanguage},
     note_bundle, runner, snippets,
@@ -97,6 +97,28 @@ enum NotesView {
 
 struct GoProvider {
     service: GoLanguage,
+}
+
+struct JavaProvider;
+impl CompletionProvider for JavaProvider {
+    fn completions(
+        &self,
+        text: &Rope,
+        offset: usize,
+        _: CompletionContext,
+        _: &mut Window,
+        _: &mut App,
+    ) -> Task<Result<CompletionResponse>> {
+        let source = text.to_string();
+        Task::ready(Ok(CompletionResponse::Array(snippets::java_completions(
+            &source, offset,
+        ))))
+    }
+    fn is_completion_trigger(&self, _: usize, text: &str, _: &mut App) -> bool {
+        text.chars()
+            .last()
+            .is_some_and(|ch| ch == '.' || ch == '_' || ch.is_ascii_alphanumeric())
+    }
 }
 
 impl CompletionProvider for GoProvider {
@@ -220,6 +242,7 @@ pub enum WorkspaceEvent {
     LoadDetail(Problem),
     Run {
         problem: Problem,
+        language: PracticeLanguage,
         source: String,
         input: String,
         generation: u64,
@@ -265,6 +288,7 @@ pub struct Workspace {
     notice: String,
     language_status: String,
     language: Option<GoLanguage>,
+    practice_language: PracticeLanguage,
     language_epoch: u64,
     diagnostic_generation: u64,
     diagnostics: Vec<lsp_types::Diagnostic>,
@@ -294,13 +318,14 @@ impl Workspace {
             .position(|p| Some(p.id) == last_id)
             .unwrap_or(0);
         let problem = &problems[current];
+        let practice_language = store.language();
         store.prepare(problem)?;
         let last_source = store
-            .source(problem.id)
-            .unwrap_or_else(|_| problem.starter.clone());
+            .source_for(problem.id, practice_language)
+            .unwrap_or_else(|_| problem.starter_for(practice_language));
         let editor = cx.new(|cx| {
             EditorState::new(window, cx)
-                .language("go")
+                .language(practice_language.highlighter())
                 .soft_wrap(true)
                 .smart_indent(true)
                 .auto_close(true)
@@ -308,7 +333,7 @@ impl Workspace {
                 .folding(true)
                 .tab_size(TabSize {
                     tab_size: 4,
-                    hard_tabs: true,
+                    hard_tabs: practice_language == PracticeLanguage::Go,
                 })
                 .default_value(last_source.clone())
         });
@@ -455,6 +480,7 @@ impl Workspace {
             notice: "Go 工作区已就绪 · 可导入你的 Markdown 讲解".into(),
             language_status: "正在连接 gopls…".into(),
             language: None,
+            practice_language,
             language_epoch: 0,
             diagnostic_generation: 0,
             diagnostics: vec![],
@@ -491,6 +517,15 @@ impl Workspace {
             }
             cx.notify();
         });
+        if self.practice_language == PracticeLanguage::Java {
+            self.language_status = "Java 语法高亮与模板补全".into();
+            self.editor.update(cx, |state, cx| {
+                state.lsp_mut().completion_provider = Some(Rc::new(JavaProvider));
+                state.refresh(cx);
+            });
+            cx.notify();
+            return;
+        }
         let path = self.store.workspace(self.problem().id);
         let source = self.editor.read(cx).value().to_string();
         let task = cx
@@ -602,7 +637,11 @@ impl Workspace {
         let id = self.problem().id;
         let source_revision = (id, self.editor.read(cx).document_revision());
         if self.saved_source_revision != Some(source_revision) {
-            self.store.save_source(id, &self.editor.read(cx).value())?;
+            self.store.save_source_for(
+                id,
+                self.practice_language,
+                &self.editor.read(cx).value(),
+            )?;
             self.saved_source_revision = Some(source_revision);
             if let Some(service) = &self.language {
                 let _ = service.saved();
@@ -820,8 +859,8 @@ impl Workspace {
         self.store.prepare(&detail)?;
         let source = self
             .store
-            .source(id)
-            .unwrap_or_else(|_| detail.starter.clone());
+            .source_for(id, self.practice_language)
+            .unwrap_or_else(|_| detail.starter_for(self.practice_language));
         self.last_source = source.clone();
         self.editor
             .update(cx, |state, cx| state.set_value(source, window, cx));
@@ -964,10 +1003,12 @@ impl Workspace {
         self.output = self.store.latest_run(problem.id);
         let source = self
             .store
-            .source(problem.id)
-            .unwrap_or_else(|_| problem.starter.clone());
+            .source_for(problem.id, self.practice_language)
+            .unwrap_or_else(|_| problem.starter_for(self.practice_language));
         self.last_source = source.clone();
+        self.saved_source_revision = None;
         self.editor.update(cx, |state, cx| {
+            state.set_highlighter(self.practice_language.highlighter(), cx);
             state.set_value(source, window, cx);
             if let Ok(text) =
                 fs::read_to_string(self.store.workspace(problem.id).join("cursor.json"))
@@ -1011,6 +1052,62 @@ impl Workspace {
         cx.notify();
     }
 
+    fn switch_language(
+        &mut self,
+        language: PracticeLanguage,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if language == self.practice_language {
+            return;
+        }
+        if let Err(error) = self.save(cx) {
+            self.notice = format!("切换语言前保存失败：{error:#}");
+            cx.notify();
+            return;
+        }
+        if let Err(error) = self.store.save_language(language) {
+            self.notice = format!("保存语言偏好失败：{error:#}");
+            cx.notify();
+            return;
+        }
+        self.practice_language = language;
+        self.saved_source_revision = None;
+        let problem = self.problem().clone();
+        if let Err(error) = self.store.prepare(&problem) {
+            self.notice = error.to_string();
+            cx.notify();
+            return;
+        }
+        let source = self
+            .store
+            .source_for(problem.id, language)
+            .unwrap_or_else(|_| problem.starter_for(language));
+        self.last_source = source.clone();
+        self.editor.update(cx, |state, cx| {
+            state.set_highlighter(language.highlighter(), cx);
+            state.set_tab_size(
+                TabSize {
+                    tab_size: 4,
+                    hard_tabs: language == PracticeLanguage::Go,
+                },
+                cx,
+            );
+            state.set_value(source, window, cx);
+        });
+        self.connect_language(window, cx);
+        self.notice = format!("已切换到 {}；代码分别保存在独立文件中", language.label());
+        if language == PracticeLanguage::Java
+            && problem
+                .online
+                .as_ref()
+                .is_some_and(|m| m.loaded && problem.java_starter.is_empty())
+        {
+            cx.emit(WorkspaceEvent::LoadDetail(problem));
+        }
+        cx.notify();
+    }
+
     fn run_cases(&mut self, _: &RunCases, _: &mut Window, cx: &mut Context<Self>) {
         if self.cancellation.is_some() {
             return;
@@ -1028,7 +1125,9 @@ impl Workspace {
             }
             let source = self.editor.read(cx).value().to_string();
             let input = self.cases_editor.read(cx).value().to_string();
-            if let Err(error) = online::run_request(self.problem(), &source, &input) {
+            if let Err(error) =
+                online::run_request(self.problem(), self.practice_language, &source, &input)
+            {
                 self.notice = error.to_string();
                 cx.notify();
                 return;
@@ -1040,6 +1139,7 @@ impl Workspace {
             self.bottom_tab = BottomTab::Results;
             cx.emit(WorkspaceEvent::Run {
                 problem: self.problem().clone(),
+                language: self.practice_language,
                 source,
                 input,
                 generation: self.run_generation,
@@ -1070,10 +1170,16 @@ impl Workspace {
         let cancel = Arc::new(AtomicBool::new(false));
         self.cancellation = Some(cancel.clone());
         let path = self.store.workspace(problem.id);
-        self.output = "正在编译并运行 Go 用例…\n首次编译标准库可能需要一些时间。".into();
+        let practice_language = self.practice_language;
+        self.output = format!("正在编译并运行 {} 用例…", practice_language.label());
         self.bottom_tab = BottomTab::Results;
         let task = cx.background_executor().spawn(async move {
-            let result = runner::run(&problem, &source, &cases, &path, cancel);
+            let result = match practice_language {
+                PracticeLanguage::Go => runner::run(&problem, &source, &cases, &path, cancel),
+                PracticeLanguage::Java => {
+                    runner::run_java(&problem, &source, &cases, &path, cancel)
+                }
+            };
             (problem.id, source, result)
         });
         cx.spawn(async move |this, cx| {
@@ -1132,8 +1238,8 @@ impl Workspace {
             cx.notify();
             return;
         }
-        if let Err(error) =
-            online::submit_request(self.problem(), &source).and_then(|_| self.save(cx))
+        if let Err(error) = online::submit_request(self.problem(), self.practice_language, &source)
+            .and_then(|_| self.save(cx))
         {
             self.notice = error.to_string();
             cx.notify();
@@ -1146,6 +1252,7 @@ impl Workspace {
         self.bottom_tab = BottomTab::Results;
         cx.emit(WorkspaceEvent::Run {
             problem: self.problem().clone(),
+            language: self.practice_language,
             source,
             input: String::new(),
             generation: self.run_generation,
@@ -1220,7 +1327,7 @@ impl Workspace {
             cx.notify();
             return;
         }
-        let starter = self.problem().starter.clone();
+        let starter = self.problem().starter_for(self.practice_language);
         let source = self.editor.read(cx).value().to_string();
         if source == starter {
             self.notice = "当前代码已经是题目初始模板".into();
@@ -1229,7 +1336,16 @@ impl Workspace {
         }
         let directory = self.store.workspace(self.problem().id);
         let backup = (1..)
-            .map(|number| directory.join(format!("solution-before-reset-{number}.go")))
+            .map(|number| {
+                directory.join(format!(
+                    "solution-before-reset-{number}.{}",
+                    if self.practice_language == PracticeLanguage::Go {
+                        "go"
+                    } else {
+                        "java"
+                    }
+                ))
+            })
             .find(|path| !path.exists())
             .unwrap();
         if let Err(error) = leetdesk::store::atomic_write(&backup, source.as_bytes()) {
@@ -1262,6 +1378,11 @@ impl Workspace {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.practice_language == PracticeLanguage::Java {
+            self.notice = "Java 不需要整理导入；请直接编辑 import 语句".into();
+            cx.notify();
+            return;
+        }
         let source = self.editor.read(cx).value().to_string();
         let id = self.problem().id;
         let revision = self.editor.read(cx).document_revision();
@@ -1453,13 +1574,14 @@ impl Workspace {
 
     fn copy_submission(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
         let source = self.editor.read(cx).value().to_string();
-        let source = source
-            .lines()
-            .filter(|line| !line.trim_start().starts_with("package "))
-            .collect::<Vec<_>>()
-            .join("\n");
+        let source = online::submission_source(self.practice_language, &source);
         cx.write_to_clipboard(ClipboardItem::new_string(source));
-        self.notice = "已复制解法（移除了本地 package 声明）".into();
+        self.notice = if self.practice_language == PracticeLanguage::Go {
+            "已复制解法（移除了本地 package 声明）"
+        } else {
+            "已复制 Java 解法"
+        }
+        .into();
         cx.notify();
     }
 
@@ -1493,10 +1615,20 @@ impl Workspace {
         let id = self.problem().id;
         let source = self.editor.read(cx).value().to_string();
         let revision = self.editor.read(cx).document_revision();
-        self.notice = "已保存，正在运行 gofmt…".into();
+        let practice_language = self.practice_language;
+        let formatter = if practice_language == PracticeLanguage::Go {
+            "gofmt"
+        } else {
+            "google-java-format"
+        };
+        self.notice = format!("已保存，正在运行 {formatter}…");
         let input = source.clone();
         let task = cx.background_executor().spawn(async move {
-            runner::format_go(&input).map(|text| {
+            (match practice_language {
+                PracticeLanguage::Go => runner::format_go(&input),
+                PracticeLanguage::Java => runner::format_java(&input),
+            })
+            .map(|text| {
                 let edits = leetdesk::editing::diff(&input, &text);
                 (text, edits)
             })
@@ -1505,7 +1637,7 @@ impl Workspace {
             let result = task.await;
             _ = this.update_in(cx, |this, window, cx| {
                 // A formatter for an older snapshot may not replace newer edits.
-                if this.problem().id != id {
+                if this.problem().id != id || this.practice_language != practice_language {
                     return;
                 }
                 if this.editor.read(cx).document_revision() != revision
@@ -1528,12 +1660,16 @@ impl Workspace {
                             this.changed(cx);
                         }
                         this.notice = match this.save(cx) {
-                            Ok(()) if text == source => "已保存 · 代码已符合 gofmt 格式".into(),
-                            Ok(()) => "已保存并使用 gofmt 格式化 · 可撤销".into(),
+                            Ok(()) if text == source => {
+                                format!("已保存 · 代码已符合 {formatter} 格式")
+                            }
+                            Ok(()) => format!("已保存并使用 {formatter} 格式化 · 可撤销"),
                             Err(error) => format!("格式化完成，保存失败：{error}"),
                         };
                     }
-                    Err(error) => this.notice = format!("已保存原代码，gofmt 未完成：{error}"),
+                    Err(error) => {
+                        this.notice = format!("已保存原代码，{formatter} 未完成：{error}")
+                    }
                 }
                 cx.notify();
             });
@@ -2351,10 +2487,9 @@ impl Workspace {
                     .px_3()
                     .py_1()
                     .flex()
-                    .flex_wrap()
+                    .flex_col()
                     .gap_1()
-                    .items_center()
-                    .justify_between()
+                    .items_start()
                     .bg(rgb(PANEL))
                     .border_b_1()
                     .border_color(rgb(LINE))
@@ -2363,6 +2498,32 @@ impl Workspace {
                             .flex()
                             .gap_3()
                             .items_center()
+                            .child(
+                                Button::new("language-go")
+                                    .label("Go")
+                                    .small()
+                                    .ghost()
+                                    .when(
+                                        self.practice_language == PracticeLanguage::Go,
+                                        |button| button.text_color(rgb(ACCENT)),
+                                    )
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.switch_language(PracticeLanguage::Go, window, cx)
+                                    })),
+                            )
+                            .child(
+                                Button::new("language-java")
+                                    .label("Java")
+                                    .small()
+                                    .ghost()
+                                    .when(
+                                        self.practice_language == PracticeLanguage::Java,
+                                        |button| button.text_color(rgb(ACCENT)),
+                                    )
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.switch_language(PracticeLanguage::Java, window, cx)
+                                    })),
+                            )
                             .child(
                                 Button::new("toggle-wrap")
                                     .label("折行")
@@ -2373,7 +2534,12 @@ impl Workspace {
                                         this.toggle_wrap(&ToggleWrap, window, cx)
                                     })),
                             )
-                            .child(div().text_sm().text_color(rgb(ACCENT)).child("solution.go"))
+                            .child(
+                                div()
+                                    .text_sm()
+                                    .text_color(rgb(ACCENT))
+                                    .child(self.practice_language.filename()),
+                            )
                             .child(div().text_xs().text_color(rgb(MUTED)).child(if self.dirty {
                                 "未保存"
                             } else {
@@ -2383,24 +2549,27 @@ impl Workspace {
                     .child(
                         div()
                             .flex()
+                            .flex_wrap()
                             .gap_1()
                             .items_center()
                             .child(
                                 Button::new("initialize-code")
-                                    .label("初始化代码")
+                                    .label("恢复初始模板")
                                     .small()
-                                    .ghost()
+                                    .primary()
                                     .on_click(cx.listener(Self::initialize_code)),
                             )
-                            .child(
-                                Button::new("organize-imports")
-                                    .label("整理导入")
-                                    .small()
-                                    .ghost()
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.organize_imports(&OrganizeImports, window, cx)
-                                    })),
-                            )
+                            .when(self.practice_language == PracticeLanguage::Go, |row| {
+                                row.child(
+                                    Button::new("organize-imports")
+                                        .label("整理导入")
+                                        .small()
+                                        .ghost()
+                                        .on_click(cx.listener(|this, _, window, cx| {
+                                            this.organize_imports(&OrganizeImports, window, cx)
+                                        })),
+                                )
+                            })
                             .child(
                                 Button::new("format")
                                     .label("格式化")
@@ -2425,7 +2594,7 @@ impl Workspace {
                         self.problem()
                             .online
                             .as_ref()
-                            .is_some_and(|r| !r.loaded || !r.go_supported),
+                            .is_some_and(|_| !self.problem().supports(self.practice_language)),
                     )
                     .size_full()
                     .min_w_0()
@@ -2658,19 +2827,27 @@ impl Workspace {
                                 div()
                                     .text_sm()
                                     .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(rgb(if self.language.is_some() {
-                                        ACCENT
-                                    } else {
-                                        MUTED
-                                    }))
-                                    .child(if self.language.is_some() {
+                                    .text_color(rgb(
+                                        if self.language.is_some()
+                                            || self.practice_language == PracticeLanguage::Java
+                                        {
+                                            ACCENT
+                                        } else {
+                                            MUTED
+                                        },
+                                    ))
+                                    .child(if self.practice_language == PracticeLanguage::Java {
+                                        "Java 本地编译时检查代码"
+                                    } else if self.language.is_some() {
                                         "✓ 暂无代码问题"
                                     } else {
                                         "等待 Go 语言服务"
                                     }),
                             )
                             .child(div().text_xs().text_color(rgb(MUTED)).child(
-                                if self.language.is_some() {
+                                if self.practice_language == PracticeLanguage::Java {
+                                    "运行用例后，编译错误会显示在运行结果中。"
+                                } else if self.language.is_some() {
                                     "继续编写代码，检查结果会实时更新。"
                                 } else {
                                     "连接后会在这里显示错误和警告。"
@@ -2986,11 +3163,9 @@ impl Render for Workspace {
                             .disabled(
                                 running
                                     || !self.online_enabled
-                                    || self
-                                        .problem()
-                                        .online
-                                        .as_ref()
-                                        .is_none_or(|m| !m.loaded || !m.go_supported),
+                                    || self.problem().online.as_ref().is_none_or(|_| {
+                                        !self.problem().supports(self.practice_language)
+                                    }),
                             )
                             .on_click(
                                 cx.listener(|this, _, window, cx| this.submit(&Submit, window, cx)),
@@ -3132,7 +3307,7 @@ pub fn launch(store: Store, smoke: bool) -> Result<()> {
                 ..Default::default()
             };
             let (_, view) = gpui_kit::open_window(options, cx, move |window, cx| {
-                window.set_window_title("LeetDesk · Go 刷题工作区");
+                window.set_window_title("LeetDesk · Go / Java 刷题工作区");
                 cx.new(|cx| Workspace::new(store, window, cx).expect("无法初始化刷题工作区"))
             })
             .expect("无法打开窗口");
@@ -4278,6 +4453,31 @@ mod ui_tests {
     }
 
     #[gpui_kit::test]
+    fn java_syntax_highlights_keywords_strings_and_numbers(cx: &mut TestAppContext) {
+        use gpui_kit::component::highlighter::SyntaxHighlighter;
+        cx.update(|cx| {
+            gpui_kit::init(cx);
+            apply_theme(cx);
+            let source = "class Solution { int answer() { String value = \"hello\"; return 42; } }";
+            let mut highlighter = SyntaxHighlighter::new("java");
+            assert!(highlighter.update(None, &Rope::from(source), None));
+            let theme = &gpui_kit::component::Theme::global(cx).highlight_theme;
+            let styles = highlighter.styles(&(0..source.len()), &**theme);
+            let color = |offset: usize| {
+                styles
+                    .iter()
+                    .find(|(range, _)| range.contains(&offset))
+                    .and_then(|(_, style)| style.color)
+            };
+            let keyword = color(source.find("return").unwrap()).expect("Java 关键字应该着色");
+            let string = color(source.find("hello").unwrap()).expect("Java 字符串应该着色");
+            let number = color(source.find("42").unwrap()).expect("Java 数字应该着色");
+            assert_ne!(keyword, string);
+            assert_ne!(keyword, number);
+        });
+    }
+
+    #[gpui_kit::test]
     fn formatter_preserves_selection_scroll_and_atomic_undo(cx: &mut TestAppContext) {
         let (handle, view, _temp) = practice_window(cx);
         let mut source = String::from("package solution\n\nfunc example() {\n");
@@ -4662,6 +4862,54 @@ mod ui_tests {
     }
 
     #[gpui_kit::test]
+    fn language_switch_keeps_independent_drafts_and_java_reset_is_visible(cx: &mut TestAppContext) {
+        let (handle, view, _temp) = practice_window(cx);
+        let go_draft = "package solution\nfunc answer() int { return 42 }\n";
+        let java_draft =
+            "class Solution { public int twoSum(int[] nums, int target) { return 42; } }";
+        cx.update_window(handle, |_, window, cx| {
+            view.read(cx)
+                .editor
+                .clone()
+                .update(cx, |state, cx| state.set_value(go_draft, window, cx));
+            view.update(cx, |workspace, cx| {
+                workspace.switch_language(PracticeLanguage::Java, window, cx)
+            });
+            assert_eq!(view.read(cx).practice_language, PracticeLanguage::Java);
+            assert!(
+                view.read(cx)
+                    .editor
+                    .read(cx)
+                    .value()
+                    .contains("class Solution")
+            );
+            view.read(cx)
+                .editor
+                .clone()
+                .update(cx, |state, cx| state.set_value(java_draft, window, cx));
+            view.update(cx, |workspace, cx| {
+                workspace.switch_language(PracticeLanguage::Go, window, cx)
+            });
+            assert_eq!(view.read(cx).editor.read(cx).value().as_ref(), go_draft);
+            view.update(cx, |workspace, cx| {
+                workspace.switch_language(PracticeLanguage::Java, window, cx)
+            });
+            assert_eq!(view.read(cx).editor.read(cx).value().as_ref(), java_draft);
+            window.render_frame(cx);
+            window.click("initialize-code", cx);
+            assert!(
+                view.read(cx)
+                    .editor
+                    .read(cx)
+                    .value()
+                    .contains("class Solution")
+            );
+            assert_ne!(view.read(cx).editor.read(cx).value().as_ref(), java_draft);
+        })
+        .unwrap();
+    }
+
+    #[gpui_kit::test]
     fn organize_imports_button_updates_the_editor_and_saved_file(cx: &mut TestAppContext) {
         if std::process::Command::new(language::gopls_executable())
             .arg("version")
@@ -4686,7 +4934,10 @@ mod ui_tests {
             let workspace = view.read(cx);
             let source = workspace.editor.read(cx).value().to_string();
             assert!(source.contains("import \"fmt\""), "{source}");
-            assert_eq!(workspace.store.source(workspace.problem().id).unwrap(), source);
+            assert_eq!(
+                workspace.store.source(workspace.problem().id).unwrap(),
+                source
+            );
             assert!(workspace.notice.contains("已整理 Go 导入并保存"));
         })
         .unwrap();

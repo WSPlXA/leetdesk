@@ -142,6 +142,174 @@ pub fn run(
     })
 }
 
+pub fn run_java(
+    problem: &Problem,
+    source: &str,
+    cases: &[Case],
+    workspace: &Path,
+    cancel: Arc<AtomicBool>,
+) -> Result<RunResult> {
+    validate_cases(cases, &problem.parameters)?;
+    let key = format!(
+        "java-{}-{}",
+        std::process::id(),
+        NEXT_RUN.fetch_add(1, Ordering::Relaxed)
+    );
+    let run_dir = workspace.join("runs").join(key);
+    fs::create_dir_all(&run_dir)?;
+    fs::write(
+        run_dir.join("Solution.java"),
+        format!("import java.util.*;\nimport java.math.*;\n{source}"),
+    )?;
+    fs::write(
+        run_dir.join("LeetDeskHarness.java"),
+        java_harness(problem, cases)?,
+    )?;
+    let mut compile = Command::new("javac");
+    compile
+        .args([
+            "-encoding",
+            "UTF-8",
+            "Solution.java",
+            "LeetDeskHarness.java",
+        ])
+        .current_dir(&run_dir);
+    let (success, output) = execute(compile, Duration::from_secs(45), &cancel)
+        .context("无法编译 Java；请安装 JDK 并将 javac 加入 PATH")?;
+    if !success {
+        return Ok(RunResult {
+            passed: 0,
+            total: cases.len(),
+            output: format!("Java 编译失败\n\n{output}"),
+            cases: vec![],
+        });
+    }
+    let mut command = Command::new("java");
+    command
+        .args(["-Xmx256m", "-cp", ".", "LeetDeskHarness"])
+        .current_dir(&run_dir);
+    let (success, raw) = execute(command, Duration::from_secs(8), &cancel)
+        .context("无法运行 Java；请安装 JDK 并将 java 加入 PATH")?;
+    let mut results = Vec::new();
+    for line in raw
+        .lines()
+        .filter_map(|line| line.strip_prefix("LEETDESK_CASE:"))
+    {
+        let Some((index, actual)) = line.split_once(':') else {
+            continue;
+        };
+        let Ok(index) = index.parse::<usize>() else {
+            continue;
+        };
+        let Some(case) = cases.get(index) else {
+            continue;
+        };
+        if let Ok(actual) = serde_json::from_str::<Value>(actual) {
+            let mut expected = case.expected.clone();
+            let mut compared = actual.clone();
+            if problem.unordered {
+                if let (Some(left), Some(right)) =
+                    (expected.as_array_mut(), compared.as_array_mut())
+                {
+                    left.sort_by_key(Value::to_string);
+                    right.sort_by_key(Value::to_string);
+                }
+            }
+            results.push(CaseResult {
+                index,
+                input: case.input.clone(),
+                expected: case.expected.clone(),
+                actual,
+                passed: expected == compared,
+                error: String::new(),
+            });
+        }
+    }
+    let passed = results.iter().filter(|case| case.passed).count();
+    let mut output = format!("本地 Java 用例：{passed}/{} 通过\n", cases.len());
+    for case in &results {
+        output.push_str(&format!(
+            "\n{} 用例 {}\n输入：{}\n预期：{}\n实际：{}\n",
+            if case.passed { "✓" } else { "✗" },
+            case.index + 1,
+            Value::Array(case.input.clone()),
+            case.expected,
+            case.actual
+        ));
+    }
+    if !success || results.len() < cases.len() {
+        output.push_str(&format!("\n执行未完成\n{raw}"));
+    }
+    Ok(RunResult {
+        passed,
+        total: cases.len(),
+        output,
+        cases: results,
+    })
+}
+
+fn java_harness(problem: &Problem, cases: &[Case]) -> Result<String> {
+    let mut calls = String::new();
+    for (index, case) in cases.iter().enumerate() {
+        let arguments = case
+            .input
+            .iter()
+            .zip(&problem.parameters)
+            .map(|(value, parameter)| java_value(value, parameter.kind))
+            .collect::<Result<Vec<_>>>()?
+            .join(", ");
+        let actual = if matches!(problem.returns, Kind::List | Kind::Tree) {
+            "actual == null ? java.util.Collections.emptyList() : actual"
+        } else {
+            "actual"
+        };
+        calls.push_str(&format!("try {{ Object actual = new Solution().{}({arguments}); System.out.println(\"LEETDESK_CASE:{index}:\" + json({actual})); }} catch (Throwable error) {{ error.printStackTrace(); }}\n", problem.function));
+    }
+    Ok(format!(
+        r#"import java.util.*;
+class ListNode {{ int val; ListNode next; ListNode() {{}} ListNode(int val) {{ this.val = val; }} }}
+class TreeNode {{ int val; TreeNode left, right; TreeNode() {{}} TreeNode(int val) {{ this.val = val; }} }}
+class LeetDeskHarness {{
+    static ListNode list(int[] values) {{ ListNode head = null, tail = null; for (int value : values) {{ ListNode node = new ListNode(value); if (tail == null) head = node; else tail.next = node; tail = node; }} return head; }}
+    static TreeNode tree(Integer[] values) {{ if (values.length == 0 || values[0] == null) return null; TreeNode root = new TreeNode(values[0]); ArrayDeque<TreeNode> queue = new ArrayDeque<>(); queue.add(root); int i = 1; while (!queue.isEmpty() && i < values.length) {{ TreeNode node = queue.remove(); if (i < values.length && values[i] != null) {{ node.left = new TreeNode(values[i]); queue.add(node.left); }} i++; if (i < values.length && values[i] != null) {{ node.right = new TreeNode(values[i]); queue.add(node.right); }} i++; }} return root; }}
+    static String quote(String value) {{ StringBuilder out = new StringBuilder("\""); for (char ch : value.toCharArray()) {{ if (ch == '\\' || ch == '"') out.append('\\'); if (ch == '\n') out.append("\\n"); else if (ch == '\r') out.append("\\r"); else if (ch == '\t') out.append("\\t"); else out.append(ch); }} return out.append('"').toString(); }}
+    static String json(Object value) {{
+        if (value == null) return "null";
+        if (value instanceof String s) return quote(s);
+        if (value instanceof Number || value instanceof Boolean) return value.toString();
+        if (value instanceof ListNode head) {{ ArrayList<Integer> items = new ArrayList<>(); for (ListNode node = head; node != null && items.size() < 10000; node = node.next) items.add(node.val); return json(items); }}
+        if (value instanceof TreeNode root) {{ ArrayList<Integer> items = new ArrayList<>(); LinkedList<TreeNode> queue = new LinkedList<>(); queue.add(root); while (!queue.isEmpty() && items.size() < 10000) {{ TreeNode node = queue.remove(); if (node == null) {{ items.add(null); continue; }} items.add(node.val); queue.add(node.left); queue.add(node.right); }} while (!items.isEmpty() && items.get(items.size()-1) == null) items.remove(items.size()-1); return json(items); }}
+        if (value.getClass().isArray()) {{ ArrayList<Object> items = new ArrayList<>(); for (int i=0; i<java.lang.reflect.Array.getLength(value); i++) items.add(java.lang.reflect.Array.get(value,i)); return json(items); }}
+        if (value instanceof Iterable<?> iterable) {{ ArrayList<String> items = new ArrayList<>(); for (Object item : iterable) items.add(json(item)); return "[" + String.join(",", items) + "]"; }}
+        return quote(value.toString());
+    }}
+    public static void main(String[] args) {{ {calls} }}
+}}
+"#
+    ))
+}
+
+fn java_value(value: &Value, kind: Kind) -> Result<String> {
+    Ok(match kind {
+        Kind::Int | Kind::Bool => value.to_string(),
+        Kind::String => value.to_string(),
+        Kind::Ints | Kind::List | Kind::Tree => {
+            let array = value.as_array().context("Java 数组参数无效")?;
+            let values = array
+                .iter()
+                .map(Value::to_string)
+                .collect::<Vec<_>>()
+                .join(", ");
+            match kind {
+                Kind::Ints => format!("new int[]{{{values}}}"),
+                Kind::List => format!("list(new int[]{{{values}}})"),
+                Kind::Tree => format!("tree(new Integer[]{{{values}}})"),
+                _ => unreachable!(),
+            }
+        }
+    })
+}
+
 pub fn execute(
     mut command: Command,
     timeout: Duration,
@@ -156,7 +324,7 @@ pub fn execute(
         .stderr(Stdio::piped())
         .stdin(Stdio::null())
         .spawn()
-        .context("无法启动工具进程；请确认 Go 已安装")?;
+        .context("无法启动工具进程；请确认对应编译器已安装")?;
     let stdout = child.stdout.take().unwrap();
     let stderr = child.stderr.take().unwrap();
     fn drain(mut reader: impl Read) -> String {
@@ -231,6 +399,32 @@ pub fn format_go(source: &str) -> Result<String> {
     Ok(String::from_utf8(output.stdout)?)
 }
 
+pub fn format_java(source: &str) -> Result<String> {
+    use std::io::Write;
+    let tool =
+        std::env::var_os("LEETDESK_JAVA_FORMAT").unwrap_or_else(|| "google-java-format".into());
+    let mut command = Command::new(tool);
+    hide_console(&mut command);
+    let mut child = command
+        .arg("-")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .context("无法启动 google-java-format；请安装它或设置 LEETDESK_JAVA_FORMAT")?;
+    let mut input = child.stdin.take().unwrap();
+    let text = source.to_owned();
+    let writer = thread::spawn(move || input.write_all(text.as_bytes()));
+    let output = child.wait_with_output()?;
+    writer
+        .join()
+        .map_err(|_| anyhow::anyhow!("Java 格式化输入线程失败"))??;
+    if !output.status.success() {
+        bail!("{}", String::from_utf8_lossy(&output.stderr));
+    }
+    Ok(String::from_utf8(output.stdout)?)
+}
+
 pub fn organize_go_imports(source: &str, workspace: &Path) -> Result<String> {
     let temporary = tempfile::Builder::new()
         .prefix(".leetdesk-imports-")
@@ -287,5 +481,38 @@ mod tests {
         let generated = harness(linked, &linked.cases).unwrap();
         assert!(generated.contains("leetdeskListValues(reverseList(leetdeskList(arg0)))"));
         assert!(!generated.contains("{{"));
+    }
+    #[test]
+    fn java_runner_compiles_and_checks_arrays_lists_and_trees() {
+        if Command::new("javac").arg("-version").output().is_err() {
+            return;
+        }
+        let problems = crate::catalog::builtin().unwrap();
+        for (id, source, expected) in [
+            (
+                206,
+                "class Solution { public ListNode reverseList(ListNode head) { ListNode prev = null; while (head != null) { ListNode next = head.next; head.next = prev; prev = head; head = next; } return prev; } }",
+                3,
+            ),
+            (
+                104,
+                "class Solution { public int maxDepth(TreeNode root) { return root == null ? 0 : 1 + Math.max(maxDepth(root.left), maxDepth(root.right)); } }",
+                3,
+            ),
+        ] {
+            let problem = problems.iter().find(|problem| problem.id == id).unwrap();
+            let temp = tempfile::tempdir().unwrap();
+            let workspace = temp.path().join("workspace");
+            fs::create_dir_all(&workspace).unwrap();
+            let result = run_java(
+                problem,
+                source,
+                &problem.cases,
+                &workspace,
+                Arc::new(AtomicBool::new(false)),
+            )
+            .unwrap();
+            assert_eq!(result.passed, expected, "{}", result.output);
+        }
     }
 }

@@ -1,4 +1,4 @@
-use crate::catalog::{self, Problem};
+use crate::catalog::{self, PracticeLanguage, Problem};
 use anyhow::{Context, Result, bail};
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
@@ -52,6 +52,16 @@ impl Store {
         if !dir.join("solution.go").exists() || placeholder {
             fs::write(dir.join("solution.go"), &problem.starter)?;
         }
+        let java_placeholder = fs::read_to_string(dir.join("Solution.java"))
+            .is_ok_and(|s| s.trim() == "// 这道题目前没有 Java 模板。");
+        if !dir.join("Solution.java").exists()
+            || (java_placeholder && !problem.java_starter.is_empty())
+        {
+            fs::write(
+                dir.join("Solution.java"),
+                problem.starter_for(PracticeLanguage::Java),
+            )?;
+        }
         if let Some(remote) = &problem.online
             && !dir.join("online-input.txt").exists()
         {
@@ -67,10 +77,33 @@ impl Store {
     }
 
     pub fn source(&self, id: u32) -> Result<String> {
-        Ok(fs::read_to_string(self.workspace(id).join("solution.go"))?)
+        self.source_for(id, PracticeLanguage::Go)
     }
     pub fn save_source(&self, id: u32, source: &str) -> Result<()> {
-        atomic_write(&self.workspace(id).join("solution.go"), source.as_bytes())
+        self.save_source_for(id, PracticeLanguage::Go, source)
+    }
+    pub fn source_for(&self, id: u32, language: PracticeLanguage) -> Result<String> {
+        Ok(fs::read_to_string(
+            self.workspace(id).join(language.filename()),
+        )?)
+    }
+    pub fn save_source_for(&self, id: u32, language: PracticeLanguage, source: &str) -> Result<()> {
+        atomic_write(
+            &self.workspace(id).join(language.filename()),
+            source.as_bytes(),
+        )
+    }
+    pub fn language(&self) -> PracticeLanguage {
+        fs::read_to_string(self.root.join("language.json"))
+            .ok()
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .unwrap_or_default()
+    }
+    pub fn save_language(&self, language: PracticeLanguage) -> Result<()> {
+        atomic_write(
+            &self.root.join("language.json"),
+            &serde_json::to_vec(&language)?,
+        )
     }
     pub fn cases(&self, id: u32) -> Result<String> {
         Ok(fs::read_to_string(self.workspace(id).join("cases.json"))?)
@@ -536,5 +569,39 @@ mod tests {
         assert!(reopened.source(1).unwrap().contains("saved"));
         assert_eq!(reopened.progress(1).tags, vec!["复习"]);
         assert_eq!(reopened.notes(&problems[0]).unwrap().len(), 3);
+    }
+    #[test]
+    fn go_and_java_drafts_are_separate_and_language_is_persistent() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("data");
+        let problem = catalog::builtin().unwrap().remove(0);
+        let store = Store::open(root.clone()).unwrap();
+        store.prepare(&problem).unwrap();
+        assert!(
+            store
+                .source_for(problem.id, PracticeLanguage::Java)
+                .unwrap()
+                .contains("class Solution")
+        );
+        store
+            .save_source_for(problem.id, PracticeLanguage::Java, "class Solution { }\n")
+            .unwrap();
+        store.save_language(PracticeLanguage::Java).unwrap();
+        drop(store);
+        let store = Store::open(root).unwrap();
+        store.prepare(&problem).unwrap();
+        assert_eq!(store.language(), PracticeLanguage::Java);
+        assert_eq!(
+            store
+                .source_for(problem.id, PracticeLanguage::Java)
+                .unwrap(),
+            "class Solution { }\n"
+        );
+        assert!(
+            store
+                .source_for(problem.id, PracticeLanguage::Go)
+                .unwrap()
+                .starts_with("package solution")
+        );
     }
 }

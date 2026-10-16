@@ -25,7 +25,7 @@ fn run() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|arg| arg == "--help" || arg == "-h") {
         println!(
-            "LeetDesk — GPUI + Rust / Go 刷题工作区\n\n启动：leetdesk [--data-dir PATH]\n检查工具：leetdesk --doctor\n导入题目：leetdesk --import-catalog PATH\n\n快捷键：Ctrl+S 保存 · Ctrl+Enter 运行 · Ctrl+Shift+F 格式化\nCtrl+Shift+O 整理导入 · Ctrl+Space 补全 · F12 定义 · Ctrl+I 导入 MD"
+            "LeetDesk — GPUI + Rust / Go、Java 刷题工作区\n\n启动：leetdesk [--data-dir PATH]\n检查工具：leetdesk --doctor\n导入题目：leetdesk --import-catalog PATH\n\n快捷键：Ctrl+S 保存 · Ctrl+Enter 运行 · Ctrl+Shift+F 格式化\nCtrl+Shift+O 整理 Go 导入 · Ctrl+Space 补全 · F12 定义 · Ctrl+I 导入 MD"
         );
         return Ok(());
     }
@@ -34,6 +34,14 @@ fn run() -> Result<()> {
             ("Go", std::ffi::OsString::from("go"), "version"),
             ("gopls", leetdesk::language::gopls_executable(), "version"),
             ("gofmt", leetdesk::language::gofmt_executable(), "-h"),
+            ("Java", std::ffi::OsString::from("java"), "-version"),
+            ("javac", std::ffi::OsString::from("javac"), "-version"),
+            (
+                "google-java-format",
+                std::env::var_os("LEETDESK_JAVA_FORMAT")
+                    .unwrap_or_else(|| "google-java-format".into()),
+                "--version",
+            ),
         ] {
             let mut command = Command::new(tool);
             leetdesk::language::hide_console(&mut command);

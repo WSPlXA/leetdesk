@@ -1,8 +1,8 @@
 [package]
 name = "leetdesk"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2024"
-description = "A native GPUI workspace for practicing LeetCode in Go"
+description = "A native GPUI workspace for practicing LeetCode in Go and Java"
 license = "MIT"
 
 [features]
@@ -16,7 +16,7 @@ required-features = ["desktop"]
 
 [dependencies]
 anyhow = "1"
-gpui-kit = { version = "=0.7.3", optional = true, features = ["tree-sitter-go", "tree-sitter-markdown"] }
+gpui-kit = { version = "=0.7.3", optional = true, features = ["tree-sitter-go", "tree-sitter-java", "tree-sitter-markdown"] }
 gpui-wry = { version = "=0.7.3", optional = true }
 wry = { package = "lb-wry", version = "=0.53.3", optional = true }
 lsp-types = "0.97"

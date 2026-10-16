@@ -11,6 +11,8 @@ pub struct Problem {
     pub tags: Vec<String>,
     pub description: String,
     pub starter: String,
+    #[serde(default)]
+    pub java_starter: String,
     pub function: String,
     pub parameters: Vec<Parameter>,
     pub returns: Kind,
@@ -23,6 +25,81 @@ pub struct Problem {
     pub online: Option<crate::online::RemoteMeta>,
     #[serde(default)]
     pub extra_types: String,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PracticeLanguage {
+    #[default]
+    Go,
+    Java,
+}
+
+impl PracticeLanguage {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Go => "Go",
+            Self::Java => "Java",
+        }
+    }
+    pub fn slug(self) -> &'static str {
+        match self {
+            Self::Go => "golang",
+            Self::Java => "java",
+        }
+    }
+    pub fn filename(self) -> &'static str {
+        match self {
+            Self::Go => "solution.go",
+            Self::Java => "Solution.java",
+        }
+    }
+    pub fn highlighter(self) -> &'static str {
+        match self {
+            Self::Go => "go",
+            Self::Java => "java",
+        }
+    }
+}
+
+impl Problem {
+    pub fn starter_for(&self, language: PracticeLanguage) -> String {
+        match language {
+            PracticeLanguage::Go => self.starter.clone(),
+            PracticeLanguage::Java if !self.java_starter.is_empty() => self.java_starter.clone(),
+            PracticeLanguage::Java if self.online.is_some() => {
+                "// 这道题目前没有 Java 模板。\n".into()
+            }
+            PracticeLanguage::Java => {
+                let params = self
+                    .parameters
+                    .iter()
+                    .map(|p| format!("{} {}", p.kind.java_type(), p.name))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let value = match self.returns {
+                    Kind::Int => "0",
+                    Kind::Bool => "false",
+                    _ => "null",
+                };
+                format!(
+                    "class Solution {{\n    public {} {}({params}) {{\n        // 在这里实现你的解法\n        return {value};\n    }}\n}}\n",
+                    self.returns.java_type(),
+                    self.function
+                )
+            }
+        }
+    }
+    pub fn supports(&self, language: PracticeLanguage) -> bool {
+        let Some(remote) = &self.online else {
+            return true;
+        };
+        remote.loaded
+            && match language {
+                PracticeLanguage::Go => remote.go_supported,
+                PracticeLanguage::Java => remote.java_supported,
+            }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -43,6 +120,16 @@ pub enum Kind {
 }
 
 impl Kind {
+    pub fn java_type(self) -> &'static str {
+        match self {
+            Self::Int => "int",
+            Self::Ints => "int[]",
+            Self::String => "String",
+            Self::Bool => "boolean",
+            Self::List => "ListNode",
+            Self::Tree => "TreeNode",
+        }
+    }
     pub fn go_type(self) -> &'static str {
         match self {
             Self::Int => "int",

@@ -1,6 +1,6 @@
 //! LeetCode payloads and request planning. Authentication stays in WebView2;
 //! requests run in the official origin, so Rust never reads passwords or session cookies.
-use crate::catalog::{Kind, Parameter, Problem};
+use crate::catalog::{Kind, Parameter, PracticeLanguage, Problem};
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -57,6 +57,8 @@ pub struct RemoteMeta {
     pub sample_input: String,
     #[serde(default)]
     pub go_supported: bool,
+    #[serde(default)]
+    pub java_supported: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -214,21 +216,30 @@ pub fn detail_request(site: Site, slug: &str) -> Result<Request> {
     ))
 }
 
-pub fn run_request(problem: &Problem, source: &str, input: &str) -> Result<Request> {
+pub fn run_request(
+    problem: &Problem,
+    language: PracticeLanguage,
+    source: &str,
+    input: &str,
+) -> Result<Request> {
     let remote = problem.online.as_ref().context("该题不是在线题目")?;
-    if !remote.loaded || remote.question_id.is_empty() || !remote.go_supported {
-        bail!("请先加载支持 Go 的题目详情");
+    if !remote.loaded || remote.question_id.is_empty() || !problem.supports(language) {
+        bail!("请先加载支持 {} 的题目详情", language.label());
     }
     Ok(Request {
         path: format!("/problems/{}/interpret_solution/", problem.slug),
         body: Some(
-            json!({"lang":"golang","question_id":remote.question_id,"typed_code":submission_source(source),"data_input":input}),
+            json!({"lang":language.slug(),"question_id":remote.question_id,"typed_code":submission_source(language, source),"data_input":input}),
         ),
     })
 }
 
-pub fn submit_request(problem: &Problem, source: &str) -> Result<Request> {
-    let mut request = run_request(problem, source, "")?;
+pub fn submit_request(
+    problem: &Problem,
+    language: PracticeLanguage,
+    source: &str,
+) -> Result<Request> {
+    let mut request = run_request(problem, language, source, "")?;
     request.path = format!("/problems/{}/submit/", problem.slug);
     request
         .body
@@ -312,7 +323,10 @@ pub fn check_request(id: &str) -> Result<Request> {
     })
 }
 
-pub fn submission_source(source: &str) -> String {
+pub fn submission_source(language: PracticeLanguage, source: &str) -> String {
+    if language == PracticeLanguage::Java {
+        return source.to_string();
+    }
     let mut removed = false;
     source
         .lines()
@@ -449,6 +463,7 @@ fn stub(site: Site, frontend: &str, slug: &str, title: &str) -> Result<Problem> 
         tags: vec![],
         description: String::new(),
         starter: "package solution\n".into(),
+        java_starter: String::new(),
         function: String::new(),
         parameters: vec![],
         returns: Kind::Int,
@@ -465,6 +480,7 @@ fn stub(site: Site, frontend: &str, slug: &str, title: &str) -> Result<Problem> 
             loaded: false,
             sample_input: String::new(),
             go_supported: false,
+            java_supported: false,
         }),
     })
 }
@@ -510,6 +526,14 @@ pub fn parse_detail(existing: &Problem, body: &Value) -> Result<Problem> {
         .and_then(|rows| rows.iter().find(|s| s["langSlug"] == "golang"))
         .and_then(|s| s["code"].as_str());
     remote.go_supported = snippet.is_some();
+    let java_snippet = row["codeSnippets"]
+        .as_array()
+        .and_then(|rows| rows.iter().find(|s| s["langSlug"] == "java"))
+        .and_then(|s| s["code"].as_str());
+    remote.java_supported = java_snippet.is_some();
+    problem.java_starter = java_snippet
+        .map(|code| format!("{code}\n"))
+        .unwrap_or_default();
     if let Some(code) = snippet {
         problem.starter = format!("package solution\n\n{code}\n");
         problem.extra_types = extra_types(code);
@@ -800,13 +824,13 @@ mod tests {
     fn tests_and_submissions_use_different_requests_and_judge_results() {
         let mut problem = stub(Site::China, "1", "two-sum", "两数之和").unwrap();
         let source = "package solution\nimport \"fmt\"\nvar example = `\npackage text\n`\nfunc twoSum(nums []int, target int) []int {fmt.Println(example); return nil}";
-        assert!(submit_request(&problem, source).is_err());
+        assert!(submit_request(&problem, PracticeLanguage::Go, source).is_err());
         let remote = problem.online.as_mut().unwrap();
         remote.loaded = true;
         remote.go_supported = true;
         remote.question_id = "1".into();
-        let test = run_request(&problem, source, "[2,7]\n9").unwrap();
-        let submit = submit_request(&problem, source).unwrap();
+        let test = run_request(&problem, PracticeLanguage::Go, source, "[2,7]\n9").unwrap();
+        let submit = submit_request(&problem, PracticeLanguage::Go, source).unwrap();
         assert!(test.path.ends_with("/interpret_solution/"));
         assert!(submit.path.ends_with("/submit/"));
         let payload = submit.body.unwrap();
@@ -890,7 +914,7 @@ mod tests {
         assert!(detail.starter.starts_with("package solution"));
         assert_eq!(detail.description, "<p>克隆图</p>");
         assert!(
-            run_request(&detail, &detail.starter, "[[2],[1]]")
+            run_request(&detail, PracticeLanguage::Go, &detail.starter, "[[2],[1]]")
                 .unwrap()
                 .body
                 .unwrap()["typed_code"]
@@ -898,5 +922,21 @@ mod tests {
                 .unwrap()
                 .starts_with("\n")
         );
+    }
+    #[test]
+    fn java_template_and_submission_keep_java_source() {
+        let original = stub(Site::China, "1", "two-sum", "两数之和").unwrap();
+        let java =
+            "class Solution { public int[] twoSum(int[] nums, int target) { return null; } }";
+        let body = json!({"data":{"question":{"questionId":"1","content":"<p>Two Sum</p>","codeSnippets":[{"langSlug":"java","code":java}]}}});
+        let detail = parse_detail(&original, &body).unwrap();
+        assert!(detail.online.as_ref().unwrap().java_supported);
+        assert!(!detail.online.as_ref().unwrap().go_supported);
+        assert_eq!(detail.java_starter, format!("{java}\n"));
+        let request = submit_request(&detail, PracticeLanguage::Java, java).unwrap();
+        let body = request.body.unwrap();
+        assert_eq!(body["lang"], "java");
+        assert_eq!(body["typed_code"], java);
+        assert!(run_request(&detail, PracticeLanguage::Go, "package solution", "").is_err());
     }
 }

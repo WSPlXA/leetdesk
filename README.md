@@ -1,6 +1,6 @@
 # LeetDesk
 
-**用 Rust + GPUI 构建的原生 LeetCode 刷题工作区，目前专注 Go。** 在一个窗口里读题、按主题找题、写代码、运行用例、提交解答，并用 Markdown 记录做法与复盘。
+**用 Rust + GPUI 构建的原生 LeetCode 刷题工作区，支持 Go 和 Java。** 在一个窗口里读题、按主题找题、写代码、运行用例、提交解答，并用 Markdown 记录做法与复盘。
 
 支持 Windows x64、Intel Mac 和 Apple Silicon Mac。下载[最新发布版](https://github.com/WSPlXA/leetdesk/releases/latest)。
 
@@ -14,30 +14,30 @@
    | Intel Mac | `leetdesk-macos-x86_64.zip` | 打开 `LeetDesk.app` |
    | Apple Silicon Mac | `leetdesk-macos-aarch64.zip` | 打开 `LeetDesk.app` |
 
-2. 安装 [Go](https://go.dev/dl/) 和 `gopls`，以便编译、格式化、诊断和补全 Go 代码：
+2. 使用 Go 时安装 [Go](https://go.dev/dl/) 和 `gopls`，以便编译、格式化、诊断和补全 Go 代码：
 
    ```sh
    go install golang.org/x/tools/gopls@latest
    ```
 
-   确保 `go`、`gofmt`、`gopls` 可以从终端运行。若它们不在 `PATH` 中，可用 `LEETDESK_GOPLS` 和 `LEETDESK_GOFMT` 指向对应程序。Windows 登录窗口还需要 WebView2 Runtime。
+   确保 `go`、`gofmt`、`gopls` 可以从终端运行。若它们不在 `PATH` 中，可用 `LEETDESK_GOPLS` 和 `LEETDESK_GOFMT` 指向对应程序。使用 Java 本地用例时安装 JDK 17 或更新版本，并让 `java`、`javac` 位于 `PATH`。Java 格式化需要安装 `google-java-format`，或设置 `LEETDESK_JAVA_FORMAT` 指向该命令。Windows 登录窗口还需要 WebView2 Runtime。
 
 3. 启动应用，在 LeetCode 中国站或国际站的官方页面登录。登录后同步题库、分类和当前账号的解题状态；后续启动先读取本地缓存，需要更新时点击 **同步题库**。登录暂时不可用时，可选择使用离线缓存。
 
-4. 从左侧选择题单或主题，再按状态、难度和关键词筛选。打开题目后，右侧直接编辑 Go 解法；**运行用例**检查当前代码，**提交**交给 LeetCode 判题。
+4. 从左侧选择题单或主题，再按状态、难度和关键词筛选。打开题目后，在编辑器上方切换 Go / Java；两个语言的解答分别保存。**运行用例**检查当前代码，**提交**交给 LeetCode 判题。
 
 macOS 包已在对应架构的 GitHub Actions runner 上构建。当前使用临时签名，尚未进行 Apple 公证；首次打开如被系统拦截，请在 macOS 的安全设置中允许。Windows 下载包包含应用图标；窗口顶部的题目名称或空白区域可以拖动窗口。
 
 ## 刷题工作流
 
 - **找题：** 支持热题 100、链表、字符串、双指针、图、树、动态规划等题单与主题。搜索、主题、难度、解题状态可以组合筛选；收藏、待复习和自定义标签用于安排下一轮练习。
-- **读题：** 在线加载题面与官方 Go 模板，下载后缓存。题面、做法讲解、个人笔记和代码可在同一工作区查看，面板宽度可调整。
+- **读题：** 在线加载题面与官方 Go / Java 模板，下载后缓存。题面、做法讲解、个人笔记和代码可在同一工作区查看，面板宽度可调整。
 - **写代码：** Tree-sitter 语法高亮；`gopls` 提供诊断、补全、类型提示与跳转定义。内置 `for`、`make`、`append` 等模板补全；支持自动缩进、括号配对、长行折行、撤销及搜索。`Ctrl+S`（Mac 为 `Cmd+S`）保存并用 `gofmt` 格式化 Go 代码。
-- **代码工具：** **初始化代码** 恢复当前题目的 Go 模板，并将原代码备份为 `solution-before-reset-*.go`；**整理导入** 使用 `gopls imports` 补全缺失的导入并删除多余导入；**格式化** 使用 `gofmt` 排版。代码有语法错误而无法格式化时，原草稿仍会保存，底部状态栏显示具体错误。
-- **验证：** 本地用例会实际编译并运行 Go，逐例显示预期值、实际值、错误和耗时。在线题目还可调用平台测试与提交接口；通过后更新当前题目的状态缓存。正在判题时停止等待不会撤销平台已接收的任务。
+- **代码工具：** 编辑器上方始终显示 **恢复初始模板**，按当前语言恢复模板，并先将原代码备份为 `solution-before-reset-*.go` 或 `.java`。Go 的 **整理导入** 使用 `gopls imports`；**格式化** 对 Go 使用 `gofmt`，对 Java 使用可选的 `google-java-format`。格式化失败时，原草稿仍会保存，底部状态栏显示具体错误。
+- **验证：** 本地用例会实际编译并运行当前语言，逐例显示预期值、实际值和错误。在线题目按当前语言调用平台测试与提交接口；通过后更新当前题目的状态缓存。正在判题时停止等待不会撤销平台已接收的任务。
 - **复盘：** 每道题有独立的 Markdown 笔记，保存后更新预览；也可导入已有的 MD 做法讲解。代码、笔记与进度会自动保存，重新打开继续上次练习。
 
-LeetDesk 通过系统 WebView 展示官方登录页；密码和验证码由你在该页面输入。账号数据与题目缓存在本机保存。会员题目及 Go 模板是否可用取决于平台。
+LeetDesk 通过系统 WebView 展示官方登录页；密码和验证码由你在该页面输入。账号数据与题目缓存在本机保存。会员题目及语言模板是否可用取决于平台。Java 当前提供语法高亮和内置模板补全；语义诊断、类型提示和跳转定义仍由 Go 的 `gopls` 提供，Java 暂无对应语言服务。
 
 ## 常用快捷键
 
