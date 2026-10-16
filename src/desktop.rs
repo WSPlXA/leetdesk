@@ -3425,6 +3425,15 @@ pub fn apply_theme(cx: &mut App) {
 fn document_style() -> TextViewStyle {
     let mut code_block = gpui_kit::StyleRefinement::default();
     code_block.text.color = Some(rgb(INK).into());
+    let mut table = gpui_kit::StyleRefinement::default()
+        .rounded_md()
+        .bg(rgb(0x101715));
+    table.overflow.x = Some(gpui_kit::Overflow::Scroll);
+    let table_head = gpui_kit::StyleRefinement::default()
+        .bg(rgb(0x203c34))
+        .text_color(rgb(0xc6ffe8))
+        .font_weight(FontWeight::SEMIBOLD);
+    let table_cell = gpui_kit::StyleRefinement::default().px_4();
     TextViewStyle::default()
         .with_dark(true)
         .with_foreground(rgb(INK).into())
@@ -3444,7 +3453,10 @@ fn document_style() -> TextViewStyle {
             heading
         })
         .with_link(rgb(ACCENT).into())
-        .with_border(rgb(LINE).into())
+        .with_border(rgb(0x536861).into())
+        .with_table(table)
+        .with_table_head(table_head)
+        .with_table_cell(table_cell)
         .with_selection(rgb(ACCENT).opacity(0.22).into())
         .with_code_background(rgb(CODE_BG).into())
         .with_inline_code(gpui_kit::HighlightStyle {
@@ -3820,6 +3832,57 @@ mod ui_tests {
             assert!(
                 last_code < first_text,
                 "背景必须先于所有文字绘制，避免遮盖相邻字符"
+            );
+        })
+        .unwrap();
+    }
+
+    #[gpui_kit::test]
+    fn markdown_tables_have_distinct_header_and_body_surfaces(cx: &mut TestAppContext) {
+        struct TablePreview {
+            state: Entity<TextViewState>,
+        }
+        impl Render for TablePreview {
+            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                div()
+                    .w(px(340.))
+                    .child(TextView::new(&self.state).style(document_style()))
+            }
+        }
+        cx.update(|cx| {
+            gpui_kit::init(cx);
+            apply_theme(cx);
+        });
+        let source =
+            "| 思路 | 复杂度 |\n| --- | --- |\n| 哈希表查找与遍历 | O(n) |\n| 双重循环 | O(n²) |";
+        let handle = cx.update(|cx| {
+            cx.open_window(WindowOptions::default(), |_, cx| {
+                cx.new(|cx| TablePreview {
+                    state: cx.new(|cx| TextViewState::markdown(source, cx)),
+                })
+            })
+            .unwrap()
+        });
+        cx.run_until_parked();
+        cx.update_window(handle.into(), |root, window, cx| {
+            window.render_frame(cx);
+            let root = root.downcast::<TablePreview>().unwrap();
+            let text = root.read(cx).state.read(cx).rendered_text();
+            assert!(text.as_str().contains("哈希表查找与遍历"));
+            let quads = window.painted_quads();
+            let header: gpui_kit::Background = rgb(0x203c34).into();
+            let body: gpui_kit::Background = rgb(0x101715).into();
+            assert!(
+                quads.iter().any(|quad| quad.background == header),
+                "表头背景应可见"
+            );
+            assert!(
+                quads.iter().any(|quad| quad.background == body),
+                "表身背景应可见"
+            );
+            assert_eq!(
+                document_style().table().overflow.x,
+                Some(gpui_kit::Overflow::Scroll)
             );
         })
         .unwrap();

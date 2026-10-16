@@ -1,6 +1,6 @@
 [package]
 name = "leetdesk"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
 description = "A native GPUI workspace for practicing LeetCode in Go and Java"
 license = "MIT"
