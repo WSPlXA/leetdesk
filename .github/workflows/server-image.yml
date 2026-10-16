@@ -21,24 +21,40 @@ jobs:
     name: Build, test, and publish Linux amd64 image
     runs-on: ubuntu-latest
     steps:
+      - name: Normalize and validate tag input
+        id: release
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          tag=$(printf '%s' "$RELEASE_TAG" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo '::error::Enter an existing tag such as v0.2.0.'
+            exit 1
+          fi
+          printf 'tag=%s\n' "$tag" >> "$GITHUB_OUTPUT"
+
       - name: Check out requested version
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_tag }}
+          ref: ${{ steps.release.outputs.tag }}
           fetch-depth: 0
           persist-credentials: false
 
       - name: Validate version tag
         shell: bash
         env:
-          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
         run: |
           set -euo pipefail
-          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"
           test "$(git rev-parse HEAD)" = "$(git rev-list -n 1 "$RELEASE_TAG")"
           version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)
-          test "$RELEASE_TAG" = "v$version"
+          if [[ "$RELEASE_TAG" != "v$version" ]]; then
+            echo "::error::Tag $RELEASE_TAG does not match Cargo.toml version $version."
+            exit 1
+          fi
 
       - name: Set image name
         id: image
@@ -59,17 +75,17 @@ jobs:
           load: true
           push: false
           provenance: false
-          tags: ${{ steps.image.outputs.name }}:${{ inputs.release_tag }}
+          tags: ${{ steps.image.outputs.name }}:${{ steps.release.outputs.tag }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.version=${{ inputs.release_tag }}
+            org.opencontainers.image.version=${{ steps.release.outputs.tag }}
           cache-from: type=gha,scope=leetdesk-server
           cache-to: type=gha,mode=max,scope=leetdesk-server
 
       - name: Check container startup and authentication
         shell: bash
         env:
-          IMAGE: ${{ steps.image.outputs.name }}:${{ inputs.release_tag }}
+          IMAGE: ${{ steps.image.outputs.name }}:${{ steps.release.outputs.tag }}
         run: |
           set -euo pipefail
           token=$(openssl rand -hex 32)
@@ -99,7 +115,7 @@ jobs:
       - name: Push tested image
         shell: bash
         env:
-          IMAGE: ${{ steps.image.outputs.name }}:${{ inputs.release_tag }}
+          IMAGE: ${{ steps.image.outputs.name }}:${{ steps.release.outputs.tag }}
         run: |
           set -euo pipefail
           docker push "$IMAGE"
