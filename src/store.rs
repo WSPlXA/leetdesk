@@ -5,7 +5,11 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs,
     path::{Path, PathBuf},
+    sync::atomic::{AtomicU64, Ordering},
+    time::{SystemTime, UNIX_EPOCH},
 };
+
+static SUBMISSION_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 pub const NODE_TYPES: &str = "package solution\n\n// LeetCode helpers; do not redeclare these types in solution.go.\ntype ListNode struct {\n\tVal int\n\tNext *ListNode\n}\n\ntype TreeNode struct {\n\tVal int\n\tLeft *TreeNode\n\tRight *TreeNode\n}\n";
 
@@ -92,6 +96,41 @@ impl Store {
             &self.workspace(id).join(language.filename()),
             source.as_bytes(),
         )
+    }
+
+    /// Keep the exact source sent by each online submission attempt.
+    pub fn save_submission_snapshot(
+        &self,
+        id: u32,
+        language: PracticeLanguage,
+        source: &str,
+    ) -> Result<PathBuf> {
+        let dir = self.workspace(id).join("submissions");
+        fs::create_dir_all(&dir)?;
+        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
+        let ext = match language {
+            PracticeLanguage::Go => "go",
+            PracticeLanguage::Java => "java",
+        };
+        for _ in 0..100 {
+            let sequence = SUBMISSION_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+            let path = dir.join(format!("{timestamp}-{sequence}.{ext}"));
+            match fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&path)
+            {
+                Ok(mut file) => {
+                    use std::io::Write;
+                    file.write_all(source.as_bytes())?;
+                    file.sync_all()?;
+                    return Ok(path);
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(error) => return Err(error.into()),
+            }
+        }
+        bail!("无法生成唯一的提交快照文件名")
     }
     pub fn language(&self) -> PracticeLanguage {
         fs::read_to_string(self.root.join("language.json"))

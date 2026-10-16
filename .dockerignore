@@ -1,0 +1,6 @@
+.git
+target
+data
+*.zip
+.env
+*.sqlite3

@@ -7,4 +7,6 @@ pub mod online;
 pub mod runner;
 pub mod snippets;
 pub mod store;
+pub mod sync;
 pub mod topics;
+pub mod vault;

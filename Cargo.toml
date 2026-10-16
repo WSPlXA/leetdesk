@@ -1,6 +1,6 @@
 [package]
 name = "leetdesk"
-version = "0.1.5"
+version = "0.2.0"
 edition = "2024"
 description = "A native GPUI workspace for practicing LeetCode in Go and Java"
 license = "MIT"
@@ -8,11 +8,17 @@ license = "MIT"
 [features]
 default = ["desktop"]
 desktop = ["dep:gpui-kit", "dep:gpui-wry", "dep:wry", "dep:ratex-parser", "dep:ratex-layout", "dep:ratex-svg", "dep:ratex-types"]
+server = ["dep:tiny_http"]
 
 [[bin]]
 name = "leetdesk"
 path = "src/main.rs"
 required-features = ["desktop"]
+
+[[bin]]
+name = "leetdesk-server"
+path = "src/bin/leetdesk-server.rs"
+required-features = ["server"]
 
 [dependencies]
 anyhow = "1"
@@ -21,6 +27,7 @@ gpui-wry = { version = "=0.7.3", optional = true }
 wry = { package = "lb-wry", version = "=0.53.3", optional = true }
 lsp-types = "0.97"
 regex = "1"
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls"] }
 ratex-parser = { version = "=0.1.14", optional = true }
 ratex-layout = { version = "=0.1.14", optional = true }
 ratex-svg = { version = "=0.1.14", features = ["embed-fonts"], optional = true }
@@ -30,6 +37,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 smol = "2"
 tempfile = "3"
+tiny_http = { version = "0.12", optional = true }
 similar = "=2.7.0"
 url = "2"
 zip = { version = "=8.6.0", default-features = false, features = ["deflate"] }

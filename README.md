@@ -1,6 +1,6 @@
 # LeetDesk
 
-**用 Rust + GPUI 构建的原生 LeetCode 刷题工作区，支持 Go 和 Java。** 在一个窗口里读题、按主题找题、写代码、运行用例、提交解答，并用 Markdown 记录做法与复盘。
+**用 Rust + GPUI 构建的原生 LeetCode 刷题工作区，支持 Go 和 Java。** 在一个窗口里读题、按主题找题、写代码、运行用例、提交解答，并用 Markdown 记录做法与复盘。可选的单人自托管服务能备份笔记、解法和每次提交的代码快照。
 
 支持 Windows x64、Intel Mac 和 Apple Silicon Mac。下载[最新发布版](https://github.com/WSPlXA/leetdesk/releases/latest)。
 
@@ -79,6 +79,32 @@ tags: [哈希表, 面试复习]
 
 需要在另一台电脑继续写笔记时，打开 **我的笔记**，点击 **导出全部笔记** 保存一个 ZIP 文件。它包含所有题目的个人笔记、导入过的做法讲解，以及文档引用的相对路径本地图片；找不到的图片会在导出后提示。把 ZIP 带到另一台电脑后，在同一位置点击 **导入笔记包**。重复导入相同内容会跳过；若同一题的个人笔记在两台电脑都已修改，导入内容会追加到现有笔记，并单独保留一份 `notes-imported-*.md`。笔记包只承载笔记，不包含 LeetCode 登录信息或代码。
 
+## 单人自托管备份
+
+LeetDesk 可以把个人 Markdown 笔记、导入的讲解与图片、Go / Java 解法，以及每次在线提交的源代码快照保存到自己的服务器。服务端每次上传都保留一个独立 ZIP；取回操作使用最新一份。桌面端仍以本地文件为工作副本，离线时可以继续编辑。备份不包括 LeetCode 登录凭据、题库缓存、用例运行产物或本地运行历史。
+
+在服务器上生成至少 32 字符的随机令牌，例如 `openssl rand -hex 32`。将其作为 `LEETDESK_SERVER_TOKEN` 注入进程环境，备份目录设为 `LEETDESK_SERVER_DATA`。默认只监听 `127.0.0.1:8787`；从外网访问时请用 HTTPS 反向代理或 VPN，不要直接暴露 HTTP 端口。服务只实现单人令牌认证，没有注册、找回密码或多用户管理。
+
+```sh
+cargo build --locked --release --no-default-features --features server --bin leetdesk-server
+export LEETDESK_SERVER_TOKEN="$(openssl rand -hex 32)"
+export LEETDESK_SERVER_DATA='/srv/leetdesk'
+./target/release/leetdesk-server
+```
+
+也可以用 [Dockerfile.server](Dockerfile.server) 构建镜像，并将容器的 `/data` 挂载到持久卷。容器内服务监听 `0.0.0.0:8787`，推荐只映射到宿主机回环地址 `127.0.0.1:8787:8787`，再由 HTTPS 反向代理转发。请定期备份服务端数据目录，它包含所有历史快照。
+
+在桌面端设置同一个令牌和服务地址；Windows 可以在启动 LeetDesk 前设置用户环境变量，macOS 可以从终端带入环境变量启动。远程地址必须是 HTTPS；本机 `localhost` / `127.0.0.1` 可以使用 HTTP。然后进入 **我的笔记** 点击 **上传备份**，另一台电脑点击 **取回备份**。导入时相同文件会跳过；不同的解法或提交快照另存为带 `-imported-` 的副本，不覆盖本地文件。个人笔记发生冲突时会合并正文并保存原始导入副本。解法冲突文件位于对应题目的 `workspaces/<题号>/` 下，选择要使用的版本后可手动替换当前解法。
+
+```sh
+export LEETDESK_SYNC_URL='https://你的域名'
+export LEETDESK_SYNC_TOKEN='同一个随机令牌'
+```
+
+Windows PowerShell 启动前可设置 `$env:LEETDESK_SYNC_URL='https://你的域名'` 和 `$env:LEETDESK_SYNC_TOKEN='服务器令牌'`，再运行 `leetdesk.exe`。令牌需在服务器和桌面端保持一致。
+
+令牌只从环境变量读取，不写入备份包。遗失或泄露时，在服务端更换令牌并同步更新所有桌面端。单人备份不会自动同步；点击按钮后应等待状态栏显示成功，再在另一台设备取回。两台设备同时修改同一道题时请检查保留的冲突副本。
+
 ## 数据与离线模式
 
 Windows 默认把数据保存在**启动时的工作目录**下的 `data/`；macOS 默认位置是 `~/Library/Application Support/LeetDesk/`。需要固定或迁移数据目录时，启动时传入 `--data-dir PATH`，或设置 `LEETDESK_DATA`。
@@ -126,6 +152,6 @@ Windows 也可显式指定 `+stable-x86_64-pc-windows-msvc`。真实 Go/gopls �
 
 ## 发布
 
-[GitHub Actions 工作流](.github/workflows/release.yml) 只在手动运行时构建 Windows x64、Intel Mac 和 Apple Silicon Mac 包，不会因推送提交或标签自动启动。到仓库的 **Actions → Build and release → Run workflow**，留空 `release_tag` 只生成 Actions 产物；填入已推送、与 `Cargo.toml` 版本一致的标签（如 `v0.1.3`）则在三个构建都成功后创建 Release 并上传压缩包。Windows 构建还会运行桌面端测试。
+[GitHub Actions 工作流](.github/workflows/release.yml) 只在手动运行时构建 Windows x64、Intel Mac 和 Apple Silicon Mac 包，不会因推送提交或标签自动启动。到仓库的 **Actions → Build and release → Run workflow**，留空 `release_tag` 只生成 Actions 产物；填入已推送、与 `Cargo.toml` 版本一致的标签（如 `v0.2.0`）则在三个构建都成功后创建 Release 并上传压缩包。Windows 构建还会运行桌面端测试。服务端通过上述 Cargo 命令或 Dockerfile 单独构建。
 
 项目使用 [MIT License](LICENSE)。

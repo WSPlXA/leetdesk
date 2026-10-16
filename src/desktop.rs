@@ -23,6 +23,7 @@ use leetdesk::{
     language::{self, GoLanguage},
     note_bundle, runner, snippets,
     store::{Progress, Store},
+    sync,
 };
 use lsp_types::{CompletionContext, CompletionResponse, Hover, LocationLink, Position};
 use serde_json::json;
@@ -809,6 +810,81 @@ impl Workspace {
         .detach();
     }
 
+    fn upload_backup(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
+        if let Err(error) = self.save(cx) {
+            self.notice = format!("保存后才能上传备份：{error:#}");
+            cx.notify();
+            return;
+        }
+        self.notice = "正在上传笔记、解法和提交快照…".into();
+        let root = self.store.root.clone();
+        cx.spawn_in(window, async move |this, cx| {
+            let result = smol::unblock(move || {
+                let store = Store::open(root)?;
+                sync::upload(&store)
+            })
+            .await;
+            _ = this.update_in(cx, |this, _, cx| {
+                this.notice = match result {
+                    Ok(summary) => format!(
+                        "备份已上传：{} 篇笔记、{} 份解法、{} 次提交快照",
+                        summary.notes, summary.solutions, summary.submissions
+                    ),
+                    Err(error) => format!("备份上传失败：{error:#}"),
+                };
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
+    fn download_backup(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
+        if let Err(error) = self.save(cx) {
+            self.notice = format!("保存后才能取回备份：{error:#}");
+            cx.notify();
+            return;
+        }
+        self.notice = "正在取回服务器上的最新备份…".into();
+        let root = self.store.root.clone();
+        cx.spawn_in(window, async move |this, cx| {
+            let result = smol::unblock(move || {
+                let store = Store::open(root)?;
+                sync::download(&store)
+            })
+            .await;
+            _ = this.update_in(cx, |this, window, cx| {
+                this.notice = match result {
+                    Ok(summary) => {
+                        this.saved_note = fs::read_to_string(
+                            this.store.workspace(this.problem().id).join("notes.md"),
+                        )
+                        .unwrap_or_default();
+                        this.note_editor.update(cx, |state, cx| {
+                            state.set_value(this.saved_note.clone(), window, cx)
+                        });
+                        this.note_preview
+                            .update(cx, |state, cx| state.set_text(&this.saved_note, cx));
+                        this.note_dirty = false;
+                        this.explanations = this.store.notes(this.problem()).unwrap_or_default();
+                        this.document_view = None;
+                        format!(
+                            "已取回：{} 篇笔记、{} 份解法、{} 次提交快照；{} 处冲突保留了副本",
+                            summary.notes,
+                            summary.solutions,
+                            summary.submissions,
+                            summary.conflicts
+                        )
+                    }
+                    Err(error) => format!("取回备份失败：{error:#}"),
+                };
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
     pub fn set_online_enabled(&mut self, enabled: bool) {
         self.online_enabled = enabled;
     }
@@ -1240,6 +1316,11 @@ impl Workspace {
         }
         if let Err(error) = online::submit_request(self.problem(), self.practice_language, &source)
             .and_then(|_| self.save(cx))
+            .and_then(|_| {
+                self.store
+                    .save_submission_snapshot(self.problem().id, self.practice_language, &source)
+                    .map(|_| ())
+            })
         {
             self.notice = error.to_string();
             cx.notify();
@@ -2205,6 +2286,20 @@ impl Workspace {
                                             .ghost()
                                             .label("导出全部笔记")
                                             .on_click(cx.listener(Self::export_note_bundle)),
+                                    )
+                                    .child(
+                                        Button::new("backup-upload")
+                                            .small()
+                                            .ghost()
+                                            .label("上传备份")
+                                            .on_click(cx.listener(Self::upload_backup)),
+                                    )
+                                    .child(
+                                        Button::new("backup-download")
+                                            .small()
+                                            .ghost()
+                                            .label("取回备份")
+                                            .on_click(cx.listener(Self::download_backup)),
                                     )
                                     .child(
                                         Button::new("open-notes-file")
@@ -4713,6 +4808,19 @@ mod ui_tests {
         assert_eq!(emitted.len(), 1, "判题中不能重复提交");
         assert!(
             matches!(&emitted[0], WorkspaceEvent::Run {submit:true, source, ..} if source.contains("twoSum"))
+        );
+        let snapshots = cx.update(|cx| view.read(cx).store.workspace(1).join("submissions"));
+        let saved = fs::read_dir(snapshots)
+            .unwrap()
+            .collect::<std::io::Result<Vec<_>>>()
+            .unwrap();
+        assert_eq!(saved.len(), 1);
+        assert_eq!(
+            fs::read_to_string(saved[0].path()).unwrap(),
+            match &emitted[0] {
+                WorkspaceEvent::Run { source, .. } => source.as_str(),
+                _ => unreachable!(),
+            }
         );
         cx.update_window(handle, |_, _, cx| {
             view.update(cx, |workspace, cx| {

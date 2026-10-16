@@ -207,13 +207,12 @@ pub fn run_java(
         if let Ok(actual) = serde_json::from_str::<Value>(actual) {
             let mut expected = case.expected.clone();
             let mut compared = actual.clone();
-            if problem.unordered {
-                if let (Some(left), Some(right)) =
+            if problem.unordered
+                && let (Some(left), Some(right)) =
                     (expected.as_array_mut(), compared.as_array_mut())
-                {
-                    left.sort_by_key(Value::to_string);
-                    right.sort_by_key(Value::to_string);
-                }
+            {
+                left.sort_by_key(Value::to_string);
+                right.sort_by_key(Value::to_string);
             }
             results.push(CaseResult {
                 index,

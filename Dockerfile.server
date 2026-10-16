@@ -1,0 +1,13 @@
+FROM rust:1.97-bookworm AS builder
+WORKDIR /src
+COPY . .
+RUN cargo build --locked --release --no-default-features --features server --bin leetdesk-server
+
+FROM debian:bookworm-slim
+RUN useradd --system --create-home --uid 10001 leetdesk && mkdir /data && chown leetdesk:leetdesk /data
+COPY --from=builder /src/target/release/leetdesk-server /usr/local/bin/leetdesk-server
+USER leetdesk
+ENV LEETDESK_SERVER_BIND=0.0.0.0:8787 LEETDESK_SERVER_DATA=/data
+VOLUME /data
+EXPOSE 8787
+ENTRYPOINT ["leetdesk-server"]
