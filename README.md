@@ -85,6 +85,27 @@ LeetDesk 可以把个人 Markdown 笔记、导入的讲解与图片、Go / Java 
 
 在服务器上生成至少 32 字符的随机令牌，例如 `openssl rand -hex 32`。将其作为 `LEETDESK_SERVER_TOKEN` 注入进程环境，备份目录设为 `LEETDESK_SERVER_DATA`。默认只监听 `127.0.0.1:8787`；从外网访问时请用 HTTPS 反向代理或 VPN，不要直接暴露 HTTP 端口。服务只实现单人令牌认证，没有注册、找回密码或多用户管理。
 
+**直接拉镜像：** 到仓库的 **Actions → Publish server image → Run workflow**，输入已存在的版本标签（当前为 `v0.2.0`）。工作流从该标签构建并测试 `linux/amd64` 镜像，通过后推送到 `ghcr.io/wsplxa/leetdesk-server:v0.2.0`。推送代码或标签不会自动运行这个工作流。首次发布的 GHCR 包默认是私有的；如果要在服务器上免登录拉取，须在 GitHub 的包页面将可见性改为 Public。这个改动不可撤销。不想公开镜像时，可用有 `read:packages` 权限的 GitHub 令牌在服务器执行 `docker login ghcr.io`。镜像只包含服务程序，不含个人备份数据。
+
+以下命令在 Linux 服务器上运行；将令牌文件中的值复制给桌面端的 `LEETDESK_SYNC_TOKEN`：
+
+```sh
+sudo install -d -m 700 /etc/leetdesk /srv/leetdesk
+sudo chown 10001:10001 /srv/leetdesk
+printf 'LEETDESK_SERVER_TOKEN=%s\n' "$(openssl rand -hex 32)" | sudo tee /etc/leetdesk/server.env >/dev/null
+sudo chmod 600 /etc/leetdesk/server.env
+sudo docker pull ghcr.io/wsplxa/leetdesk-server:v0.2.0
+sudo docker run -d --name leetdesk-server --restart unless-stopped \
+  --env-file /etc/leetdesk/server.env \
+  -v /srv/leetdesk:/data \
+  -p 127.0.0.1:8787:8787 \
+  ghcr.io/wsplxa/leetdesk-server:v0.2.0
+```
+
+旧版本升级时，先取新标签的镜像，再停止并删除旧容器，用相同的令牌文件、数据目录和端口重新运行。不要删除 `/srv/leetdesk`；备份历史保存在那里。
+
+**从源码构建镜像或二进制：** 也可以使用 [Dockerfile.server](Dockerfile.server) 自行构建，或直接构建 Rust 服务端：
+
 ```sh
 cargo build --locked --release --no-default-features --features server --bin leetdesk-server
 export LEETDESK_SERVER_TOKEN="$(openssl rand -hex 32)"
@@ -92,7 +113,7 @@ export LEETDESK_SERVER_DATA='/srv/leetdesk'
 ./target/release/leetdesk-server
 ```
 
-也可以用 [Dockerfile.server](Dockerfile.server) 构建镜像，并将容器的 `/data` 挂载到持久卷。容器内服务监听 `0.0.0.0:8787`，推荐只映射到宿主机回环地址 `127.0.0.1:8787:8787`，再由 HTTPS 反向代理转发。请定期备份服务端数据目录，它包含所有历史快照。
+容器内服务监听 `0.0.0.0:8787`，推荐只映射到宿主机回环地址 `127.0.0.1:8787:8787`，再由 HTTPS 反向代理转发。请定期备份服务端数据目录，它包含所有历史快照。
 
 在桌面端设置同一个令牌和服务地址；Windows 可以在启动 LeetDesk 前设置用户环境变量，macOS 可以从终端带入环境变量启动。远程地址必须是 HTTPS；本机 `localhost` / `127.0.0.1` 可以使用 HTTP。然后进入 **我的笔记** 点击 **上传备份**，另一台电脑点击 **取回备份**。导入时相同文件会跳过；不同的解法或提交快照另存为带 `-imported-` 的副本，不覆盖本地文件。个人笔记发生冲突时会合并正文并保存原始导入副本。解法冲突文件位于对应题目的 `workspaces/<题号>/` 下，选择要使用的版本后可手动替换当前解法。
 
@@ -152,6 +173,6 @@ Windows 也可显式指定 `+stable-x86_64-pc-windows-msvc`。真实 Go/gopls �
 
 ## 发布
 
-[GitHub Actions 工作流](.github/workflows/release.yml) 只在手动运行时构建 Windows x64、Intel Mac 和 Apple Silicon Mac 包，不会因推送提交或标签自动启动。到仓库的 **Actions → Build and release → Run workflow**，留空 `release_tag` 只生成 Actions 产物；填入已推送、与 `Cargo.toml` 版本一致的标签（如 `v0.2.0`）则在三个构建都成功后创建 Release 并上传压缩包。Windows 构建还会运行桌面端测试。服务端通过上述 Cargo 命令或 Dockerfile 单独构建。
+[GitHub Actions 工作流](.github/workflows/release.yml) 只在手动运行时构建 Windows x64、Intel Mac 和 Apple Silicon Mac 包，不会因推送提交或标签自动启动。到仓库的 **Actions → Build and release → Run workflow**，留空 `release_tag` 只生成 Actions 产物；填入已推送、与 `Cargo.toml` 版本一致的标签（如 `v0.2.0`）则在三个构建都成功后创建 Release 并上传压缩包。Windows 构建还会运行桌面端测试。[服务端镜像工作流](.github/workflows/server-image.yml) 也只接受手动触发，先测试再推送 GHCR。
 
 项目使用 [MIT License](LICENSE)。
