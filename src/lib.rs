@@ -1,3 +1,4 @@
+pub mod appearance;
 pub mod catalog;
 pub mod catalog_view;
 pub mod editing;

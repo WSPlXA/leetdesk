@@ -26,6 +26,20 @@ pub struct Store {
 }
 
 impl Store {
+    pub fn appearance(&self) -> crate::appearance::Appearance {
+        fs::read(self.root.join("appearance.json"))
+            .ok()
+            .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+            .unwrap_or_default()
+    }
+
+    pub fn save_appearance(&self, appearance: crate::appearance::Appearance) -> Result<()> {
+        atomic_write(
+            &self.root.join("appearance.json"),
+            &serde_json::to_vec(&appearance)?,
+        )
+    }
+
     pub fn open(root: PathBuf) -> Result<Self> {
         fs::create_dir_all(&root)?;
         let connection = Connection::open(root.join("leetdesk.sqlite3"))?;
@@ -493,6 +507,20 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn appearance_survives_restart_and_invalid_preferences_use_dark() {
+        use crate::appearance::Appearance;
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("data");
+        let store = Store::open(root.clone()).unwrap();
+        assert_eq!(store.appearance(), Appearance::Dark);
+        for appearance in Appearance::ALL {
+            store.save_appearance(appearance).unwrap();
+            assert_eq!(Store::open(root.clone()).unwrap().appearance(), appearance);
+        }
+        fs::write(root.join("appearance.json"), "broken").unwrap();
+        assert_eq!(store.appearance(), Appearance::Dark);
+    }
     #[test]
     fn study_plan_cache_survives_restart_and_keeps_valid_snapshot_on_bad_update() {
         let temp = tempfile::tempdir().unwrap();

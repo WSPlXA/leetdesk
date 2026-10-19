@@ -1,4 +1,5 @@
 use crate::desktop::{Workspace, WorkspaceEvent};
+use crate::theme;
 use anyhow::{Context, Result, anyhow};
 use gpui_kit::component::{
     Sizable,
@@ -6,7 +7,7 @@ use gpui_kit::component::{
 };
 use gpui_kit::{
     Bounds, Entity, FontWeight, MouseButton, Subscription, Task, Window, WindowBounds,
-    WindowControlArea, WindowOptions, div, prelude::*, px, rgb, size,
+    WindowControlArea, WindowOptions, div, prelude::*, px, size,
 };
 use gpui_wry::WebView;
 use leetdesk::{
@@ -1018,43 +1019,47 @@ impl Render for AccountShell {
                 "等待登录".into()
             }
         });
-        let mut header =
-            div()
-                .h(px(if editing { 36. } else { 62. }))
-                .px_4()
-                .flex()
-                .items_center()
-                .gap_3()
-                .border_b_1()
-                .border_color(rgb(0x292929))
-                .child(
-                    div()
-                        .flex_1()
-                        .h_full()
-                        .flex()
-                        .items_center()
-                        .gap_3()
-                        .window_control_area(WindowControlArea::Drag)
-                        .on_mouse_down(MouseButton::Left, |_, window, _| window.start_window_move())
-                        .child(
-                            div()
-                                .text_color(rgb(0x79e6bd))
-                                .font_weight(FontWeight::BOLD)
-                                .child("LeetDesk"),
-                        )
-                        .child(
+        let mut header = div()
+            .h(px(if editing { 36. } else { 62. }))
+            .px_4()
+            .flex()
+            .items_center()
+            .gap_3()
+            .border_b_1()
+            .border_color(theme::color(0x292929, cx))
+            .child(
+                div()
+                    .flex_1()
+                    .h_full()
+                    .flex()
+                    .items_center()
+                    .gap_3()
+                    .window_control_area(WindowControlArea::Drag)
+                    .on_mouse_down(MouseButton::Left, |_, window, _| window.start_window_move())
+                    .child(
+                        div()
+                            .text_color(theme::color(0x79e6bd, cx))
+                            .font_weight(FontWeight::BOLD)
+                            .child("LeetDesk"),
+                    )
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(theme::color(0xa9b0bb, cx))
+                            .child(format!("{} · {account}", self.site.label())),
+                    )
+                    .when(editing, |header| {
+                        header.child(
                             div()
                                 .text_xs()
-                                .text_color(rgb(0xa9b0bb))
-                                .child(format!("{} · {account}", self.site.label())),
+                                .text_color(theme::color(0x79e6bd, cx))
+                                .child(format!(
+                                    "已通过 {} / {}",
+                                    self.solved, self.catalogue_total
+                                )),
                         )
-                        .when(editing, |header| {
-                            header.child(div().text_xs().text_color(rgb(0x79e6bd)).child(format!(
-                                "已通过 {} / {}",
-                                self.solved, self.catalogue_total
-                            )))
-                        }),
-                );
+                    }),
+            );
         if editing {
             header = header
                 .child(
@@ -1124,23 +1129,56 @@ impl Render for AccountShell {
                             }))
                     }));
         }
-        header = header.child(
-            Button::new("close-account-window")
-                .label("关闭")
-                .small()
-                .ghost()
-                .on_click(cx.listener(|this, _, window, cx| {
-                    if this.flush(cx) {
-                        window.remove_window();
-                    }
-                })),
-        );
+        header =
+            header
+                .child(div().flex().gap_1().when(!editing, |row| {
+                    row.children(leetdesk::appearance::Appearance::ALL.into_iter().map(
+                        |appearance| {
+                            Button::new(gpui_kit::SharedString::from(format!(
+                                "appearance-{}",
+                                appearance.key()
+                            )))
+                            .label(if theme::current(cx) == appearance {
+                                format!("✓ {}", appearance.label())
+                            } else {
+                                appearance.label().into()
+                            })
+                            .small()
+                            .ghost()
+                            .on_click(cx.listener(
+                                move |this, _, _, cx| {
+                                    match leetdesk::store::atomic_write(
+                                        &this.root.join("appearance.json"),
+                                        &serde_json::to_vec(&appearance).unwrap(),
+                                    ) {
+                                        Ok(()) => crate::desktop::apply_appearance(appearance, cx),
+                                        Err(error) => {
+                                            this.message = format!("主题保存失败：{error}")
+                                        }
+                                    }
+                                    cx.notify();
+                                },
+                            ))
+                        },
+                    ))
+                }))
+                .child(
+                    Button::new("close-account-window")
+                        .label("关闭")
+                        .small()
+                        .ghost()
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            if this.flush(cx) {
+                                window.remove_window();
+                            }
+                        })),
+                );
         let mut root = div()
             .size_full()
             .flex()
             .flex_col()
-            .bg(rgb(0x000000))
-            .text_color(rgb(0xf4f5f7))
+            .bg(theme::color(0x000000, cx))
+            .text_color(theme::color(0xf4f5f7, cx))
             .font_family(crate::desktop::ui_font())
             .child(header);
         if editing {
@@ -1202,7 +1240,7 @@ impl Render for AccountShell {
                             .child(
                                 div()
                                     .text_sm()
-                                    .text_color(rgb(0xa9b0bb))
+                                    .text_color(theme::color(0xa9b0bb, cx))
                                     .child(self.message.clone()),
                             ),
                     )
@@ -1222,17 +1260,18 @@ impl Render for AccountShell {
                         .flex()
                         .items_center()
                         .justify_center()
-                        .text_color(rgb(0x79e6bd))
+                        .text_color(theme::color(0x79e6bd, cx))
                         .child(self.message.clone()),
                 );
             }
-            root = root.child(div().px_5().py_2().text_xs().text_color(rgb(0xa9b0bb)).child("在官方页面自行完成登录。登录会话由此设备的浏览器保存，程序不读取你的密码或会话 Cookie。"));
+            root = root.child(div().px_5().py_2().text_xs().text_color(theme::color(0xa9b0bb, cx)).child("在官方页面自行完成登录。登录会话由此设备的浏览器保存，程序不读取你的密码或会话 Cookie。"));
         }
         root
     }
 }
 
 pub fn launch(store: Store, probe: bool, plan_probe: bool) -> Result<()> {
+    let appearance = store.appearance();
     let root = store.root.clone();
     drop(store);
     let probe_result = Arc::new(AtomicBool::new(false));
@@ -1241,7 +1280,7 @@ pub fn launch(store: Store, probe: bool, plan_probe: bool) -> Result<()> {
         .with_assets(gpui_kit::assets::Assets)
         .run(move |cx| {
             gpui_kit::init(cx);
-            crate::desktop::apply_theme(cx);
+            crate::desktop::apply_appearance(appearance, cx);
             crate::desktop::bind_keys(cx);
             let (_, view) = gpui_kit::open_window(
                 WindowOptions {

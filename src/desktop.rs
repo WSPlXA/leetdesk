@@ -1,3 +1,4 @@
+use crate::theme;
 use anyhow::{Result, anyhow};
 use gpui_kit::base::{Disableable, TextView, TextViewState, TextViewStyle};
 use gpui_kit::component::{
@@ -18,6 +19,7 @@ use gpui_kit::{
 use gpui_kit::{EventEmitter, uniform_list};
 use leetdesk::online;
 use leetdesk::{
+    appearance::Appearance,
     catalog::{self, Case, PracticeLanguage, Problem},
     catalog_view::CatalogView,
     language::{self, GoLanguage},
@@ -263,6 +265,8 @@ pub struct Workspace {
     editor: Entity<EditorState>,
     search: Entity<InputState>,
     cases_editor: Entity<EditorState>,
+    run_input_editor: Entity<EditorState>,
+    has_run_input: bool,
     note_editor: Entity<EditorState>,
     note_preview: Entity<TextViewState>,
     document_view: Option<DocumentCache>,
@@ -354,6 +358,11 @@ impl Workspace {
                 } else {
                     store.cases(problem.id).unwrap_or_default()
                 })
+        });
+        let run_input_editor = cx.new(|cx| {
+            EditorState::new(window, cx)
+                .soft_wrap(true)
+                .line_number(true)
         });
         if let Ok(text) = fs::read_to_string(store.workspace(problem.id).join("cursor.json"))
             && let Ok(position) = serde_json::from_str::<Position>(&text)
@@ -455,6 +464,8 @@ impl Workspace {
             editor,
             search,
             cases_editor,
+            run_input_editor,
+            has_run_input: false,
             note_editor,
             note_preview,
             document_view: None,
@@ -502,6 +513,17 @@ impl Workspace {
 
     pub fn problem(&self) -> &Problem {
         &self.problems[self.current]
+    }
+
+    fn set_appearance(&mut self, appearance: Appearance, cx: &mut Context<Self>) {
+        if let Err(error) = self.store.save_appearance(appearance) {
+            self.notice = format!("主题保存失败：{error}");
+        } else {
+            self.notice = format!("已切换为{}主题", appearance.label());
+        }
+        apply_appearance(appearance, cx);
+        self.document_view = None;
+        cx.notify();
     }
 
     pub fn connect_language(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -1014,7 +1036,6 @@ impl Workspace {
         }
         if self.problem().id == id {
             self.output = output;
-            self.bottom_tab = BottomTab::Results;
         }
         cx.notify();
     }
@@ -1079,6 +1100,7 @@ impl Workspace {
         self.reference_path = None;
         self.explanations = self.store.notes(&problem).unwrap_or_default();
         self.output = self.store.latest_run(problem.id);
+        self.has_run_input = false;
         let source = self
             .store
             .source_for(problem.id, self.practice_language)
@@ -1186,7 +1208,21 @@ impl Workspace {
         cx.notify();
     }
 
-    fn run_cases(&mut self, _: &RunCases, _: &mut Window, cx: &mut Context<Self>) {
+    fn capture_run_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let input = self.cases_editor.read(cx).value().to_string();
+        let language = if self.problem().online.is_some() {
+            "plaintext"
+        } else {
+            "json"
+        };
+        self.run_input_editor.update(cx, |state, cx| {
+            state.set_highlighter(language, cx);
+            state.set_value(input, window, cx);
+        });
+        self.has_run_input = true;
+    }
+
+    fn run_cases(&mut self, _: &RunCases, window: &mut Window, cx: &mut Context<Self>) {
         if self.cancellation.is_some() {
             return;
         }
@@ -1213,6 +1249,7 @@ impl Workspace {
             self.run_generation += 1;
             let cancel = Arc::new(AtomicBool::new(false));
             self.cancellation = Some(cancel.clone());
+            self.capture_run_input(window, cx);
             self.output = "正在使用当前账号在 LeetCode 运行…".into();
             self.bottom_tab = BottomTab::Results;
             cx.emit(WorkspaceEvent::Run {
@@ -1247,6 +1284,7 @@ impl Workspace {
         let generation = self.run_generation;
         let cancel = Arc::new(AtomicBool::new(false));
         self.cancellation = Some(cancel.clone());
+        self.capture_run_input(window, cx);
         let path = self.store.workspace(problem.id);
         let practice_language = self.practice_language;
         self.output = format!("正在编译并运行 {} 用例…", practice_language.label());
@@ -1332,6 +1370,7 @@ impl Workspace {
         let cancel = Arc::new(AtomicBool::new(false));
         self.cancellation = Some(cancel.clone());
         self.output = "正在提交当前代码快照，等待 LeetCode 判题…".into();
+        self.has_run_input = false;
         self.bottom_tab = BottomTab::Results;
         cx.emit(WorkspaceEvent::Run {
             problem: self.problem().clone(),
@@ -1837,13 +1876,15 @@ impl Workspace {
             .px_3()
             .py_2()
             .border_b_1()
-            .border_color(rgb(LINE))
+            .border_color(theme::color(LINE, cx))
             .cursor_pointer()
             .overflow_hidden()
             .when(index == self.current, |el| {
-                el.bg(rgb(0x18352a)).border_l_2().border_color(rgb(ACCENT))
+                el.bg(theme::color(0x18352a, cx))
+                    .border_l_2()
+                    .border_color(theme::color(ACCENT, cx))
             })
-            .hover(|el| el.bg(rgb(0x181818)))
+            .hover(|el| el.bg(theme::color(0x181818, cx)))
             .on_click(
                 cx.listener(move |this, _, window, cx| this.select_problem(index, window, cx)),
             )
@@ -1853,23 +1894,32 @@ impl Workspace {
                     .justify_between()
                     .gap_2()
                     .text_xs()
-                    .child(div().text_color(rgb(MUTED)).child(number))
+                    .child(div().text_color(theme::color(MUTED, cx)).child(number))
                     .child(
                         div()
-                            .text_color(rgb(if status == "已通过" { ACCENT } else { MUTED }))
+                            .text_color(theme::color(
+                                if status == "已通过" { ACCENT } else { MUTED },
+                                cx,
+                            ))
                             .child(status),
                     ),
             )
             .child(div().text_sm().mt_1().child(problem.title.clone()))
-            .child(div().text_xs().text_color(rgb(MUTED)).mt_1().child(format!(
-                "{}{}",
-                leetdesk::topics::difficulty(&problem.difficulty),
-                if remote.is_some_and(|m| m.paid_only) {
-                    " · 会员"
-                } else {
-                    ""
-                }
-            )))
+            .child(
+                div()
+                    .text_xs()
+                    .text_color(theme::color(MUTED, cx))
+                    .mt_1()
+                    .child(format!(
+                        "{}{}",
+                        leetdesk::topics::difficulty(&problem.difficulty),
+                        if remote.is_some_and(|m| m.paid_only) {
+                            " · 会员"
+                        } else {
+                            ""
+                        }
+                    )),
+            )
     }
     fn navigation(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let (solved, available) = self.catalog_view.hot_progress();
@@ -1877,7 +1927,7 @@ impl Workspace {
         let custom = self.catalog_view.custom_tags().to_vec();
         div()
             .size_full()
-            .bg(rgb(BG))
+            .bg(theme::color(BG, cx))
             .flex()
             .flex_col()
             .p_2()
@@ -1887,7 +1937,7 @@ impl Workspace {
                     .px_2()
                     .py_3()
                     .text_xs()
-                    .text_color(rgb(MUTED))
+                    .text_color(theme::color(MUTED, cx))
                     .child("分类与练习"),
             )
             .child(
@@ -1901,7 +1951,7 @@ impl Workspace {
                             .px_3()
                             .py_2()
                             .text_xs()
-                            .text_color(rgb(MUTED))
+                            .text_color(theme::color(MUTED, cx))
                             .child("题单"),
                     )
                     .children(["全部题目", "热题 100"].into_iter().enumerate().map(
@@ -1915,12 +1965,17 @@ impl Workspace {
                                 .rounded_md()
                                 .cursor_pointer()
                                 .text_sm()
-                                .text_color(rgb(if self.study_plan_filter == label {
-                                    ACCENT
-                                } else {
-                                    INK
-                                }))
-                                .when(self.study_plan_filter == label, |el| el.bg(rgb(0x18352a)))
+                                .text_color(theme::color(
+                                    if self.study_plan_filter == label {
+                                        ACCENT
+                                    } else {
+                                        INK
+                                    },
+                                    cx,
+                                ))
+                                .when(self.study_plan_filter == label, |el| {
+                                    el.bg(theme::color(0x18352a, cx))
+                                })
                                 .on_click(cx.listener(move |this, _, _, cx| {
                                     this.study_plan_filter = label.into();
                                     cx.notify();
@@ -1932,7 +1987,7 @@ impl Workspace {
                             .px_3()
                             .pb_2()
                             .text_xs()
-                            .text_color(rgb(MUTED))
+                            .text_color(theme::color(MUTED, cx))
                             .child(format!("热题：{solved}/{available} 已通过")),
                     )
                     .when(available < 100, |el| {
@@ -1940,7 +1995,7 @@ impl Workspace {
                             div()
                                 .px_3()
                                 .text_xs()
-                                .text_color(rgb(MUTED))
+                                .text_color(theme::color(MUTED, cx))
                                 .child("完整题单需同步在线题库"),
                         )
                     })
@@ -1950,7 +2005,7 @@ impl Workspace {
                             .pt_4()
                             .pb_2()
                             .text_xs()
-                            .text_color(rgb(MUTED))
+                            .text_color(theme::color(MUTED, cx))
                             .child("主题"),
                     )
                     .child(self.topic_row("全部题目", false, cx))
@@ -1962,7 +2017,7 @@ impl Workspace {
                                 .pt_4()
                                 .pb_2()
                                 .text_xs()
-                                .text_color(rgb(MUTED))
+                                .text_color(theme::color(MUTED, cx))
                                 .child("我的标签"),
                         )
                     })
@@ -1995,8 +2050,8 @@ impl Workspace {
         .rounded_md()
         .text_sm()
         .cursor_pointer()
-        .text_color(rgb(if selected { ACCENT } else { MUTED }))
-        .when(selected, |el| el.bg(rgb(0x18352a)))
+        .text_color(theme::color(if selected { ACCENT } else { MUTED }, cx))
+        .when(selected, |el| el.bg(theme::color(0x18352a, cx)))
         .on_click(cx.listener(move |this, _, _, cx| {
             this.filter = value.clone();
             cx.notify();
@@ -2011,7 +2066,7 @@ impl Workspace {
             .size_full()
             .flex()
             .flex_col()
-            .bg(rgb(PANEL))
+            .bg(theme::color(PANEL, cx))
             .child(
                 div()
                     .p_3()
@@ -2030,7 +2085,7 @@ impl Workspace {
                                         .small()
                                         .ghost()
                                         .when(self.status_filter == label, |button| {
-                                            button.text_color(rgb(ACCENT))
+                                            button.text_color(theme::color(ACCENT, cx))
                                         })
                                         .on_click(cx.listener(move |this, _, _, cx| {
                                             this.status_filter = label.into();
@@ -2050,7 +2105,7 @@ impl Workspace {
                                         .small()
                                         .ghost()
                                         .when(self.difficulty_filter == label, |b| {
-                                            b.text_color(rgb(ACCENT))
+                                            b.text_color(theme::color(ACCENT, cx))
                                         })
                                         .on_click(cx.listener(move |this, _, _, cx| {
                                             this.difficulty_filter = label.into();
@@ -2064,7 +2119,7 @@ impl Workspace {
                             .flex()
                             .justify_between()
                             .text_xs()
-                            .text_color(rgb(MUTED))
+                            .text_color(theme::color(MUTED, cx))
                             .child(format!(
                                 "{}{} · {count} 道",
                                 if self.study_plan_filter == "热题 100" {
@@ -2100,7 +2155,7 @@ impl Workspace {
                         el.child(
                             div()
                                 .text_xs()
-                                .text_color(rgb(0xd5ae74))
+                                .text_color(theme::color(0xd5ae74, cx))
                                 .child("当前编辑题目不在筛选结果内"),
                         )
                     }),
@@ -2131,7 +2186,7 @@ impl Workspace {
                             div()
                                 .p_4()
                                 .text_sm()
-                                .text_color(rgb(MUTED))
+                                .text_color(theme::color(MUTED, cx))
                                 .child("没有匹配题目"),
                         )
                     }),
@@ -2159,7 +2214,7 @@ impl Workspace {
                     .px_3()
                     .py_1()
                     .text_xs()
-                    .text_color(rgb(MUTED))
+                    .text_color(theme::color(MUTED, cx))
                     .child("Markdown 源码"),
             )
             .child(
@@ -2185,7 +2240,7 @@ impl Workspace {
                     .px_3()
                     .py_1()
                     .text_xs()
-                    .text_color(rgb(MUTED))
+                    .text_color(theme::color(MUTED, cx))
                     .child("保存后的预览"),
             )
             .child(
@@ -2199,7 +2254,7 @@ impl Workspace {
                         el.child(
                             div()
                                 .text_sm()
-                                .text_color(rgb(MUTED))
+                                .text_color(theme::color(MUTED, cx))
                                 .child("写下思路并保存，Markdown 将在这里渲染。"),
                         )
                     })
@@ -2208,7 +2263,7 @@ impl Workspace {
                             TextView::new(&self.note_preview)
                                 .markdown_extensions(crate::markdown::extensions())
                                 .selectable(true)
-                                .style(document_style())
+                                .style(document_style(cx))
                                 .text_size(px(15.))
                                 .image_source(move |uri| {
                                     local_document_path(uri.as_ref(), Some(&image_origin))
@@ -2255,21 +2310,23 @@ impl Workspace {
                     .flex_col()
                     .gap_1()
                     .border_b_1()
-                    .border_color(rgb(LINE))
+                    .border_color(theme::color(LINE, cx))
                     .child(
                         div()
                             .flex()
                             .flex_wrap()
                             .justify_between()
                             .items_center()
-                            .child(div().text_xs().text_color(rgb(MUTED)).child(format!(
-                                "notes.md · {}",
-                                if self.note_dirty {
-                                    "未保存"
-                                } else {
-                                    "已保存"
-                                }
-                            )))
+                            .child(div().text_xs().text_color(theme::color(MUTED, cx)).child(
+                                format!(
+                                    "notes.md · {}",
+                                    if self.note_dirty {
+                                        "未保存"
+                                    } else {
+                                        "已保存"
+                                    }
+                                ),
+                            ))
                             .child(
                                 div()
                                     .flex()
@@ -2343,7 +2400,7 @@ impl Workspace {
                                                 .small()
                                                 .ghost()
                                                 .when(self.notes_view == mode, |button| {
-                                                    button.text_color(rgb(ACCENT))
+                                                    button.text_color(theme::color(ACCENT, cx))
                                                 })
                                                 .on_click(cx.listener(move |this, _, _, cx| {
                                                     if mode == NotesView::Preview
@@ -2470,7 +2527,7 @@ impl Workspace {
                         }
                     })
                     .selectable(true)
-                    .style(document_style())
+                    .style(document_style(cx))
                     .text_size(px(15.)),
             );
         }
@@ -2478,7 +2535,7 @@ impl Workspace {
             .flex()
             .flex_col()
             .size_full()
-            .bg(rgb(PANEL))
+            .bg(theme::color(PANEL, cx))
             .child(
                 div()
                     .flex()
@@ -2487,14 +2544,14 @@ impl Workspace {
                     .px_3()
                     .gap_1()
                     .border_b_1()
-                    .border_color(rgb(LINE))
+                    .border_color(theme::color(LINE, cx))
                     .children(tabs.into_iter().enumerate().map(|(index, (tab, label))| {
                         Button::new(("document-tab", index))
                             .label(label)
                             .small()
                             .ghost()
                             .when(self.document_tab == tab, |button| {
-                                button.text_color(rgb(ACCENT))
+                                button.text_color(theme::color(ACCENT, cx))
                             })
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 this.document_tab = tab;
@@ -2514,7 +2571,7 @@ impl Workspace {
                                     .small()
                                     .ghost()
                                     .when(index == self.selected_note, |button| {
-                                        button.text_color(rgb(ACCENT))
+                                        button.text_color(theme::color(ACCENT, cx))
                                     })
                                     .on_click(cx.listener(move |this, _, _, cx| {
                                         this.selected_note = index;
@@ -2530,7 +2587,7 @@ impl Workspace {
                     .px_3()
                     .py_2()
                     .border_t_1()
-                    .border_color(rgb(LINE))
+                    .border_color(theme::color(LINE, cx))
                     .child(Input::new(&self.tag_editor).id("custom-tags").small()),
             )
     }
@@ -2549,7 +2606,7 @@ impl Workspace {
                         .flex()
                         .items_center()
                         .justify_between()
-                        .bg(rgb(PANEL))
+                        .bg(theme::color(PANEL, cx))
                         .child(div().text_xs().child(path.clone()))
                         .child(
                             Button::new("close-definition")
@@ -2587,9 +2644,9 @@ impl Workspace {
                     .flex_col()
                     .gap_1()
                     .items_start()
-                    .bg(rgb(PANEL))
+                    .bg(theme::color(PANEL, cx))
                     .border_b_1()
-                    .border_color(rgb(LINE))
+                    .border_color(theme::color(LINE, cx))
                     .child(
                         div()
                             .flex()
@@ -2602,7 +2659,7 @@ impl Workspace {
                                     .ghost()
                                     .when(
                                         self.practice_language == PracticeLanguage::Go,
-                                        |button| button.text_color(rgb(ACCENT)),
+                                        |button| button.text_color(theme::color(ACCENT, cx)),
                                     )
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.switch_language(PracticeLanguage::Go, window, cx)
@@ -2615,7 +2672,7 @@ impl Workspace {
                                     .ghost()
                                     .when(
                                         self.practice_language == PracticeLanguage::Java,
-                                        |button| button.text_color(rgb(ACCENT)),
+                                        |button| button.text_color(theme::color(ACCENT, cx)),
                                     )
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.switch_language(PracticeLanguage::Java, window, cx)
@@ -2626,7 +2683,9 @@ impl Workspace {
                                     .label("折行")
                                     .small()
                                     .ghost()
-                                    .when(self.soft_wrap, |button| button.text_color(rgb(ACCENT)))
+                                    .when(self.soft_wrap, |button| {
+                                        button.text_color(theme::color(ACCENT, cx))
+                                    })
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.toggle_wrap(&ToggleWrap, window, cx)
                                     })),
@@ -2634,14 +2693,15 @@ impl Workspace {
                             .child(
                                 div()
                                     .text_sm()
-                                    .text_color(rgb(ACCENT))
+                                    .text_color(theme::color(ACCENT, cx))
                                     .child(self.practice_language.filename()),
                             )
-                            .child(div().text_xs().text_color(rgb(MUTED)).child(if self.dirty {
-                                "未保存"
-                            } else {
-                                "已保存"
-                            })),
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .text_color(theme::color(MUTED, cx))
+                                    .child(if self.dirty { "未保存" } else { "已保存" }),
+                            ),
                     )
                     .child(
                         div()
@@ -2719,7 +2779,7 @@ impl Workspace {
                         .px_4()
                         .py_2()
                         .border_b_1()
-                        .border_color(rgb(LINE))
+                        .border_color(theme::color(LINE, cx))
                         .flex()
                         .items_center()
                         .gap_3()
@@ -2727,14 +2787,14 @@ impl Workspace {
                             div()
                                 .text_xs()
                                 .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(rgb(ACCENT))
+                                .text_color(theme::color(ACCENT, cx))
                                 .child(if self.problem().online.is_some() {
                                     "在线测试输入"
                                 } else {
                                     "本地测试数据"
                                 }),
                         )
-                        .child(div().text_xs().text_color(rgb(MUTED)).child(
+                        .child(div().text_xs().text_color(theme::color(MUTED, cx)).child(
                             if self.problem().online.is_some() {
                                 "每个参数占一行 · 修改后点击上方测试"
                             } else {
@@ -2749,8 +2809,8 @@ impl Workspace {
                         .m_3()
                         .rounded_md()
                         .border_1()
-                        .border_color(rgb(LINE))
-                        .bg(rgb(BG))
+                        .border_color(theme::color(LINE, cx))
+                        .bg(theme::color(BG, cx))
                         .child(
                             Editor::new(&self.cases_editor)
                                 .size_full()
@@ -2790,23 +2850,56 @@ impl Workspace {
                     .flex_col()
                     .gap_2()
                     .font_family(CODE_FONT)
+                    .when(self.has_run_input, |panel| {
+                        panel.child(
+                            div()
+                                .id("run-input-snapshot")
+                                .flex_shrink_0()
+                                .flex()
+                                .flex_col()
+                                .gap_2()
+                                .p_3()
+                                .rounded_md()
+                                .border_1()
+                                .border_color(theme::color(LINE, cx))
+                                .bg(theme::color(CODE_BG, cx))
+                                .child(
+                                    div()
+                                        .text_xs()
+                                        .text_color(theme::color(MUTED, cx))
+                                        .child("本次运行的测试用例 · 保留运行开始时的输入"),
+                                )
+                                .child(
+                                    div().h(px(100.)).child(
+                                        Editor::new(&self.run_input_editor)
+                                            .readonly(true)
+                                            .size_full()
+                                            .font_family(CODE_FONT)
+                                            .text_size(px(13.)),
+                                    ),
+                                ),
+                        )
+                    })
                     .child(
                         div()
                             .px_3()
                             .py_2()
                             .rounded_md()
-                            .bg(rgb(if failed {
-                                0x231313
-                            } else if passed {
-                                0x102018
-                            } else {
-                                CODE_BG
-                            }))
+                            .bg(theme::color(
+                                if failed {
+                                    0x231313
+                                } else if passed {
+                                    0x102018
+                                } else {
+                                    CODE_BG
+                                },
+                                cx,
+                            ))
                             .border_l_2()
-                            .border_color(rgb(tone))
+                            .border_color(theme::color(tone, cx))
                             .text_sm()
                             .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(rgb(tone))
+                            .text_color(theme::color(tone, cx))
                             .child(heading.to_string()),
                     )
                     .when(output.is_empty(), |panel| {
@@ -2814,7 +2907,7 @@ impl Workspace {
                             div()
                                 .px_3()
                                 .text_xs()
-                                .text_color(rgb(MUTED))
+                                .text_color(theme::color(MUTED, cx))
                                 .child("运行代码后，这里会显示每个用例的输入、预期和实际结果。"),
                         )
                     })
@@ -2829,14 +2922,17 @@ impl Workspace {
                                     .p_3()
                                     .rounded_md()
                                     .border_1()
-                                    .border_color(rgb(if case_ok {
-                                        0x285440
-                                    } else if case_failed {
-                                        0x61332f
-                                    } else {
-                                        LINE
-                                    }))
-                                    .bg(rgb(CODE_BG))
+                                    .border_color(theme::color(
+                                        if case_ok {
+                                            0x285440
+                                        } else if case_failed {
+                                            0x61332f
+                                        } else {
+                                            LINE
+                                        },
+                                        cx,
+                                    ))
+                                    .bg(theme::color(CODE_BG, cx))
                                     .flex()
                                     .flex_col()
                                     .gap_1()
@@ -2850,11 +2946,10 @@ impl Workspace {
                                                     div()
                                                         .text_sm()
                                                         .font_weight(FontWeight::SEMIBOLD)
-                                                        .text_color(rgb(if ok {
-                                                            ACCENT
-                                                        } else {
-                                                            0xff928c
-                                                        }))
+                                                        .text_color(theme::color(
+                                                            if ok { ACCENT } else { 0xff928c },
+                                                            cx,
+                                                        ))
                                                         .child(line.to_string())
                                                         .into_any_element()
                                                 } else if let Some((label, value)) =
@@ -2871,25 +2966,28 @@ impl Workspace {
                                                             div()
                                                                 .w(px(64.))
                                                                 .flex_shrink_0()
-                                                                .text_color(rgb(MUTED))
+                                                                .text_color(theme::color(MUTED, cx))
                                                                 .child(label.to_string()),
                                                         )
                                                         .child(
                                                             div()
                                                                 .flex_1()
                                                                 .min_w_0()
-                                                                .text_color(rgb(if is_error {
-                                                                    0xff928c
-                                                                } else {
-                                                                    INK
-                                                                }))
+                                                                .text_color(theme::color(
+                                                                    if is_error {
+                                                                        0xff928c
+                                                                    } else {
+                                                                        INK
+                                                                    },
+                                                                    cx,
+                                                                ))
                                                                 .child(value.trim().to_string()),
                                                         )
                                                         .into_any_element()
                                                 } else {
                                                     div()
                                                         .text_xs()
-                                                        .text_color(rgb(INK))
+                                                        .text_color(theme::color(INK, cx))
                                                         .child(line.to_string())
                                                         .into_any_element()
                                                 }
@@ -2915,8 +3013,8 @@ impl Workspace {
                             .p_4()
                             .rounded_md()
                             .border_1()
-                            .border_color(rgb(LINE))
-                            .bg(rgb(CODE_BG))
+                            .border_color(theme::color(LINE, cx))
+                            .bg(theme::color(CODE_BG, cx))
                             .flex()
                             .flex_col()
                             .gap_1()
@@ -2924,7 +3022,7 @@ impl Workspace {
                                 div()
                                     .text_sm()
                                     .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(rgb(
+                                    .text_color(theme::color(
                                         if self.language.is_some()
                                             || self.practice_language == PracticeLanguage::Java
                                         {
@@ -2932,6 +3030,7 @@ impl Workspace {
                                         } else {
                                             MUTED
                                         },
+                                        cx,
                                     ))
                                     .child(if self.practice_language == PracticeLanguage::Java {
                                         "Java 本地编译时检查代码"
@@ -2941,7 +3040,7 @@ impl Workspace {
                                         "等待 Go 语言服务"
                                     }),
                             )
-                            .child(div().text_xs().text_color(rgb(MUTED)).child(
+                            .child(div().text_xs().text_color(theme::color(MUTED, cx)).child(
                                 if self.practice_language == PracticeLanguage::Java {
                                     "运行用例后，编译错误会显示在运行结果中。"
                                 } else if self.language.is_some() {
@@ -2967,11 +3066,11 @@ impl Workspace {
                                 .id(("diagnostic", index))
                                 .p_3()
                                 .rounded_md()
-                                .bg(rgb(CODE_BG))
+                                .bg(theme::color(CODE_BG, cx))
                                 .border_l_2()
-                                .border_color(rgb(color))
+                                .border_color(theme::color(color, cx))
                                 .cursor_pointer()
-                                .hover(|el| el.bg(rgb(LINE)))
+                                .hover(|el| el.bg(theme::color(LINE, cx)))
                                 .on_click(cx.listener(move |this, _, window, cx| {
                                     this.reference_path = None;
                                     this.editor.update(cx, |state, cx| {
@@ -2988,20 +3087,22 @@ impl Workspace {
                                         .child(
                                             div()
                                                 .font_weight(FontWeight::SEMIBOLD)
-                                                .text_color(rgb(color))
+                                                .text_color(theme::color(color, cx))
                                                 .child(kind),
                                         )
-                                        .child(div().text_color(rgb(MUTED)).child(format!(
-                                            "{}:{}",
-                                            position.line + 1,
-                                            position.character + 1
-                                        ))),
+                                        .child(div().text_color(theme::color(MUTED, cx)).child(
+                                            format!(
+                                                "{}:{}",
+                                                position.line + 1,
+                                                position.character + 1
+                                            ),
+                                        )),
                                 )
                                 .child(
                                     div()
                                         .mt_1()
                                         .text_sm()
-                                        .text_color(rgb(INK))
+                                        .text_color(theme::color(INK, cx))
                                         .child(diagnostic.message.clone()),
                                 )
                         }),
@@ -3012,7 +3113,7 @@ impl Workspace {
             .size_full()
             .flex()
             .flex_col()
-            .bg(rgb(PANEL))
+            .bg(theme::color(PANEL, cx))
             .child(
                 div()
                     .flex()
@@ -3021,10 +3122,12 @@ impl Workspace {
                     .px_2()
                     .h_10()
                     .border_b_1()
-                    .border_color(rgb(LINE))
+                    .border_color(theme::color(LINE, cx))
                     .children(tabs.into_iter().enumerate().map(|(index, (tab, label))| {
                         let label = if tab == BottomTab::Diagnostics {
                             format!("{label} ({})", self.diagnostics.len())
+                        } else if tab == BottomTab::Results && self.cancellation.is_some() {
+                            "运行结果 · 运行中".into()
                         } else {
                             label.into()
                         };
@@ -3033,18 +3136,21 @@ impl Workspace {
                             .flex()
                             .items_center()
                             .border_b_2()
-                            .border_color(rgb(if self.bottom_tab == tab {
-                                ACCENT
-                            } else {
-                                PANEL
-                            }))
+                            .border_color(theme::color(
+                                if self.bottom_tab == tab {
+                                    ACCENT
+                                } else {
+                                    PANEL
+                                },
+                                cx,
+                            ))
                             .child(
                                 Button::new(("bottom-tab", index))
                                     .label(label)
                                     .small()
                                     .ghost()
                                     .when(self.bottom_tab == tab, |button| {
-                                        button.text_color(rgb(ACCENT))
+                                        button.text_color(theme::color(ACCENT, cx))
                                     })
                                     .on_click(cx.listener(move |this, _, _, cx| {
                                         this.bottom_tab = tab;
@@ -3087,8 +3193,8 @@ impl Render for Workspace {
             )
             .child(
                 resizable_panel()
-                    .size(px(200.))
-                    .size_range(px(90.)..px(1200.))
+                    .size(px(280.))
+                    .size_range(px(140.)..px(1200.))
                     .child(self.bottom_panel(cx)),
             );
         let mut panels = h_resizable("workspace-v2");
@@ -3127,8 +3233,8 @@ impl Render for Workspace {
             .size_full()
             .flex()
             .flex_col()
-            .bg(rgb(BG))
-            .text_color(rgb(INK))
+            .bg(theme::color(BG, cx))
+            .text_color(theme::color(INK, cx))
             .font_family(UI_FONT)
             .on_action(cx.listener(Self::save_action))
             .on_action(cx.listener(Self::run_cases))
@@ -3145,7 +3251,7 @@ impl Render for Workspace {
                     .items_center()
                     .gap_2()
                     .border_b_1()
-                    .border_color(rgb(LINE))
+                    .border_color(theme::color(LINE, cx))
                     .child(
                         Button::new("toggle-categories")
                             .label("☰ 分类")
@@ -3175,7 +3281,12 @@ impl Render for Workspace {
                                     .font_weight(FontWeight::SEMIBOLD)
                                     .child(title),
                             )
-                            .child(div().text_xs().text_color(rgb(ACCENT)).child(platform)),
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .text_color(theme::color(ACCENT, cx))
+                                    .child(platform),
+                            ),
                     )
                     .child(
                         Button::new("import-md")
@@ -3292,17 +3403,20 @@ impl Render for Workspace {
             .child(div().flex_1().min_h_0().child(panels))
             .child(
                 div()
-                    .h(px(26.))
+                    .h(px(32.))
                     .px_3()
                     .flex()
                     .items_center()
                     .justify_between()
                     .border_t_1()
-                    .border_color(rgb(LINE))
+                    .border_color(theme::color(LINE, cx))
                     .child(
                         div()
+                            .flex_1()
+                            .min_w_0()
+                            .truncate()
                             .text_xs()
-                            .text_color(rgb(MUTED))
+                            .text_color(theme::color(MUTED, cx))
                             .child(self.notice.clone()),
                     )
                     .child(
@@ -3310,6 +3424,25 @@ impl Render for Workspace {
                             .flex()
                             .items_center()
                             .gap_2()
+                            .children(Appearance::ALL.into_iter().map(|appearance| {
+                                Button::new(gpui_kit::SharedString::from(format!(
+                                    "appearance-{}",
+                                    appearance.key()
+                                )))
+                                .label(if theme::current(cx) == appearance {
+                                    format!("✓ {}", appearance.label())
+                                } else {
+                                    appearance.label().into()
+                                })
+                                .small()
+                                .ghost()
+                                .when(theme::current(cx) == appearance, |button| {
+                                    button.text_color(theme::color(ACCENT, cx))
+                                })
+                                .on_click(cx.listener(
+                                    move |this, _, _, cx| this.set_appearance(appearance, cx),
+                                ))
+                            }))
                             .child(
                                 Button::new("reconnect")
                                     .label(if self.language.is_some() {
@@ -3323,11 +3456,9 @@ impl Render for Workspace {
                                         this.request_current(window, cx)
                                     })),
                             )
-                            .child(div().text_xs().text_color(rgb(MUTED)).child(format!(
-                                "Ln {}, Col {}",
-                                position.line + 1,
-                                position.character + 1
-                            ))),
+                            .child(div().text_xs().text_color(theme::color(MUTED, cx)).child(
+                                format!("Ln {}, Col {}", position.line + 1, position.character + 1),
+                            )),
                     ),
             )
     }
@@ -3382,13 +3513,14 @@ impl Drop for Workspace {
 }
 
 pub fn launch(store: Store, smoke: bool) -> Result<()> {
+    let appearance = store.appearance();
     let smoke_ok = Arc::new(AtomicBool::new(!smoke));
     let result = smoke_ok.clone();
     gpui_kit::application()
         .with_assets(gpui_kit::assets::Assets)
         .run(move |cx| {
             gpui_kit::init(cx);
-            apply_theme(cx);
+            apply_appearance(appearance, cx);
             cx.on_action(|_: &Quit, cx| cx.quit());
             bind_keys(cx);
             let options = WindowOptions {
@@ -3481,34 +3613,49 @@ pub fn launch(store: Store, smoke: bool) -> Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
 pub fn apply_theme(cx: &mut App) {
-    gpui_kit::component::Theme::change(gpui_kit::component::ThemeMode::Dark, None, cx);
+    apply_appearance(Appearance::Dark, cx);
+}
+
+pub fn apply_appearance(appearance: Appearance, cx: &mut App) {
+    theme::select(appearance, cx);
+    let color = |value| rgb(appearance.color(value));
+    gpui_kit::component::Theme::change(
+        if appearance == Appearance::Dark {
+            gpui_kit::component::ThemeMode::Dark
+        } else {
+            gpui_kit::component::ThemeMode::Light
+        },
+        None,
+        cx,
+    );
     let theme = gpui_kit::component::Theme::global_mut(cx);
     theme.shadow = false;
-    theme.colors.background = rgb(BG).into();
-    theme.colors.foreground = rgb(INK).into();
-    theme.colors.border = rgb(LINE).into();
-    theme.colors.muted_foreground = rgb(MUTED).into();
-    theme.colors.input = rgb(PANEL).into();
-    theme.colors.popover = rgb(PANEL).into();
-    theme.colors.popover_foreground = rgb(INK).into();
-    theme.colors.sidebar = rgb(PANEL).into();
-    theme.colors.sidebar_foreground = rgb(INK).into();
-    theme.colors.sidebar_border = rgb(LINE).into();
-    theme.colors.selection = rgb(0x663341).into();
-    theme.colors.caret = rgb(INK).into();
-    theme.colors.accent = rgb(0x4b2531).into();
-    theme.colors.accent_foreground = rgb(INK).into();
-    theme.colors.primary = rgb(ACCENT).into();
-    theme.colors.primary_foreground = rgb(BG).into();
-    theme.colors.ring = rgb(ACCENT).into();
-    theme.colors.blue = rgb(ACCENT).into();
+    theme.colors.background = color(BG).into();
+    theme.colors.foreground = color(INK).into();
+    theme.colors.border = color(LINE).into();
+    theme.colors.muted_foreground = color(MUTED).into();
+    theme.colors.input = color(PANEL).into();
+    theme.colors.popover = color(PANEL).into();
+    theme.colors.popover_foreground = color(INK).into();
+    theme.colors.sidebar = color(PANEL).into();
+    theme.colors.sidebar_foreground = color(INK).into();
+    theme.colors.sidebar_border = color(LINE).into();
+    theme.colors.selection = color(0x663341).into();
+    theme.colors.caret = color(INK).into();
+    theme.colors.accent = color(0x4b2531).into();
+    theme.colors.accent_foreground = color(INK).into();
+    theme.colors.primary = color(ACCENT).into();
+    theme.colors.primary_foreground = color(BG).into();
+    theme.colors.ring = color(ACCENT).into();
+    theme.colors.blue = color(ACCENT).into();
     let syntax = Arc::make_mut(&mut theme.highlight_theme);
-    syntax.style.editor_background = Some(rgb(BG).into());
-    syntax.style.editor_gutter_background = Some(rgb(BG).into());
-    syntax.style.editor_foreground = Some(rgb(INK).into());
-    syntax.style.editor_active_line = Some(rgb(0x222027).into());
-    syntax.style.editor_line_number = Some(rgb(MUTED).into());
+    syntax.style.editor_background = Some(color(BG).into());
+    syntax.style.editor_gutter_background = Some(color(BG).into());
+    syntax.style.editor_foreground = Some(color(INK).into());
+    syntax.style.editor_active_line = Some(color(0x222027).into());
+    syntax.style.editor_line_number = Some(color(MUTED).into());
     // Build each style uniformly, including its optional non-color cues.
     let palette = [
         ("keyword", 0xff8f9c, Some(700), None),
@@ -3524,52 +3671,54 @@ pub fn apply_theme(cx: &mut App) {
         ("comment", 0xc7c3c9, None, Some("italic")),
         ("punctuation", 0xeee3e6, None, None),
     ];
-    let colors: serde_json::Map<String, serde_json::Value> = palette.into_iter().map(|(name, color, weight, style)| {
-        (name.into(), json!({"color": gpui_kit::Hsla::from(rgb(color)), "font_weight": weight, "font_style": style}))
+    let colors: serde_json::Map<String, serde_json::Value> = palette.into_iter().map(|(name, value, weight, style)| {
+        (name.into(), json!({"color": gpui_kit::Hsla::from(color(value)), "font_weight": weight, "font_style": style}))
     }).collect();
     syntax.style.syntax = serde_json::from_value(colors.into()).expect("Go 高亮颜色有效");
+    cx.refresh_windows();
 }
 
-fn document_style() -> TextViewStyle {
+fn document_style(cx: &App) -> TextViewStyle {
+    let appearance = theme::current(cx);
     let mut code_block = gpui_kit::StyleRefinement::default();
-    code_block.text.color = Some(rgb(INK).into());
+    code_block.text.color = Some(theme::color(INK, cx).into());
     let mut table = gpui_kit::StyleRefinement::default()
         .rounded_md()
-        .bg(rgb(0x101715));
+        .bg(theme::color(0x101715, cx));
     table.overflow.x = Some(gpui_kit::Overflow::Scroll);
     let table_head = gpui_kit::StyleRefinement::default()
-        .bg(rgb(0x203c34))
-        .text_color(rgb(0xc6ffe8))
+        .bg(theme::color(0x203c34, cx))
+        .text_color(theme::color(0xc6ffe8, cx))
         .font_weight(FontWeight::SEMIBOLD);
     let table_cell = gpui_kit::StyleRefinement::default().px_4();
     TextViewStyle::default()
-        .with_dark(true)
-        .with_foreground(rgb(INK).into())
-        .with_muted_foreground(rgb(MUTED).into())
+        .with_dark(theme::current(cx) == leetdesk::appearance::Appearance::Dark)
+        .with_foreground(theme::color(INK, cx).into())
+        .with_muted_foreground(theme::color(MUTED, cx).into())
         .with_paragraph_gap(gpui_kit::rems(0.9))
-        .with_heading(|level| {
+        .with_heading(move |level| {
             let mut heading = gpui_kit::StyleRefinement::default();
             heading.text.color = Some(
-                rgb(match level {
+                rgb(appearance.color(match level {
                     1 => ACCENT,
                     2 => 0xa8d7ff,
                     3 => 0xd9c0ff,
                     _ => INK,
-                })
+                }))
                 .into(),
             );
             heading
         })
-        .with_link(rgb(ACCENT).into())
-        .with_border(rgb(0x536861).into())
+        .with_link(theme::color(ACCENT, cx).into())
+        .with_border(theme::color(0x536861, cx).into())
         .with_table(table)
         .with_table_head(table_head)
         .with_table_cell(table_cell)
-        .with_selection(rgb(ACCENT).opacity(0.22).into())
-        .with_code_background(rgb(CODE_BG).into())
+        .with_selection(theme::color(ACCENT, cx).opacity(0.22).into())
+        .with_code_background(theme::color(CODE_BG, cx).into())
         .with_inline_code(gpui_kit::HighlightStyle {
-            color: Some(rgb(INK).into()),
-            background_color: Some(rgb(CODE_BG).into()),
+            color: Some(theme::color(INK, cx).into()),
+            background_color: Some(theme::color(CODE_BG, cx).into()),
             ..Default::default()
         })
         .with_code_block(code_block)
@@ -3765,12 +3914,12 @@ mod ui_tests {
             width: f32,
         }
         impl Render for Statement {
-            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                 div()
                     .w(px(self.width))
                     .text_size(px(15.))
                     .child(gpui_kit::base::TextSelectionLayer)
-                    .child(TextView::new(&self.text).style(document_style()))
+                    .child(TextView::new(&self.text).style(document_style(cx)))
             }
         }
         cx.update(|cx| {
@@ -3843,13 +3992,13 @@ mod ui_tests {
             width: f32,
         }
         impl Render for Examples {
-            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                 div()
                     .w(px(self.width))
                     .text_size(px(15.))
                     .text_color(rgb(INK))
                     .bg(rgb(PANEL))
-                    .child(TextView::new(&self.state).style(document_style()))
+                    .child(TextView::new(&self.state).style(document_style(cx)))
             }
         }
         cx.update(|cx| {
@@ -3902,13 +4051,13 @@ mod ui_tests {
             state: Entity<TextViewState>,
         }
         impl Render for Statement {
-            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                 div()
                     .w(px(200.))
                     .font_family(UI_FONT)
                     .text_size(px(15.))
                     .text_bg(rgb(TEXT_MARKER))
-                    .child(TextView::new(&self.state).style(document_style()))
+                    .child(TextView::new(&self.state).style(document_style(cx)))
             }
         }
         cx.update(|cx| {
@@ -3951,10 +4100,10 @@ mod ui_tests {
             state: Entity<TextViewState>,
         }
         impl Render for TablePreview {
-            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                 div()
                     .w(px(340.))
-                    .child(TextView::new(&self.state).style(document_style()))
+                    .child(TextView::new(&self.state).style(document_style(cx)))
             }
         }
         cx.update(|cx| {
@@ -3989,7 +4138,7 @@ mod ui_tests {
                 "表身背景应可见"
             );
             assert_eq!(
-                document_style().table().overflow.x,
+                document_style(cx).table().overflow.x,
                 Some(gpui_kit::Overflow::Scroll)
             );
         })
@@ -4722,45 +4871,56 @@ mod ui_tests {
         }
         cx.update(|cx| {
             gpui_kit::init(cx);
-            apply_theme(cx);
-            let theme = gpui_kit::component::Theme::global(cx);
-            let syntax = &theme.highlight_theme.style;
-            for name in [
-                "keyword",
-                "string",
-                "number",
-                "boolean",
-                "function",
-                "type",
-                "variable",
-                "property",
-                "constant",
-                "operator",
-                "comment",
-                "punctuation",
-            ] {
-                let style = syntax.syntax.style(name).unwrap();
-                let foreground = luminance(style.color.unwrap());
-                for (background, minimum) in [
-                    (syntax.editor_background.unwrap(), 7.0),
-                    (syntax.editor_active_line.unwrap(), 7.0),
-                    (theme.colors.selection, 4.5),
+            for appearance in Appearance::ALL {
+                apply_appearance(appearance, cx);
+                let theme = gpui_kit::component::Theme::global(cx);
+                let syntax = &theme.highlight_theme.style;
+                for name in [
+                    "keyword",
+                    "string",
+                    "number",
+                    "boolean",
+                    "function",
+                    "type",
+                    "variable",
+                    "property",
+                    "constant",
+                    "operator",
+                    "comment",
+                    "punctuation",
                 ] {
-                    let contrast = (foreground + 0.05) / (luminance(background) + 0.05);
-                    assert!(
-                        contrast >= minimum,
-                        "{name} contrast {contrast} < {minimum}"
-                    );
+                    let style = syntax.syntax.style(name).unwrap();
+                    let foreground = luminance(style.color.unwrap());
+                    for (background, minimum) in [
+                        (syntax.editor_background.unwrap(), 7.0),
+                        (
+                            syntax.editor_active_line.unwrap(),
+                            if appearance == Appearance::Dark {
+                                7.0
+                            } else {
+                                4.5
+                            },
+                        ),
+                        (theme.colors.selection, 4.5),
+                    ] {
+                        let background = luminance(background);
+                        let contrast = (foreground.max(background) + 0.05)
+                            / (foreground.min(background) + 0.05);
+                        assert!(
+                            contrast >= minimum,
+                            "{appearance:?} {name} contrast {contrast} < {minimum}"
+                        );
+                    }
                 }
+                assert_eq!(
+                    syntax.syntax.style("keyword").unwrap().font_weight,
+                    Some(FontWeight::BOLD)
+                );
+                assert_eq!(
+                    syntax.syntax.style("comment").unwrap().font_style,
+                    Some(gpui_kit::FontStyle::Italic)
+                );
             }
-            assert_eq!(
-                syntax.syntax.style("keyword").unwrap().font_weight,
-                Some(FontWeight::BOLD)
-            );
-            assert_eq!(
-                syntax.syntax.style("comment").unwrap().font_style,
-                Some(gpui_kit::FontStyle::Italic)
-            );
         });
     }
 
@@ -5095,6 +5255,139 @@ mod ui_tests {
                 view.read(cx).editor.read(cx).value().contains("return 1\t"),
                 "无补全菜单时 Tab 仍应缩进"
             );
+        })
+        .unwrap();
+    }
+
+    #[gpui_kit::test]
+    fn appearance_buttons_update_all_surfaces_without_changing_drafts(cx: &mut TestAppContext) {
+        let (handle, view, temp) = practice_window(cx);
+        let source = "package solution\nfunc answer() int { return 42 }";
+        cx.update_window(handle, |_, window, cx| {
+            view.read(cx).editor.clone().update(cx, |state, cx| {
+                state.set_value(source, window, cx);
+                state.set_selected_range(8..16, cx);
+            });
+            let input = view.read(cx).cases_editor.read(cx).value().to_string();
+            for appearance in [Appearance::White, Appearance::Beige, Appearance::Dark] {
+                window.render_frame(cx);
+                window.click(format!("appearance-{}", appearance.key()), cx);
+                window.render_frame(cx);
+                assert_eq!(theme::current(cx), appearance);
+                let background: gpui_kit::Background = rgb(appearance.color(BG)).into();
+                let panel: gpui_kit::Background = rgb(appearance.color(PANEL)).into();
+                assert!(
+                    window
+                        .painted_quads()
+                        .iter()
+                        .any(|quad| quad.background == background)
+                );
+                assert!(
+                    window
+                        .painted_quads()
+                        .iter()
+                        .any(|quad| quad.background == panel)
+                );
+                let current = gpui_kit::component::Theme::global(cx);
+                assert_eq!(current.colors.background, rgb(appearance.color(BG)).into());
+                assert_eq!(
+                    current.highlight_theme.style.editor_background,
+                    Some(rgb(appearance.color(BG)).into())
+                );
+                assert_eq!(
+                    current
+                        .highlight_theme
+                        .style
+                        .syntax
+                        .style("keyword")
+                        .unwrap()
+                        .color,
+                    Some(rgb(appearance.color(0xff8f9c)).into())
+                );
+                assert_eq!(view.read(cx).editor.read(cx).value().as_ref(), source);
+                assert_eq!(
+                    view.read(cx).editor.read(cx).selected_value().as_ref(),
+                    "solution"
+                );
+                assert_eq!(view.read(cx).cases_editor.read(cx).value().as_ref(), input);
+                assert_eq!(
+                    Store::open(temp.path().join("data")).unwrap().appearance(),
+                    appearance
+                );
+                for index in [0usize, 1, 2] {
+                    window.click(("document-tab", index), cx);
+                    window.render_frame(cx);
+                }
+            }
+        })
+        .unwrap();
+    }
+
+    #[gpui_kit::test]
+    fn running_cases_stay_readable_and_completion_does_not_steal_the_tab(cx: &mut TestAppContext) {
+        let (handle, view, _temp) = practice_window(cx);
+        let input = "[2,7,11,15]\n9";
+        let (sender, events) = std::sync::mpsc::channel();
+        let _subscription = cx.update(|cx| {
+            cx.subscribe(&view, move |_, event: &WorkspaceEvent, _| {
+                sender.send(event.clone()).unwrap();
+            })
+        });
+        cx.update_window(handle, |_, window, cx| {
+            view.update(cx, |workspace, cx| {
+                let mut problem = online::parse_page(online::Site::China, &json!({"data":{"problemsetQuestionList":{"total":1,"questions":[{"frontendQuestionId":"1","titleSlug":"two-sum","title":"Two Sum"}]}}})).unwrap().problems.remove(0);
+                let remote = problem.online.as_mut().unwrap();
+                remote.loaded = true; remote.go_supported = true; remote.question_id = "1".into();
+                workspace.problems[0] = problem;
+                workspace.current = 0;
+                workspace.online_enabled = true;
+                workspace.cases_editor.update(cx, |state, cx| state.set_value(input, window, cx));
+            });
+            window.render_frame(cx);
+            window.click("run", cx);
+            window.render_frame(cx);
+            assert!(view.read(cx).has_run_input);
+            assert!(!view.read(cx).run_input_editor.read(cx).is_editable());
+            assert_eq!(view.read(cx).run_input_editor.read(cx).value().as_ref(), input);
+            view.read(cx).run_input_editor.clone().update(cx, |state, cx| state.focus(window, cx));
+            window.input("changed", cx);
+            assert_eq!(view.read(cx).run_input_editor.read(cx).value().as_ref(), input);
+        }).unwrap();
+        cx.run_until_parked();
+        let event = events.try_recv().unwrap();
+        assert!(
+            matches!(event, WorkspaceEvent::Run { input: ref sent, submit: false, .. } if sent == input)
+        );
+        cx.update_window(handle, |_, window, cx| {
+            window.click(("bottom-tab", 0usize), cx);
+            window.render_frame(cx);
+            view.read(cx)
+                .cases_editor
+                .clone()
+                .update(cx, |state, cx| state.set_value("[1,2]\n3", window, cx));
+            view.update(cx, |workspace, cx| {
+                workspace.online_result(
+                    workspace.problem().id,
+                    workspace.run_generation,
+                    "source",
+                    "通过".into(),
+                    cx,
+                );
+            });
+            assert!(view.read(cx).bottom_tab == BottomTab::Cases);
+            window.render_frame(cx);
+            window.click(("bottom-tab", 1usize), cx);
+            window.render_frame(cx);
+            assert_eq!(
+                view.read(cx).run_input_editor.read(cx).value().as_ref(),
+                input
+            );
+            assert_eq!(
+                view.read(cx).cases_editor.read(cx).value().as_ref(),
+                "[1,2]\n3"
+            );
+            view.update(cx, |workspace, cx| workspace.select_problem(1, window, cx));
+            assert!(!view.read(cx).has_run_input);
         })
         .unwrap();
     }
