@@ -179,7 +179,7 @@ impl GoLanguage {
                 "textDocument":{
                     "synchronization":{"didSave":true},
                     "publishDiagnostics":{"versionSupport":true},
-                    "completion":{"completionItem":{"snippetSupport":false,"documentationFormat":["markdown","plaintext"],"insertReplaceSupport":true}},
+                    "completion":{"completionItem":{"snippetSupport":true,"documentationFormat":["markdown","plaintext"],"insertReplaceSupport":true}},
                     "hover":{"contentFormat":["markdown","plaintext"]},
                     "inlayHint":{},
                     "definition":{"linkSupport":true}
@@ -313,7 +313,7 @@ impl GoLanguage {
 }
 
 fn settings() -> Value {
-    json!({"gofumpt":false,"staticcheck":false,"analyses":{"ST1000":false,"U1000":false,"unusedparams":false},"completeUnimported":false,"usePlaceholders":false,"diagnosticsDelay":"200ms", "hints":{"assignVariableTypes":true,"rangeVariableTypes":true}})
+    json!({"gofumpt":false,"staticcheck":false,"analyses":{"ST1000":false,"U1000":false,"unusedparams":false},"completeUnimported":false,"completeFunctionCalls":true,"usePlaceholders":true,"diagnosticsDelay":"200ms", "hints":{"assignVariableTypes":true,"rangeVariableTypes":true}})
 }
 
 pub fn apply_edits(source: &str, edits: &[lsp_types::TextEdit]) -> Result<String> {

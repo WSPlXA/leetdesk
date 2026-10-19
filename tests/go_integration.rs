@@ -3,7 +3,7 @@
 use leetdesk::{
     catalog,
     language::{self, GoLanguage},
-    runner,
+    runner, snippets,
     store::Store,
 };
 use serde_json::json;
@@ -42,6 +42,82 @@ fn wait_diagnostics(service: &GoLanguage, expected_error: bool) {
             );
         }
         thread::sleep(Duration::from_millis(100));
+    }
+}
+
+#[test]
+#[ignore = "requires Go and gopls"]
+fn gopls_completes_callable_variables_and_contextual_append() {
+    use lsp_types::{CompletionResponse, CompletionTextEdit};
+    let temp = tempfile::tempdir().unwrap();
+    let store = Store::open(temp.path().join("data")).unwrap();
+    let problem = catalog::builtin().unwrap().remove(0);
+    let path = store.prepare(&problem).unwrap();
+    let source = "package solution\nfunc solve() {}\n";
+    let service = GoLanguage::start(&path, source).unwrap();
+    wait_diagnostics(&service, false);
+    for (source, prefix, name, expected) in [
+        (
+            "package solution\nfunc solve() { var xxx func(int); xx }",
+            "xx }",
+            "xxx(…)",
+            "xxx(int)",
+        ),
+        (
+            "package solution\nfunc solve() { var dfs func(int); dfs = func(n int) { df }; dfs(0) }",
+            "df }",
+            "dfs(…)",
+            "dfs(int)",
+        ),
+        (
+            "package solution\nfunc solve() { var visit func(node int, depth int); vis }",
+            "vis }",
+            "visit(…)",
+            "visit(node, depth)",
+        ),
+        (
+            "package solution\nfunc solve() { var xxx func(int); xx(1) }",
+            "xx(1)",
+            "xxx",
+            "xxx",
+        ),
+        (
+            "package solution\nfunc take(f func(int)) {}\nfunc solve() { var xxx func(int); take(xx) }",
+            "xx)",
+            "xxx",
+            "xxx",
+        ),
+        (
+            "package solution\nfunc solve() { q := []int{}; q = app }",
+            "app }",
+            "append · 追加元素",
+            "append(q, value)",
+        ),
+    ] {
+        let offset = source.find(prefix).unwrap() + prefix.find([' ', '(', ')']).unwrap();
+        service.sync(source).unwrap();
+        let response = service
+            .request("textDocument/completion", service.at(source, offset))
+            .unwrap();
+        let response: CompletionResponse = serde_json::from_value(response).unwrap();
+        let remote = match response {
+            CompletionResponse::Array(items) => items,
+            CompletionResponse::List(list) => list.items,
+        };
+        let items =
+            snippets::merge_go_completions(source, snippets::completions(source, offset), remote);
+        let item = items
+            .iter()
+            .find(|item| item.label == name)
+            .unwrap_or_else(|| panic!("missing {name}: {items:?}"));
+        let edit = match item.text_edit.as_ref().unwrap() {
+            CompletionTextEdit::Edit(edit) => edit.new_text.as_str(),
+            CompletionTextEdit::InsertAndReplace(edit) => edit.new_text.as_str(),
+        };
+        assert_eq!(edit, expected, "{item:?}");
+        if expected.contains('(') {
+            assert!(item.data.as_ref().unwrap()["leetdesk_tabstops"].is_array());
+        }
     }
 }
 

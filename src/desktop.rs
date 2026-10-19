@@ -55,10 +55,10 @@ gpui_kit::actions!(
 
 const BG: u32 = 0x000000;
 const PANEL: u32 = 0x0a0a0a;
-const LINE: u32 = 0x292929;
-const MUTED: u32 = 0xa9b0bb;
+const LINE: u32 = 0x68606a;
+const MUTED: u32 = 0xc8c4cb;
 const INK: u32 = 0xf4f5f7;
-const ACCENT: u32 = 0x79e6bd;
+const ACCENT: u32 = 0xff9da8;
 const CODE_BG: u32 = 0x101010;
 
 #[cfg(target_os = "macos")]
@@ -156,14 +156,16 @@ impl CompletionProvider for GoProvider {
                 Err(_error) if !local.is_empty() => return Ok(CompletionResponse::Array(local)),
                 Err(error) => return Err(error),
             };
-            let mut items = local;
+            let mut items = vec![];
             if !value.is_null() {
                 match serde_json::from_value::<CompletionResponse>(value)? {
                     CompletionResponse::Array(found) => items.extend(found),
                     CompletionResponse::List(found) => items.extend(found.items),
                 }
             }
-            Ok(CompletionResponse::Array(items))
+            Ok(CompletionResponse::Array(snippets::merge_go_completions(
+                &source, local, items,
+            )))
         })
     }
     fn is_completion_trigger(&self, _: usize, text: &str, _: &mut App) -> bool {
@@ -3493,28 +3495,39 @@ pub fn apply_theme(cx: &mut App) {
     theme.colors.sidebar = rgb(PANEL).into();
     theme.colors.sidebar_foreground = rgb(INK).into();
     theme.colors.sidebar_border = rgb(LINE).into();
-    theme.colors.selection = rgb(0x255c49).into();
+    theme.colors.selection = rgb(0x663341).into();
+    theme.colors.caret = rgb(INK).into();
+    theme.colors.accent = rgb(0x4b2531).into();
+    theme.colors.accent_foreground = rgb(INK).into();
+    theme.colors.primary = rgb(ACCENT).into();
+    theme.colors.primary_foreground = rgb(BG).into();
+    theme.colors.ring = rgb(ACCENT).into();
+    theme.colors.blue = rgb(ACCENT).into();
     let syntax = Arc::make_mut(&mut theme.highlight_theme);
     syntax.style.editor_background = Some(rgb(BG).into());
     syntax.style.editor_gutter_background = Some(rgb(BG).into());
     syntax.style.editor_foreground = Some(rgb(INK).into());
-    syntax.style.editor_active_line = Some(rgb(0x171717).into());
+    syntax.style.editor_active_line = Some(rgb(0x222027).into());
     syntax.style.editor_line_number = Some(rgb(MUTED).into());
-    syntax.style.syntax = serde_json::from_value(json!({
-        "keyword": {"color": gpui_kit::Hsla::from(rgb(0xd3a7ff))},
-        "string": {"color": gpui_kit::Hsla::from(rgb(0x91e7a5))},
-        "number": {"color": gpui_kit::Hsla::from(rgb(0xffb86b))},
-        "boolean": {"color": gpui_kit::Hsla::from(rgb(0xffb86b))},
-        "function": {"color": gpui_kit::Hsla::from(rgb(0x86c9ff))},
-        "type": {"color": gpui_kit::Hsla::from(rgb(0x79e5e1))},
-        "variable": {"color": gpui_kit::Hsla::from(rgb(INK))},
-        "property": {"color": gpui_kit::Hsla::from(rgb(0xe8dbff))},
-        "constant": {"color": gpui_kit::Hsla::from(rgb(0xffd084))},
-        "operator": {"color": gpui_kit::Hsla::from(rgb(0xff91b7))},
-        "comment": {"color": gpui_kit::Hsla::from(rgb(0x9ba2ac))},
-        "punctuation": {"color": gpui_kit::Hsla::from(rgb(0xc9d0da))}
-    }))
-    .expect("Go 高亮颜色有效");
+    // Build each style uniformly, including its optional non-color cues.
+    let palette = [
+        ("keyword", 0xff8f9c, Some(700), None),
+        ("string", 0xffe2e7, None, None),
+        ("number", 0xffdfcf, None, None),
+        ("boolean", 0xffdfcf, Some(700), None),
+        ("function", 0xffbec9, Some(600), None),
+        ("type", 0xf4bd9f, Some(600), None),
+        ("variable", INK, None, None),
+        ("property", 0xf4d4db, None, None),
+        ("constant", 0xffdfcf, None, None),
+        ("operator", 0xffd1d9, None, None),
+        ("comment", 0xc7c3c9, None, Some("italic")),
+        ("punctuation", 0xeee3e6, None, None),
+    ];
+    let colors: serde_json::Map<String, serde_json::Value> = palette.into_iter().map(|(name, color, weight, style)| {
+        (name.into(), json!({"color": gpui_kit::Hsla::from(rgb(color)), "font_weight": weight, "font_style": style}))
+    }).collect();
+    syntax.style.syntax = serde_json::from_value(colors.into()).expect("Go 高亮颜色有效");
 }
 
 fn document_style() -> TextViewStyle {
@@ -4493,6 +4506,90 @@ mod ui_tests {
     }
 
     #[gpui_kit::test]
+    fn go_callable_variable_and_append_complete_with_editable_arguments(cx: &mut TestAppContext) {
+        let (handle, view, _temp) = practice_window(cx);
+        for (source, prefix, typed, expected, placeholder, argument) in [
+            (
+                "package solution\nfunc solve() {\n var xxx func(int)\n xx\n}",
+                "xx\n",
+                "x",
+                "xxx(int)",
+                "int",
+                "7",
+            ),
+            (
+                "package solution\nfunc solve() {\n q := []int{}\n q = ap\n}",
+                "ap\n",
+                "p",
+                "append(q, value)",
+                "value",
+                "42",
+            ),
+        ] {
+            let offset = source.find(prefix).unwrap() + 2;
+            cx.update_window(handle, |_, window, cx| {
+                view.update(cx, |workspace, cx| {
+                    workspace.editor.update(cx, |state, cx| {
+                        state.set_value(source, window, cx);
+                        state.set_cursor_position(
+                            language::byte_position(source, offset),
+                            window,
+                            cx,
+                        );
+                        state.focus(window, cx);
+                    });
+                    workspace.connect_language(window, cx);
+                });
+            })
+            .unwrap();
+            cx.run_until_parked();
+            cx.update_window(handle, |_, window, cx| {
+                assert_eq!(view.read(cx).language_status, "gopls 已连接");
+                window.render_frame(cx);
+                window.input(typed, cx);
+            })
+            .unwrap();
+            cx.run_until_parked();
+            cx.update_window(handle, |_, window, cx| {
+                let editor = view.read(cx).editor.clone();
+                window.render_frame(cx);
+                assert!(editor.read(cx).completion_menu_state().open);
+                if expected.starts_with("xxx") {
+                    assert!(
+                        editor.read(cx).completion_menu_state().items[0]
+                            .label
+                            .starts_with("xxx("),
+                        "{:?}",
+                        editor.read(cx).completion_menu_state().items
+                    );
+                }
+                window.press("tab", cx);
+            })
+            .unwrap();
+            cx.run_until_parked();
+            cx.update_window(handle, |_, window, cx| {
+                let editor = view.read(cx).editor.clone();
+                assert!(
+                    editor.read(cx).value().contains(expected),
+                    "{}",
+                    editor.read(cx).value()
+                );
+                assert_eq!(editor.read(cx).selected_value().as_ref(), placeholder);
+                window.input(argument, cx);
+                window.press("tab", cx);
+                let text = editor.read(cx).value().to_string();
+                let call = expected.replace(placeholder, argument);
+                assert!(text.contains(&call), "{text}");
+                assert_eq!(
+                    editor.read(cx).cursor(),
+                    text.find(&call).unwrap() + call.len()
+                );
+            })
+            .unwrap();
+        }
+    }
+
+    #[gpui_kit::test]
     fn go_snippet_replaces_prefix_and_tab_tracks_edited_fields(cx: &mut TestAppContext) {
         let (handle, view, _temp) = practice_window(cx);
         let source = "package solution\n\nfunc f() {\n\tfo\n}";
@@ -4603,10 +4700,67 @@ mod ui_tests {
             let number = color(source.find("42").unwrap()).expect("Go 数字应该着色");
             assert_ne!(keyword, string);
             assert_ne!(keyword, number);
-            assert_eq!(keyword, rgb(0xd3a7ff).into());
-            assert_eq!(string, rgb(0x91e7a5).into());
-            assert_eq!(number, rgb(0xffb86b).into());
+            assert_eq!(keyword, rgb(0xff8f9c).into());
+            assert_eq!(string, rgb(0xffe2e7).into());
+            assert_eq!(number, rgb(0xffdfcf).into());
             assert_eq!(theme.style.editor_background, Some(rgb(BG).into()));
+        });
+    }
+
+    #[gpui_kit::test]
+    fn code_palette_has_readable_contrast_and_non_color_cues(cx: &mut TestAppContext) {
+        fn luminance(color: gpui_kit::Hsla) -> f32 {
+            let rgba = gpui_kit::Rgba::from(color);
+            let linear = |value: f32| {
+                if value <= 0.04045 {
+                    value / 12.92
+                } else {
+                    ((value + 0.055) / 1.055).powf(2.4)
+                }
+            };
+            0.2126 * linear(rgba.r) + 0.7152 * linear(rgba.g) + 0.0722 * linear(rgba.b)
+        }
+        cx.update(|cx| {
+            gpui_kit::init(cx);
+            apply_theme(cx);
+            let theme = gpui_kit::component::Theme::global(cx);
+            let syntax = &theme.highlight_theme.style;
+            for name in [
+                "keyword",
+                "string",
+                "number",
+                "boolean",
+                "function",
+                "type",
+                "variable",
+                "property",
+                "constant",
+                "operator",
+                "comment",
+                "punctuation",
+            ] {
+                let style = syntax.syntax.style(name).unwrap();
+                let foreground = luminance(style.color.unwrap());
+                for (background, minimum) in [
+                    (syntax.editor_background.unwrap(), 7.0),
+                    (syntax.editor_active_line.unwrap(), 7.0),
+                    (theme.colors.selection, 4.5),
+                ] {
+                    let contrast = (foreground + 0.05) / (luminance(background) + 0.05);
+                    assert!(
+                        contrast >= minimum,
+                        "{name} contrast {contrast} < {minimum}"
+                    );
+                }
+            }
+            assert_eq!(
+                syntax.syntax.style("keyword").unwrap().font_weight,
+                Some(FontWeight::BOLD)
+            );
+            assert_eq!(
+                syntax.syntax.style("comment").unwrap().font_style,
+                Some(gpui_kit::FontStyle::Italic)
+            );
         });
     }
 
