@@ -99,3 +99,35 @@ eval({generated});
         assert!(!reply.to_string().contains("fixture-token"));
     }
 }
+
+#[test]
+#[ignore = "requires Node.js"]
+fn opaque_or_loading_pages_do_not_send_api_requests() {
+    let generated =
+        serde_json::to_string(&script(8, &leetdesk::online::account_request()).unwrap()).unwrap();
+    for (origin, ready, denied) in [
+        ("null", "complete", false),
+        ("https://leetcode.com", "loading", false),
+        ("https://leetcode.com", "complete", true),
+    ] {
+        let driver = format!(
+            r#"
+global.location={{origin:{origin:?}}};
+global.document={{readyState:{ready:?},get cookie(){{if({denied})throw Error('Access is denied');return '';}}}};
+global.fetch=async()=>{{throw Error('Unexpected fetch')}};
+global.window={{ipc:{{postMessage:value=>process.stdout.write(value)}}}};
+eval({generated});
+"#
+        );
+        let output = Command::new("node").args(["-e", &driver]).output().unwrap();
+        assert!(output.status.success());
+        let reply: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(reply["ok"], false);
+        assert!(
+            reply["error"]
+                .as_str()
+                .unwrap()
+                .contains("官方页面尚未就绪")
+        );
+    }
+}

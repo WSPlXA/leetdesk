@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Appearance {
-    #[default]
     Dark,
     White,
+    #[default]
     Beige,
 }
 
@@ -36,35 +36,38 @@ impl Appearance {
         }
         let beige = self == Self::Beige;
         match dark {
-            0x000000 => {
+            0x000000 | 0x1b1c23 => {
                 if beige {
-                    0xf6edda
+                    0xf8f0e0
                 } else {
                     0xffffff
                 }
             }
-            0x0a0a0a => {
+            0x0a0a0a | 0x23242d => {
                 if beige {
-                    0xefe2c8
+                    0xf4e9d5
                 } else {
                     0xf5f5f8
                 }
             }
-            0x101010 | 0x101715 | 0x181818 => {
+            0x101010 | 0x1f2029 | 0x101715 | 0x181818 => {
                 if beige {
-                    0xe9dcc2
+                    0xf1e4ce
                 } else {
                     0xeeeef3
                 }
             }
             0x222027 => {
                 if beige {
-                    0xe7d6b7
+                    0xead8ba
                 } else {
                     0xeee5e9
                 }
             }
-            0x68606a | 0x292929 | 0x536861 => {
+            0x81808b | 0x292929 | 0x536861 => {
+                if beige { 0xdecfb5 } else { 0xd7cfd3 }
+            }
+            0x68606a => {
                 if beige {
                     0x89765e
                 } else {
@@ -74,9 +77,9 @@ impl Appearance {
             0xc8c4cb | 0xa9b0bb | 0xc7c3c9 => 0x50434a,
             0xf4f5f7 | 0xeee3e6 => 0x26191f,
             0xff9da8 | 0x79e6bd => 0x8b1838,
-            0x18352a | 0x203c34 | 0x4b2531 => {
+            0x18352a | 0x322630 | 0x203c34 | 0x4b2531 => {
                 if beige {
-                    0xe2c4b2
+                    0xecd6c0
                 } else {
                     0xf4dce5
                 }

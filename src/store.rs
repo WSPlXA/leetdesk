@@ -25,7 +25,44 @@ pub struct Store {
     connection: Connection,
 }
 
+pub fn selected_site(root: &Path) -> crate::online::Site {
+    ["site.json", "online-active.json"]
+        .into_iter()
+        .find_map(|file| {
+            fs::read(root.join(file))
+                .ok()
+                .and_then(|value| serde_json::from_slice(&value).ok())
+        })
+        .unwrap_or_default()
+}
+
+pub fn editor_preferences_at(root: &Path) -> crate::preferences::EditorPreferences {
+    fs::read(root.join("editor-preferences.json"))
+        .ok()
+        .and_then(|bytes| {
+            serde_json::from_slice::<crate::preferences::EditorPreferences>(&bytes).ok()
+        })
+        .unwrap_or_default()
+        .normalized()
+}
+
 impl Store {
+    pub fn editor_preferences(&self) -> crate::preferences::EditorPreferences {
+        editor_preferences_at(&self.root)
+    }
+
+    pub fn save_editor_preferences(
+        &self,
+        value: crate::preferences::EditorPreferences,
+    ) -> Result<()> {
+        atomic_write(
+            &self.root.join("editor-preferences.json"),
+            &serde_json::to_vec(&value.normalized())?,
+        )
+    }
+    pub fn site(&self) -> crate::online::Site {
+        selected_site(&self.root)
+    }
     pub fn appearance(&self) -> crate::appearance::Appearance {
         fs::read(self.root.join("appearance.json"))
             .ok()
@@ -300,9 +337,7 @@ impl Store {
     }
 
     pub fn load_catalog(&self) -> Result<Vec<Problem>> {
-        if let Ok(text) = fs::read_to_string(self.root.join("online-active.json"))
-            && let Ok(site) = serde_json::from_str::<crate::online::Site>(&text)
-            && let Some(cache) = self.online_cache(site)?
+        if let Some(cache) = self.online_cache(self.site())?
             && !cache.problems.is_empty()
         {
             return Ok(cache.problems);
@@ -507,6 +542,69 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn site_selection_keeps_catalogs_separate_and_editor_preferences_survive_restart() {
+        use crate::{
+            online::{self, OnlineCache, Site},
+            preferences::EditorPreferences,
+        };
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("data");
+        let store = Store::open(root.clone()).unwrap();
+        for site in [Site::Global, Site::China] {
+            let problems = online::parse_page(site, &serde_json::json!({"data":{"problemsetQuestionList":{"total":1,"questions":[{
+                "frontendQuestionId":"1","title":"Two Sum","titleCn":"两数之和","titleSlug":"two-sum"
+            }]}}})).unwrap().problems;
+            store
+                .save_online_cache(&mut OnlineCache {
+                    site,
+                    username: "alice".into(),
+                    problems,
+                    synced_at: 1,
+                })
+                .unwrap();
+        }
+        assert_eq!(store.site(), Site::China);
+        fs::write(
+            root.join("site.json"),
+            serde_json::to_vec(&Site::Global).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(store.load_catalog().unwrap()[0].title, "Two Sum");
+        store
+            .save_editor_preferences(EditorPreferences {
+                font_size: 255,
+                soft_wrap: false,
+                interface_language: crate::preferences::InterfaceLanguage::English,
+                font_family: "Courier New".into(),
+                editor_theme: crate::preferences::EditorTheme::Amber,
+            })
+            .unwrap();
+        let reopened = Store::open(root.clone()).unwrap();
+        assert_eq!(reopened.site(), Site::Global);
+        assert_eq!(reopened.editor_preferences().font_size, 24);
+        assert!(!reopened.editor_preferences().soft_wrap);
+        assert_eq!(reopened.editor_preferences().font_family, "Courier New");
+        assert_eq!(
+            reopened.editor_preferences().interface_language,
+            crate::preferences::InterfaceLanguage::English
+        );
+        assert_eq!(
+            reopened.editor_preferences().editor_theme,
+            crate::preferences::EditorTheme::Amber
+        );
+        fs::write(root.join("editor-preferences.json"), "broken").unwrap();
+        assert_eq!(reopened.editor_preferences().font_size, 16);
+        assert!(reopened.editor_preferences().soft_wrap);
+        fs::remove_file(root.join("leetcode/global/index.json")).unwrap();
+        assert!(
+            reopened
+                .load_catalog()
+                .unwrap()
+                .iter()
+                .all(|problem| problem.online.is_none())
+        );
+    }
     #[test]
     fn appearance_survives_restart_and_invalid_preferences_use_dark() {
         use crate::appearance::Appearance;

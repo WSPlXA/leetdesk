@@ -1,5 +1,5 @@
 //! Search and progress snapshots shared by sidebar redraws.
-use crate::{catalog::Problem, online, store::Progress, topics};
+use crate::{catalog::Problem, learning, online, store::Progress, topics};
 use std::{
     cell::RefCell,
     collections::{BTreeSet, HashMap},
@@ -16,9 +16,11 @@ struct Row {
     status: &'static str,
     hot_rank: Option<usize>,
     hot_topic: Option<String>,
+    patterns: Vec<String>,
 }
 
 type FilterCache = (String, String, String, String, String, Rc<[usize]>);
+type RouteCounts = HashMap<String, ((usize, usize), (usize, usize))>;
 
 pub struct CatalogView {
     rows: Vec<Row>,
@@ -29,6 +31,7 @@ pub struct CatalogView {
     topic_categories: Vec<String>,
     custom_categories: Vec<String>,
     hot_progress: (usize, usize),
+    route_counts: RouteCounts,
 }
 
 impl CatalogView {
@@ -42,6 +45,7 @@ impl CatalogView {
             topic_categories: vec![],
             custom_categories: vec![],
             hot_progress: (0, 0),
+            route_counts: HashMap::new(),
         };
         view.replace(problems);
         view
@@ -54,7 +58,7 @@ impl CatalogView {
                 id: p.id,
                 slug: p.slug.clone(),
                 search: format!(
-                    "{} {} {} {} {}",
+                    "{} {} {} {} {} {} {}",
                     p.online
                         .as_ref()
                         .map(|m| m.frontend_id.clone())
@@ -66,7 +70,15 @@ impl CatalogView {
                         .iter()
                         .map(|tag| topics::label(tag))
                         .collect::<Vec<_>>()
-                        .join(" ")
+                        .join(" "),
+                    p.tags
+                        .iter()
+                        .map(|tag| crate::i18n::UiLanguage::English
+                            .text(topics::label(tag))
+                            .into_owned())
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                    learning::search_terms(&p.slug)
                 )
                 .to_lowercase(),
                 local_search: String::new(),
@@ -79,6 +91,7 @@ impl CatalogView {
                 status: online::status_label(p),
                 hot_rank: None,
                 hot_topic: None,
+                patterns: learning::memberships(&p.slug),
             })
             .collect();
         self.rebuild_plan();
@@ -131,6 +144,37 @@ impl CatalogView {
                 .count(),
             self.rows.iter().filter(|r| r.hot_rank.is_some()).count(),
         );
+        self.route_counts.clear();
+        for row in &self.rows {
+            if row.patterns.is_empty() {
+                continue;
+            }
+            let mut filters: Vec<_> = row
+                .patterns
+                .iter()
+                .map(|id| format!("@pattern:{id}"))
+                .collect();
+            filters.extend(
+                learning::CHAPTERS
+                    .iter()
+                    .filter(|chapter| {
+                        chapter
+                            .patterns
+                            .iter()
+                            .any(|pattern| row.patterns.contains(&pattern.id))
+                    })
+                    .map(|chapter| format!("@chapter:{}", chapter.id)),
+            );
+            for filter in filters {
+                let (all, hot) = self.route_counts.entry(filter).or_default();
+                all.1 += 1;
+                all.0 += usize::from(row.status == "已通过");
+                if row.hot_rank.is_some() {
+                    hot.1 += 1;
+                    hot.0 += usize::from(row.status == "已通过");
+                }
+            }
+        }
     }
 
     pub fn topics(&self) -> &[String] {
@@ -141,6 +185,16 @@ impl CatalogView {
     }
     pub fn hot_progress(&self) -> (usize, usize) {
         self.hot_progress
+    }
+
+    pub fn learning_progress(&self, filter: &str, book: &str) -> (usize, usize) {
+        self.route_counts
+            .get(filter)
+            .map_or((0, 0), |(all, hot)| match book {
+                "全部题目" => *all,
+                "热题 100" => *hot,
+                _ => (0, 0),
+            })
     }
 
     pub fn progress(&self, id: u32) -> Option<&Progress> {
@@ -228,6 +282,12 @@ impl CatalogView {
                 } else {
                     match category {
                         "全部题目" => true,
+                        "@unclassified" => row.patterns.is_empty(),
+                        route
+                            if route.starts_with("@chapter:") || route.starts_with("@pattern:") =>
+                        {
+                            learning::matches(route, &row.patterns)
+                        }
                         "收藏" => local.is_some_and(|p| p.favorite),
                         "待复习" => local.is_some_and(|p| p.state == "待复习"),
                         "已通过" | "未解答" | "尝试过" => row.status == category,
@@ -273,6 +333,35 @@ impl CatalogView {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn solution_groups_use_curated_membership_and_intersect_existing_filters() {
+        let problems = online::parse_page(online::Site::China, &serde_json::json!({"data":{"problemsetQuestionList":{"total":5,"questions":[
+            {"frontendQuestionId":"200","titleSlug":"number-of-islands","title":"岛屿数量","difficulty":"Medium","status":"ac","topicTags":[{"name":"Graph"}]},
+            {"frontendQuestionId":"994","titleSlug":"rotting-oranges","title":"腐烂的橘子","difficulty":"Medium","status":"ac","topicTags":[{"name":"Graph"}]},
+            {"frontendQuestionId":"207","titleSlug":"course-schedule","title":"课程表","difficulty":"Medium","topicTags":[{"name":"Graph"}]},
+            {"frontendQuestionId":"547","titleSlug":"number-of-provinces","title":"省份数量","difficulty":"Medium","status":"ac","topicTags":[{"name":"Graph"}]},
+            {"frontendQuestionId":"9999","titleSlug":"new-unclassified-graph","title":"未整理图题","difficulty":"Easy","topicTags":[{"name":"Graph"}]}
+        ]}}})).unwrap().problems;
+        let view = CatalogView::new(&problems, HashMap::new());
+        assert_eq!(
+            view.filter("@chapter:graph", "全部", "").as_ref(),
+            &[0, 1, 2, 3]
+        );
+        assert_eq!(
+            view.filter("@pattern:bfs-distance", "全部", "").as_ref(),
+            &[1]
+        );
+        assert_eq!(
+            view.filter_in("@chapter:graph", "中等", "", "热题 100", "未解答")
+                .as_ref(),
+            &[2]
+        );
+        assert_eq!(view.learning_progress("@chapter:graph", "全部题目"), (3, 4));
+        assert_eq!(view.learning_progress("@chapter:graph", "热题 100"), (2, 3));
+        assert_eq!(view.filter("@unclassified", "全部", "").as_ref(), &[4]);
+        assert_eq!(view.filter("@chapter:graph", "全部", "BFS").as_ref(), &[1]);
+        assert!(view.filter("@pattern:missing", "全部", "").is_empty());
+    }
     pub(crate) fn online_fixture() -> Vec<Problem> {
         crate::online::parse_page(crate::online::Site::China, &serde_json::json!({"data":{"problemsetQuestionList":{"total":5,"questions":[
             {"frontendQuestionId":"203","titleSlug":"remove-linked-list-elements","title":"移除链表元素","difficulty":"Easy","topicTags":[{"name":"Linked List"}]},
@@ -304,6 +393,11 @@ mod tests {
         );
         assert_eq!(view.filter("图", "全部", "").as_ref(), &[4]);
         assert_eq!(view.filter("全部题目", "全部", "字符串").as_ref(), &[3]);
+        assert_eq!(view.filter("全部题目", "全部", "String").as_ref(), &[3]);
+        assert_eq!(
+            view.filter("全部题目", "全部", "Linked List").as_ref(),
+            &[0, 1, 2]
+        );
         assert!(view.topics().iter().any(|t| t == "链表"));
         assert!(!view.topics().iter().any(|t| t == "Linked List"));
         assert_eq!(view.hot_progress(), (1, 3));

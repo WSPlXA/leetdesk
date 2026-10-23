@@ -392,11 +392,15 @@ pub fn parse_page(site: Site, body: &Value) -> Result<Page> {
             site,
             &frontend,
             slug,
-            row["titleCn"]
-                .as_str()
-                .filter(|s| !s.is_empty())
-                .or(row["title"].as_str())
-                .unwrap_or(slug),
+            (if site == Site::China {
+                &row["titleCn"]
+            } else {
+                &Value::Null
+            })
+            .as_str()
+            .filter(|s| !s.is_empty())
+            .or(row["title"].as_str())
+            .unwrap_or(slug),
         )?;
         problem.difficulty = difficulty(row["difficulty"].as_str().unwrap_or(""));
         problem.tags = tags(&row["topicTags"]);
@@ -505,18 +509,26 @@ pub fn parse_detail(existing: &Problem, body: &Value) -> Result<Problem> {
         .or(row["sampleTestCase"].as_str())
         .unwrap_or("")
         .into();
-    problem.title = row["translatedTitle"]
-        .as_str()
-        .filter(|s| !s.is_empty())
-        .or(row["title"].as_str())
-        .unwrap_or(&problem.title)
-        .into();
-    problem.description = row["translatedContent"]
-        .as_str()
-        .filter(|s| !s.is_empty())
-        .or(row["content"].as_str())
-        .unwrap_or("")
-        .into();
+    problem.title = (if remote.site == Site::China {
+        &row["translatedTitle"]
+    } else {
+        &Value::Null
+    })
+    .as_str()
+    .filter(|s| !s.is_empty())
+    .or(row["title"].as_str())
+    .unwrap_or(&problem.title)
+    .into();
+    problem.description = (if remote.site == Site::China {
+        &row["translatedContent"]
+    } else {
+        &Value::Null
+    })
+    .as_str()
+    .filter(|s| !s.is_empty())
+    .or(row["content"].as_str())
+    .unwrap_or("")
+    .into();
     if problem.description.is_empty() {
         bail!("题面不可用，可能需要会员权限");
     }
@@ -683,8 +695,10 @@ pub fn script(id: u64, request: &Request) -> Result<String> {
 const id={id};
 try{{
     const body={body};const path={path};
+    if(!/^https:\/\/leetcode\.(cn|com)$/.test(location.origin)||document.readyState==='loading')throw Error('官方页面尚未就绪，请完成加载或验证后重试');
     const question=path.match(/^\/problems\/[^/]+\//);
-    const csrf=(document.cookie.split(';').map(v=>v.trim()).find(v=>v.startsWith('csrftoken='))||'').slice(10);
+    let cookies;try{{cookies=document.cookie}}catch{{throw Error('官方页面尚未就绪，请完成加载或验证后重试')}}
+    const csrf=(cookies.split(';').map(v=>v.trim()).find(v=>v.startsWith('csrftoken='))||'').slice(10);
     const response=await fetch(path,{{method:body===null?'GET':'POST',credentials:'include',referrer:question?location.origin+question[0]:location.href,headers:body===null?{{}}:{{'Content-Type':'application/json','X-CSRFToken':decodeURIComponent(csrf),'X-Requested-With':'XMLHttpRequest'}},body:body===null?undefined:JSON.stringify(body)}});
     const text=await response.text();
     let data;try{{data=JSON.parse(text)}}catch{{data=undefined}}
@@ -745,6 +759,50 @@ pub fn submission_output(value: &Value) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn international_catalog_and_details_use_english_and_correspond_by_problem_id() {
+        use super::*;
+        let body = json!({"data":{"problemsetQuestionList":{"total":1,"questions":[{
+            "frontendQuestionId":"1","title":"Two Sum","titleCn":"两数之和",
+            "titleSlug":"two-sum","difficulty":"Easy","topicTags":[{"name":"Array"}]
+        }]}}});
+        let china = parse_page(Site::China, &body).unwrap().problems.remove(0);
+        let global = parse_page(Site::Global, &body).unwrap().problems.remove(0);
+        assert_eq!(china.id, global.id);
+        assert_eq!(china.slug, global.slug);
+        assert_eq!(china.title, "两数之和");
+        assert_eq!(global.title, "Two Sum");
+        let body = json!({"data":{"question":{
+            "questionId":"1","title":"Two Sum","translatedTitle":"两数之和",
+            "content":"<p>Find two numbers.</p>","translatedContent":"<p>找到两个数。</p>",
+            "codeSnippets":[{"langSlug":"golang","code":"func twoSum(nums []int, target int) []int { return nil }"}],
+            "exampleTestcases":"[2,7]\n9","topicTags":[{"name":"Array"}]
+        }}});
+        let detail = parse_detail(&global, &body).unwrap();
+        assert_eq!(detail.title, "Two Sum");
+        assert_eq!(detail.description, "<p>Find two numbers.</p>");
+        assert_eq!(
+            parse_detail(&china, &body).unwrap().description,
+            "<p>找到两个数。</p>"
+        );
+        assert_eq!(
+            detail.online.as_ref().unwrap().site.origin(),
+            "https://leetcode.com"
+        );
+        let request =
+            run_request(&detail, PracticeLanguage::Go, &detail.starter, "[2,7]\n9").unwrap();
+        assert_eq!(request.path, "/problems/two-sum/interpret_solution/");
+        assert_eq!(request.body.unwrap()["data_input"], "[2,7]\n9");
+        let query = list_request(Site::Global, 0).body.unwrap()["query"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        assert!(query.contains("questionList("));
+        assert!(query.contains("total: totalNum"));
+        assert!(!query.contains("titleCn"));
+        assert!(Site::Global.accepts("https://leetcode.com/accounts/login/"));
+        assert!(!Site::Global.accepts("https://leetcode.cn/"));
+    }
     #[test]
     fn official_hot100_snapshot_is_complete_and_partial_updates_are_rejected() {
         let plan = super::builtin_hot100();

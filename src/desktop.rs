@@ -1,6 +1,6 @@
-use crate::theme;
+use crate::{theme, ui};
 use anyhow::{Result, anyhow};
-use gpui_kit::base::{Disableable, TextView, TextViewState, TextViewStyle};
+use gpui_kit::base::{Disableable, TestSupportExt, TextView, TextViewState, TextViewStyle};
 use gpui_kit::component::{
     Sizable,
     button::{Button, ButtonVariants},
@@ -23,14 +23,16 @@ use leetdesk::{
     catalog::{self, Case, PracticeLanguage, Problem},
     catalog_view::CatalogView,
     language::{self, GoLanguage},
-    note_bundle, runner, snippets,
+    note_bundle,
+    preferences::{EditorPreferences, EditorTheme, InterfaceLanguage},
+    runner, snippets,
     store::{Progress, Store},
     sync,
 };
 use lsp_types::{CompletionContext, CompletionResponse, Hover, LocationLink, Position};
 use serde_json::json;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs,
     path::PathBuf,
     rc::Rc,
@@ -40,6 +42,10 @@ use std::{
     },
     time::Duration,
 };
+
+#[path = "reading.rs"]
+mod reading;
+use reading::WorkspaceMode;
 
 gpui_kit::actions!(
     leetdesk,
@@ -51,17 +57,18 @@ gpui_kit::actions!(
         ImportNotes,
         OrganizeImports,
         ToggleWrap,
+        Settings,
         Quit
     ]
 );
 
-const BG: u32 = 0x000000;
-const PANEL: u32 = 0x0a0a0a;
-const LINE: u32 = 0x68606a;
+const BG: u32 = 0x1b1c23;
+const PANEL: u32 = 0x23242d;
+const LINE: u32 = 0x81808b;
 const MUTED: u32 = 0xc8c4cb;
 const INK: u32 = 0xf4f5f7;
 const ACCENT: u32 = 0xff9da8;
-const CODE_BG: u32 = 0x101010;
+const CODE_BG: u32 = 0x1f2029;
 
 #[cfg(target_os = "macos")]
 const UI_FONT: &str = "PingFang SC";
@@ -76,7 +83,11 @@ pub(crate) fn ui_font() -> &'static str {
     UI_FONT
 }
 
-type DocumentCache = ((u32, usize, u8), Entity<TextViewState>, Option<PathBuf>);
+type DocumentCache = (
+    (u32, usize, u8, String),
+    Entity<TextViewState>,
+    Option<PathBuf>,
+);
 
 #[derive(Clone, Copy, PartialEq)]
 enum DocumentTab {
@@ -103,6 +114,18 @@ struct GoProvider {
 }
 
 struct JavaProvider;
+fn localize_completions(
+    mut items: Vec<lsp_types::CompletionItem>,
+    language: leetdesk::i18n::UiLanguage,
+) -> Vec<lsp_types::CompletionItem> {
+    for item in &mut items {
+        item.label = language.text(&item.label).into_owned();
+        if let Some(detail) = &mut item.detail {
+            *detail = language.text(detail).into_owned();
+        }
+    }
+    items
+}
 impl CompletionProvider for JavaProvider {
     fn completions(
         &self,
@@ -110,11 +133,12 @@ impl CompletionProvider for JavaProvider {
         offset: usize,
         _: CompletionContext,
         _: &mut Window,
-        _: &mut App,
+        cx: &mut App,
     ) -> Task<Result<CompletionResponse>> {
         let source = text.to_string();
-        Task::ready(Ok(CompletionResponse::Array(snippets::java_completions(
-            &source, offset,
+        Task::ready(Ok(CompletionResponse::Array(localize_completions(
+            snippets::java_completions(&source, offset),
+            ui::language(cx),
         ))))
     }
     fn is_completion_trigger(&self, _: usize, text: &str, _: &mut App) -> bool {
@@ -134,12 +158,15 @@ impl CompletionProvider for GoProvider {
         cx: &mut App,
     ) -> Task<Result<CompletionResponse>> {
         let source = text.to_string();
+        let locale = ui::language(cx);
         let local = snippets::completions(&source, offset);
         if let Err(error) = self.service.sync(&source) {
             if local.is_empty() {
                 return Task::ready(Err(error));
             }
-            return Task::ready(Ok(CompletionResponse::Array(local)));
+            return Task::ready(Ok(CompletionResponse::Array(localize_completions(
+                local, locale,
+            ))));
         }
         let mut params = self.service.at(&source, offset);
         // Identifier typing should invoke completion; only '.' is a gopls
@@ -155,7 +182,11 @@ impl CompletionProvider for GoProvider {
         cx.background_executor().spawn(async move {
             let value = match service.request("textDocument/completion", params) {
                 Ok(value) => value,
-                Err(_error) if !local.is_empty() => return Ok(CompletionResponse::Array(local)),
+                Err(_error) if !local.is_empty() => {
+                    return Ok(CompletionResponse::Array(localize_completions(
+                        local, locale,
+                    )));
+                }
                 Err(error) => return Err(error),
             };
             let mut items = vec![];
@@ -165,8 +196,9 @@ impl CompletionProvider for GoProvider {
                     CompletionResponse::List(found) => items.extend(found.items),
                 }
             }
-            Ok(CompletionResponse::Array(snippets::merge_go_completions(
-                &source, local, items,
+            Ok(CompletionResponse::Array(localize_completions(
+                snippets::merge_go_completions(&source, local, items),
+                locale,
             )))
         })
     }
@@ -286,9 +318,25 @@ pub struct Workspace {
     query: String,
     difficulty_filter: String,
     show_categories: bool,
+    learning_navigation: bool,
+    expanded_chapters: HashSet<String>,
+    expanded_patterns: HashSet<String>,
+    workspace_mode: WorkspaceMode,
+    filters_open: bool,
+    plan_menu_open: bool,
+    learning_overview: bool,
+    active_section: usize,
+    pending_section: Option<String>,
+    reader_wide: bool,
     focus_mode: bool,
     online_enabled: bool,
     soft_wrap: bool,
+    editor_font_size: u8,
+    editor_preferences: EditorPreferences,
+    editor_fonts: Vec<String>,
+    settings_preview: Entity<EditorState>,
+    settings_open: bool,
+    settings_focus: gpui_kit::FocusHandle,
     window_handle: AnyWindowHandle,
     progress: Progress,
     output: String,
@@ -313,6 +361,10 @@ pub struct Workspace {
 
 impl Workspace {
     pub fn new(store: Store, window: &mut Window, cx: &mut Context<Self>) -> Result<Self> {
+        let preferences = store.editor_preferences();
+        ui::configure(store.site(), preferences.interface_language, cx);
+        theme::select_editor_theme(preferences.editor_theme, cx);
+        apply_appearance(theme::current(cx), cx);
         let problems = store.load_catalog()?;
         if problems.is_empty() {
             return Err(anyhow!("题库为空"));
@@ -326,6 +378,32 @@ impl Workspace {
             .unwrap_or(0);
         let problem = &problems[current];
         let practice_language = store.language();
+        let installed_fonts = cx.text_system().all_font_names();
+        let editor_fonts = [
+            CODE_FONT,
+            "Cascadia Code",
+            "Cascadia Mono",
+            "Consolas",
+            "Courier New",
+            "JetBrains Mono",
+            "Fira Code",
+            "Menlo",
+            "Monaco",
+            "SF Mono",
+            "DejaVu Sans Mono",
+            "Liberation Mono",
+        ]
+        .into_iter()
+        .filter(|name| installed_fonts.iter().any(|installed| installed == name))
+        .map(str::to_owned)
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect();
+        let settings_preview = cx.new(|cx| {
+            let mut state = EditorState::new(window, cx).language("go").soft_wrap(true).line_number(true);
+            state.set_value("// LeetCode · Preview\nfunc twoSum(nums []int, target int) []int {\n    message := \"Hello, 世界\"\n    return []int{0, 1}\n}", window, cx);
+            state
+        });
         store.prepare(problem)?;
         let last_source = store
             .source_for(problem.id, practice_language)
@@ -333,7 +411,7 @@ impl Workspace {
         let editor = cx.new(|cx| {
             EditorState::new(window, cx)
                 .language(practice_language.highlighter())
-                .soft_wrap(true)
+                .soft_wrap(preferences.soft_wrap)
                 .smart_indent(true)
                 .auto_close(true)
                 .line_number(true)
@@ -371,7 +449,9 @@ impl Workspace {
                 state.set_cursor_position(position, window, cx)
             });
         }
-        let search = cx.new(|cx| InputState::new(window, cx).placeholder("搜索题号、标题、标签"));
+        let search = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(ui::text("搜索题号、标题、标签", cx))
+        });
         let saved_note =
             fs::read_to_string(store.workspace(problem.id).join("notes.md")).unwrap_or_default();
         let note_preview = cx.new(|cx| TextViewState::markdown(&saved_note, cx));
@@ -384,15 +464,16 @@ impl Workspace {
                     tab_size: 4,
                     hard_tabs: false,
                 })
-                .placeholder(
+                .placeholder(ui::text(
                     "# 我的思路\n\n记录做法、复杂度与易错点。支持 Markdown，保存后自动渲染。",
-                )
+                    cx,
+                ))
                 .default_value(saved_note.clone())
         });
         let progress = store.progress(problem.id);
         let tag_editor = cx.new(|cx| {
             InputState::new(window, cx)
-                .placeholder("自定义标签，用逗号分隔")
+                .placeholder(ui::text("自定义标签，用逗号分隔", cx))
                 .default_value(progress.tags.join(", "))
         });
         let reference_editor = cx.new(|cx| {
@@ -475,7 +556,7 @@ impl Workspace {
             tag_editor,
             reference_editor,
             reference_path: None,
-            document_tab: DocumentTab::Description,
+            document_tab: DocumentTab::Explanation,
             bottom_tab: BottomTab::Cases,
             selected_note: 0,
             explanations,
@@ -485,9 +566,27 @@ impl Workspace {
             query: String::new(),
             difficulty_filter: "全部".into(),
             show_categories: true,
+            learning_navigation: true,
+            expanded_chapters: leetdesk::learning::memberships(&problem.slug).first()
+                .and_then(|id| leetdesk::learning::find(&format!("@pattern:{id}")))
+                .map(|(chapter,_)| HashSet::from([chapter.id.clone()])).unwrap_or_default(),
+            expanded_patterns: leetdesk::learning::memberships(&problem.slug).first().cloned().into_iter().collect(),
+            workspace_mode: reading::load_mode(&store.root),
+            filters_open: false,
+            plan_menu_open: false,
+            learning_overview: false,
+            active_section: 0,
+            pending_section: None,
+            reader_wide: true,
             focus_mode: false,
             online_enabled: false,
-            soft_wrap: true,
+            soft_wrap: preferences.soft_wrap,
+            editor_font_size: preferences.font_size,
+            editor_preferences: preferences,
+            editor_fonts,
+            settings_preview,
+            settings_open: false,
+            settings_focus: cx.focus_handle(),
             window_handle: window.window_handle(),
             progress,
             output,
@@ -524,6 +623,235 @@ impl Workspace {
         apply_appearance(appearance, cx);
         self.document_view = None;
         cx.notify();
+    }
+
+    fn settings(&mut self, _: &Settings, window: &mut Window, cx: &mut Context<Self>) {
+        self.settings_open = !self.settings_open;
+        if !self.settings_open {
+            self.editor.update(cx, |state, cx| state.focus(window, cx));
+        } else {
+            self.settings_focus.focus(window, cx);
+        }
+        cx.notify();
+    }
+
+    fn save_editor_preferences(&mut self, cx: &mut Context<Self>) {
+        self.editor_preferences.font_size = self.editor_font_size;
+        self.editor_preferences.soft_wrap = self.soft_wrap;
+        if let Err(error) = self.store.save_editor_preferences(EditorPreferences {
+            font_size: self.editor_font_size,
+            soft_wrap: self.soft_wrap,
+            ..self.editor_preferences.clone()
+        }) {
+            self.notice = format!("设置保存失败：{error}");
+        }
+        cx.notify();
+    }
+
+    fn code_font(&self) -> &str {
+        if self
+            .editor_fonts
+            .contains(&self.editor_preferences.font_family)
+        {
+            &self.editor_preferences.font_family
+        } else {
+            CODE_FONT
+        }
+    }
+
+    fn set_interface_language(
+        &mut self,
+        preference: InterfaceLanguage,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.editor_preferences.interface_language = preference;
+        ui::configure(self.store.site(), preference, cx);
+        self.search.update(cx, |state, cx| {
+            state.set_placeholder(ui::text("搜索题号、标题、标签", cx), window, cx)
+        });
+        self.tag_editor.update(cx, |state, cx| {
+            state.set_placeholder(ui::text("自定义标签，用逗号分隔", cx), window, cx)
+        });
+        self.note_editor.update(cx, |state, cx| {
+            state.set_placeholder(
+                ui::text(
+                    "# 我的思路\n\n记录做法、复杂度与易错点。支持 Markdown，保存后自动渲染。",
+                    cx,
+                ),
+                window,
+                cx,
+            )
+        });
+        self.document_view = None;
+        self.save_editor_preferences(cx);
+    }
+
+    fn language_settings(&self, cx: &mut Context<Self>) -> gpui_kit::AnyElement {
+        div()
+            .mt_4()
+            .child(
+                div()
+                    .text_sm()
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(ui::text("界面语言", cx)),
+            )
+            .child(div().mt_2().flex().gap_1().flex_wrap().children(
+                InterfaceLanguage::ALL.into_iter().map(|preference| {
+                    Button::new(gpui_kit::SharedString::from(format!(
+                        "interface-language-{}",
+                        preference.key()
+                    )))
+                    .label(format!(
+                        "{}{}",
+                        if ui::preference(cx) == preference {
+                            "✓ "
+                        } else {
+                            ""
+                        },
+                        ui::text(preference.label(), cx)
+                    ))
+                    .small()
+                    .ghost()
+                    .on_click(cx.listener(move |this, _, window, cx| {
+                        this.set_interface_language(preference, window, cx)
+                    }))
+                }),
+            ))
+            .child(
+                div()
+                    .mt_1()
+                    .text_xs()
+                    .text_color(theme::color(MUTED, cx))
+                    .child(ui::text("跟随站点时：国际站英文，中国站中文", cx)),
+            )
+            .into_any_element()
+    }
+
+    fn font_settings(&self, cx: &mut Context<Self>) -> gpui_kit::AnyElement {
+        div()
+            .mt_3()
+            .child(div().text_sm().child(ui::text("代码字体", cx)))
+            .child(
+                div()
+                    .mt_2()
+                    .flex()
+                    .gap_1()
+                    .flex_wrap()
+                    .child(
+                        Button::new("editor-font-default")
+                            .label(ui::text(
+                                if self.editor_preferences.font_family.is_empty() {
+                                    "✓ 默认等宽字体"
+                                } else {
+                                    "默认等宽字体"
+                                },
+                                cx,
+                            ))
+                            .small()
+                            .ghost()
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.editor_preferences.font_family.clear();
+                                this.save_editor_preferences(cx);
+                            })),
+                    )
+                    .children(self.editor_fonts.iter().map(|font| {
+                        let font = font.clone();
+                        Button::new(gpui_kit::SharedString::from(format!("editor-font-{font}")))
+                            .label(format!(
+                                "{}{font}",
+                                if self.editor_preferences.font_family == font {
+                                    "✓ "
+                                } else {
+                                    ""
+                                }
+                            ))
+                            .small()
+                            .ghost()
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.editor_preferences.font_family = font.clone();
+                                this.save_editor_preferences(cx);
+                            }))
+                    })),
+            )
+            .when(
+                !self.editor_preferences.font_family.is_empty()
+                    && !self
+                        .editor_fonts
+                        .contains(&self.editor_preferences.font_family),
+                |row| {
+                    row.child(
+                        div()
+                            .mt_1()
+                            .text_xs()
+                            .text_color(theme::color(MUTED, cx))
+                            .child(ui::text("字体不可用，已使用默认等宽字体", cx)),
+                    )
+                },
+            )
+            .into_any_element()
+    }
+
+    fn editor_theme_settings(&self, cx: &mut Context<Self>) -> gpui_kit::AnyElement {
+        div()
+            .mt_4()
+            .child(
+                div()
+                    .text_sm()
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(ui::text("编辑器颜色主题", cx)),
+            )
+            .child(div().mt_2().flex().gap_1().flex_wrap().children(
+                EditorTheme::ALL.into_iter().map(|value| {
+                    Button::new(gpui_kit::SharedString::from(format!(
+                        "editor-theme-{}",
+                        value.key()
+                    )))
+                    .label(format!(
+                        "{}{}",
+                        if self.editor_preferences.editor_theme == value {
+                            "✓ "
+                        } else {
+                            ""
+                        },
+                        ui::text(value.label(), cx)
+                    ))
+                    .small()
+                    .ghost()
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.editor_preferences.editor_theme = value;
+                        theme::select_editor_theme(value, cx);
+                        apply_appearance(theme::current(cx), cx);
+                        this.document_view = None;
+                        this.save_editor_preferences(cx);
+                    }))
+                }),
+            ))
+            .child(
+                div()
+                    .mt_2()
+                    .text_xs()
+                    .text_color(theme::color(MUTED, cx))
+                    .child(ui::text(
+                        "预览 · 配色跟随界面明暗，关键字加粗、注释斜体",
+                        cx,
+                    )),
+            )
+            .child(
+                div()
+                    .mt_2()
+                    .h(px(145.))
+                    .border_1()
+                    .border_color(theme::color(LINE, cx))
+                    .child(
+                        Editor::new(&self.settings_preview)
+                            .readonly(true)
+                            .size_full()
+                            .font_family(self.code_font().to_owned())
+                            .text_size(px(self.editor_font_size as f32)),
+                    ),
+            )
+            .into_any_element()
     }
 
     pub fn connect_language(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -791,7 +1119,7 @@ impl Workspace {
             files: true,
             directories: false,
             multiple: false,
-            prompt: Some("选择 LeetDesk 笔记包（.zip）".into()),
+            prompt: Some(ui::text("选择 LeetDesk 笔记包（.zip）", cx).into()),
         });
         cx.spawn_in(window, async move |this, cx| {
             let selected = prompt.await;
@@ -997,7 +1325,10 @@ impl Workspace {
             .map(|p| (p.slug.as_str(), p))
             .collect();
         for problem in &mut problems {
-            if let Some(existing) = loaded.get(problem.slug.as_str()) {
+            if let Some(existing) = loaded.get(problem.slug.as_str())
+                && existing.online.as_ref().map(|remote| remote.site)
+                    == problem.online.as_ref().map(|remote| remote.site)
+            {
                 let status = problem.online.as_ref().and_then(|m| m.status.clone());
                 *problem = (*existing).clone();
                 problem.online.as_mut().unwrap().status = status;
@@ -1576,9 +1907,9 @@ impl Workspace {
             directories,
             multiple: true,
             prompt: Some(if directories {
-                "选择包含 Markdown 的文件夹".into()
+                ui::text("选择包含 Markdown 的文件夹", cx).into()
             } else {
-                "选择 Markdown 文件".into()
+                ui::text("选择 Markdown 文件", cx).into()
             }),
         });
         cx.spawn_in(window, async move |this, cx| {
@@ -1643,7 +1974,7 @@ impl Workspace {
             files: true,
             directories: false,
             multiple: false,
-            prompt: Some("导入题目 JSON（格式参见 assets/problems.json）".into()),
+            prompt: Some(ui::text("导入题目 JSON（格式参见 assets/problems.json）", cx).into()),
         });
         cx.spawn(async move |this, cx| {
             let result = prompt.await;
@@ -1807,6 +2138,7 @@ impl Workspace {
                 state.set_soft_wrap(self.soft_wrap, window, cx)
             });
         }
+        self.save_editor_preferences(cx);
         cx.notify();
     }
 
@@ -1872,6 +2204,7 @@ impl Workspace {
             .unwrap_or_else(|| problem.id.to_string());
         div()
             .id(("problem", problem.id as usize))
+            .test_support()
             .h(px(78.))
             .px_3()
             .py_2()
@@ -1880,7 +2213,7 @@ impl Workspace {
             .cursor_pointer()
             .overflow_hidden()
             .when(index == self.current, |el| {
-                el.bg(theme::color(0x18352a, cx))
+                el.bg(theme::color(0x322630, cx))
                     .border_l_2()
                     .border_color(theme::color(ACCENT, cx))
             })
@@ -1901,7 +2234,7 @@ impl Workspace {
                                 if status == "已通过" { ACCENT } else { MUTED },
                                 cx,
                             ))
-                            .child(status),
+                            .child(ui::text(status, cx)),
                     ),
             )
             .child(div().text_sm().mt_1().child(problem.title.clone()))
@@ -1910,17 +2243,158 @@ impl Workspace {
                     .text_xs()
                     .text_color(theme::color(MUTED, cx))
                     .mt_1()
-                    .child(format!(
-                        "{}{}",
-                        leetdesk::topics::difficulty(&problem.difficulty),
-                        if remote.is_some_and(|m| m.paid_only) {
-                            " · 会员"
-                        } else {
-                            ""
-                        }
+                    .child(ui::text(
+                        format!(
+                            "{}{}",
+                            leetdesk::topics::difficulty(&problem.difficulty),
+                            if remote.is_some_and(|m| m.paid_only) {
+                                " · 会员"
+                            } else {
+                                ""
+                            }
+                        ),
+                        cx,
                     )),
             )
     }
+    fn select_learning(&mut self, filter: String, cx: &mut Context<Self>) {
+        if let Some((chapter, _)) = leetdesk::learning::find(&filter) {
+            self.expanded_chapters.insert(chapter.id.clone());
+        }
+        self.filter = filter;
+        self.document_tab = DocumentTab::Explanation;
+        self.document_view = None;
+        cx.notify();
+    }
+
+    fn learning_tree(&self, cx: &mut Context<Self>) -> gpui_kit::AnyElement {
+        div()
+            .mt_2()
+            .child(
+                Button::new("learning-all")
+                    .label(ui::text("解法路线总览", cx))
+                    .small()
+                    .ghost()
+                    .w_full()
+                    .justify_start()
+                    .on_click(
+                        cx.listener(|this, _, _, cx| this.select_learning("全部题目".into(), cx)),
+                    ),
+            )
+            .child(
+                div()
+                    .px_2()
+                    .py_2()
+                    .text_xs()
+                    .text_color(theme::color(MUTED, cx))
+                    .child(ui::text("AC / 已载入 · 点击大类查看说明", cx)),
+            )
+            .children(leetdesk::learning::CHAPTERS.iter().map(|chapter| {
+                let filter = format!("@chapter:{}", chapter.id);
+                let (solved, available) = self
+                    .catalog_view
+                    .learning_progress(&filter, &self.study_plan_filter);
+                let expanded = self.expanded_chapters.contains(&chapter.id);
+                let active = leetdesk::learning::find(&self.filter)
+                    .is_some_and(|(selected, _)| selected.id == chapter.id);
+                div()
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_1()
+                            .child(
+                                Button::new(gpui_kit::SharedString::from(format!(
+                                    "chapter-toggle-{}",
+                                    chapter.id
+                                )))
+                                .label(if expanded { "▾" } else { "▸" })
+                                .small()
+                                .ghost()
+                                .accessibility_label(chapter.title.get(ui::language(cx)).to_owned())
+                                .on_click(cx.listener(
+                                    move |this, _, _, cx| {
+                                        if !this.expanded_chapters.remove(&chapter.id) {
+                                            this.expanded_chapters.insert(chapter.id.clone());
+                                        }
+                                        cx.notify();
+                                    },
+                                )),
+                            )
+                            .child(
+                                Button::new(gpui_kit::SharedString::from(format!(
+                                    "chapter-{}",
+                                    chapter.id
+                                )))
+                                .label(format!(
+                                    "{}  {solved}/{available}",
+                                    chapter.title.get(ui::language(cx))
+                                ))
+                                .tooltip(chapter.overview.get(ui::language(cx)).to_owned())
+                                .small()
+                                .ghost()
+                                .flex_1()
+                                .min_w_0()
+                                .justify_start()
+                                .text_color(theme::color(if active { ACCENT } else { INK }, cx))
+                                .on_click(cx.listener(
+                                    move |this, _, _, cx| {
+                                        this.select_learning(format!("@chapter:{}", chapter.id), cx)
+                                    },
+                                )),
+                            ),
+                    )
+                    .when(expanded, |row| {
+                        row.children(chapter.patterns.iter().map(|pattern| {
+                            let filter = format!("@pattern:{}", pattern.id);
+                            let (solved, available) = self
+                                .catalog_view
+                                .learning_progress(&filter, &self.study_plan_filter);
+                            div().pl_4().child(
+                                Button::new(gpui_kit::SharedString::from(format!(
+                                    "pattern-{}",
+                                    pattern.id
+                                )))
+                                .label(format!(
+                                    "{}  {solved}/{available}",
+                                    pattern.title.get(ui::language(cx))
+                                ))
+                                .tooltip(pattern.summary.get(ui::language(cx)).to_owned())
+                                .small()
+                                .ghost()
+                                .w_full()
+                                .justify_start()
+                                .text_color(theme::color(
+                                    if self.filter == filter { ACCENT } else { MUTED },
+                                    cx,
+                                ))
+                                .when(self.filter == filter, |button| {
+                                    button.bg(theme::color(0x322630, cx))
+                                })
+                                .on_click(cx.listener(
+                                    move |this, _, _, cx| this.select_learning(filter.clone(), cx),
+                                )),
+                            )
+                        }))
+                    })
+            }))
+            .child(
+                Button::new("learning-unclassified")
+                    .label(ui::text("未归类题目", cx))
+                    .small()
+                    .ghost()
+                    .w_full()
+                    .justify_start()
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.filter = "@unclassified".into();
+                        this.document_tab = DocumentTab::Description;
+                        this.document_view = None;
+                        cx.notify();
+                    })),
+            )
+            .into_any_element()
+    }
+
     fn navigation(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let (solved, available) = self.catalog_view.hot_progress();
         let topics = self.catalog_view.topics().to_vec();
@@ -1935,36 +2409,58 @@ impl Workspace {
             .child(
                 div()
                     .px_2()
-                    .py_3()
+                    .py_2()
                     .text_xs()
                     .text_color(theme::color(MUTED, cx))
-                    .child("分类与练习"),
+                    .child(ui::text("学习与练习", cx)),
+            )
+            .child(
+                div().flex().gap_1().children(
+                    [(true, "按解法"), (false, "按主题")]
+                        .into_iter()
+                        .map(|(learning, label)| {
+                            Button::new(if learning {
+                                "navigation-methods"
+                            } else {
+                                "navigation-topics"
+                            })
+                            .label(ui::text(label, cx))
+                            .small()
+                            .ghost()
+                            .text_color(theme::color(
+                                if self.learning_navigation == learning {
+                                    ACCENT
+                                } else {
+                                    MUTED
+                                },
+                                cx,
+                            ))
+                            .on_click(cx.listener(
+                                move |this, _, _, cx| {
+                                    this.learning_navigation = learning;
+                                    this.filter = "全部题目".into();
+                                    this.document_view = None;
+                                    cx.notify();
+                                },
+                            ))
+                        }),
+                ),
             )
             .child(
                 div()
                     .id("category-scroll")
+                    .test_support()
                     .flex_1()
                     .min_h_0()
                     .overflow_y_scroll()
-                    .child(
-                        div()
-                            .px_3()
-                            .py_2()
-                            .text_xs()
-                            .text_color(theme::color(MUTED, cx))
-                            .child("题单"),
-                    )
                     .children(["全部题目", "热题 100"].into_iter().enumerate().map(
                         |(index, label)| {
                             Button::new(("study-plan", index))
-                                .label(label)
+                                .label(ui::text(label, cx))
                                 .small()
                                 .ghost()
                                 .w_full()
                                 .justify_start()
-                                .rounded_md()
-                                .cursor_pointer()
-                                .text_sm()
                                 .text_color(theme::color(
                                     if self.study_plan_filter == label {
                                         ACCENT
@@ -1973,8 +2469,8 @@ impl Workspace {
                                     },
                                     cx,
                                 ))
-                                .when(self.study_plan_filter == label, |el| {
-                                    el.bg(theme::color(0x18352a, cx))
+                                .when(self.study_plan_filter == label, |button| {
+                                    button.bg(theme::color(0x322630, cx))
                                 })
                                 .on_click(cx.listener(move |this, _, _, cx| {
                                     this.study_plan_filter = label.into();
@@ -1985,43 +2481,48 @@ impl Workspace {
                     .child(
                         div()
                             .px_3()
-                            .pb_2()
+                            .py_2()
                             .text_xs()
                             .text_color(theme::color(MUTED, cx))
-                            .child(format!("热题：{solved}/{available} 已通过")),
+                            .child(ui::text(format!("热题：{solved}/{available} 已通过"), cx)),
                     )
-                    .when(available < 100, |el| {
-                        el.child(
+                    .when(available < 100, |row| {
+                        row.child(
                             div()
                                 .px_3()
                                 .text_xs()
                                 .text_color(theme::color(MUTED, cx))
-                                .child("完整题单需同步在线题库"),
+                                .child(ui::text("完整题单需同步在线题库", cx)),
                         )
                     })
-                    .child(
-                        div()
-                            .px_3()
-                            .pt_4()
-                            .pb_2()
-                            .text_xs()
-                            .text_color(theme::color(MUTED, cx))
-                            .child("主题"),
-                    )
-                    .child(self.topic_row("全部题目", false, cx))
-                    .children(topics.iter().map(|topic| self.topic_row(topic, false, cx)))
-                    .when(!custom.is_empty(), |el| {
-                        el.child(
+                    .when(self.learning_navigation, |row| {
+                        row.child(self.learning_tree(cx))
+                    })
+                    .when(!self.learning_navigation, |row| {
+                        row.child(
                             div()
                                 .px_3()
                                 .pt_4()
                                 .pb_2()
                                 .text_xs()
                                 .text_color(theme::color(MUTED, cx))
-                                .child("我的标签"),
+                                .child(ui::text("主题", cx)),
                         )
-                    })
-                    .children(custom.iter().map(|tag| self.topic_row(tag, true, cx))),
+                        .child(self.topic_row("全部题目", false, cx))
+                        .children(topics.iter().map(|topic| self.topic_row(topic, false, cx)))
+                        .when(!custom.is_empty(), |row| {
+                            row.child(
+                                div()
+                                    .px_3()
+                                    .pt_4()
+                                    .pb_2()
+                                    .text_xs()
+                                    .text_color(theme::color(MUTED, cx))
+                                    .child(ui::text("我的标签", cx)),
+                            )
+                        })
+                        .children(custom.iter().map(|tag| self.topic_row(tag, true, cx)))
+                    }),
             )
     }
 
@@ -2042,7 +2543,7 @@ impl Workspace {
             "{}-{label}",
             if custom { "custom-tag" } else { "topic" }
         )))
-        .label(text)
+        .label(if custom { text } else { ui::text(text, cx) })
         .small()
         .ghost()
         .w_full()
@@ -2051,7 +2552,7 @@ impl Workspace {
         .text_sm()
         .cursor_pointer()
         .text_color(theme::color(if selected { ACCENT } else { MUTED }, cx))
-        .when(selected, |el| el.bg(theme::color(0x18352a, cx)))
+        .when(selected, |el| el.bg(theme::color(0x322630, cx)))
         .on_click(cx.listener(move |this, _, _, cx| {
             this.filter = value.clone();
             cx.notify();
@@ -2062,6 +2563,20 @@ impl Workspace {
         let indices = self.filtered_indices();
         let count = indices.len();
         let active_visible = indices.contains(&self.current);
+        let category = leetdesk::learning::title(&self.filter, ui::language(cx))
+            .map(str::to_owned)
+            .unwrap_or_else(|| {
+                ui::text(
+                    if self.filter == "全部题目" {
+                        "全部主题"
+                    } else if self.filter == "@unclassified" {
+                        "未归类题目"
+                    } else {
+                        self.filter.strip_prefix("@custom:").unwrap_or(&self.filter)
+                    },
+                    cx,
+                )
+            });
         div()
             .size_full()
             .flex()
@@ -2081,7 +2596,10 @@ impl Workspace {
                                 .enumerate()
                                 .map(|(index, label)| {
                                     Button::new(("status-filter", index))
-                                        .label(if index == 0 { "全部状态" } else { label })
+                                        .label(ui::text(
+                                            if index == 0 { "全部状态" } else { label },
+                                            cx,
+                                        ))
                                         .small()
                                         .ghost()
                                         .when(self.status_filter == label, |button| {
@@ -2101,7 +2619,7 @@ impl Workspace {
                                 .enumerate()
                                 .map(|(index, label)| {
                                     Button::new(("difficulty", index))
-                                        .label(label)
+                                        .label(ui::text(label, cx))
                                         .small()
                                         .ghost()
                                         .when(self.difficulty_filter == label, |b| {
@@ -2120,22 +2638,21 @@ impl Workspace {
                             .justify_between()
                             .text_xs()
                             .text_color(theme::color(MUTED, cx))
-                            .child(format!(
-                                "{}{} · {count} 道",
-                                if self.study_plan_filter == "热题 100" {
-                                    "热题 100 · "
-                                } else {
-                                    ""
-                                },
-                                if self.filter == "全部题目" {
-                                    "全部主题"
-                                } else {
-                                    self.filter.strip_prefix("@custom:").unwrap_or(&self.filter)
-                                }
+                            .child(ui::text(
+                                format!(
+                                    "{}{} · {count} 道",
+                                    if self.study_plan_filter == "热题 100" {
+                                        "热题 100 · "
+                                    } else {
+                                        ""
+                                    },
+                                    category
+                                ),
+                                cx,
                             ))
                             .child(
                                 Button::new("clear-filters")
-                                    .label("重置")
+                                    .label(ui::text("重置", cx))
                                     .small()
                                     .ghost()
                                     .on_click(cx.listener(|this, _, window, cx| {
@@ -2156,7 +2673,7 @@ impl Workspace {
                             div()
                                 .text_xs()
                                 .text_color(theme::color(0xd5ae74, cx))
-                                .child("当前编辑题目不在筛选结果内"),
+                                .child(ui::text("当前编辑题目不在筛选结果内", cx)),
                         )
                     }),
             )
@@ -2187,14 +2704,14 @@ impl Workspace {
                                 .p_4()
                                 .text_sm()
                                 .text_color(theme::color(MUTED, cx))
-                                .child("没有匹配题目"),
+                                .child(ui::text("没有匹配题目", cx)),
                         )
                     }),
             )
             .when(self.problem().online.is_none(), |el| {
                 el.child(
                     Button::new("import-catalog")
-                        .label("导入题目 JSON")
+                        .label(ui::text("导入题目 JSON", cx))
                         .small()
                         .ghost()
                         .on_click(cx.listener(Self::import_catalog)),
@@ -2215,7 +2732,7 @@ impl Workspace {
                     .py_1()
                     .text_xs()
                     .text_color(theme::color(MUTED, cx))
-                    .child("Markdown 源码"),
+                    .child(ui::text("Markdown 源码", cx)),
             )
             .child(
                 Editor::new(&self.note_editor)
@@ -2223,7 +2740,7 @@ impl Workspace {
                     .flex_1()
                     .min_h_0()
                     .min_w_0()
-                    .font_family(CODE_FONT)
+                    .font_family(self.code_font().to_owned())
                     .text_size(px(14.)),
             )
             .into_any_element();
@@ -2241,7 +2758,7 @@ impl Workspace {
                     .py_1()
                     .text_xs()
                     .text_color(theme::color(MUTED, cx))
-                    .child("保存后的预览"),
+                    .child(ui::text("保存后的预览", cx)),
             )
             .child(
                 div()
@@ -2255,7 +2772,7 @@ impl Workspace {
                             div()
                                 .text_sm()
                                 .text_color(theme::color(MUTED, cx))
-                                .child("写下思路并保存，Markdown 将在这里渲染。"),
+                                .child(ui::text("写下思路并保存，Markdown 将在这里渲染。", cx)),
                         )
                     })
                     .when(!self.saved_note.is_empty(), |el| {
@@ -2318,13 +2835,16 @@ impl Workspace {
                             .justify_between()
                             .items_center()
                             .child(div().text_xs().text_color(theme::color(MUTED, cx)).child(
-                                format!(
-                                    "notes.md · {}",
-                                    if self.note_dirty {
-                                        "未保存"
-                                    } else {
-                                        "已保存"
-                                    }
+                                ui::text(
+                                    format!(
+                                        "notes.md · {}",
+                                        if self.note_dirty {
+                                            "未保存"
+                                        } else {
+                                            "已保存"
+                                        }
+                                    ),
+                                    cx,
                                 ),
                             ))
                             .child(
@@ -2336,35 +2856,35 @@ impl Workspace {
                                         Button::new("import-note-bundle")
                                             .small()
                                             .ghost()
-                                            .label("导入笔记包")
+                                            .label(ui::text("导入笔记包", cx))
                                             .on_click(cx.listener(Self::import_note_bundle)),
                                     )
                                     .child(
                                         Button::new("export-note-bundle")
                                             .small()
                                             .ghost()
-                                            .label("导出全部笔记")
+                                            .label(ui::text("导出全部笔记", cx))
                                             .on_click(cx.listener(Self::export_note_bundle)),
                                     )
                                     .child(
                                         Button::new("backup-upload")
                                             .small()
                                             .ghost()
-                                            .label("上传备份")
+                                            .label(ui::text("上传备份", cx))
                                             .on_click(cx.listener(Self::upload_backup)),
                                     )
                                     .child(
                                         Button::new("backup-download")
                                             .small()
                                             .ghost()
-                                            .label("取回备份")
+                                            .label(ui::text("取回备份", cx))
                                             .on_click(cx.listener(Self::download_backup)),
                                     )
                                     .child(
                                         Button::new("open-notes-file")
                                             .small()
                                             .ghost()
-                                            .label("打开 MD")
+                                            .label(ui::text("打开 MD", cx))
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 let path = this
                                                     .store
@@ -2396,7 +2916,7 @@ impl Workspace {
                                     .map(
                                         |(mode, label, id)| {
                                             Button::new(id)
-                                                .label(label)
+                                                .label(ui::text(label, cx))
                                                 .small()
                                                 .ghost()
                                                 .when(self.notes_view == mode, |button| {
@@ -2421,7 +2941,7 @@ impl Workspace {
                                     Button::new("save-notes")
                                         .small()
                                         .primary()
-                                        .label("保存笔记")
+                                        .label(ui::text("保存笔记", cx))
                                         .on_click(cx.listener(Self::save_notes_click)),
                                 ),
                         ),
@@ -2433,7 +2953,7 @@ impl Workspace {
     fn document(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let tabs = [
             (DocumentTab::Description, "题目描述"),
-            (DocumentTab::Explanation, "做法讲解"),
+            (DocumentTab::Explanation, "学习讲解"),
             (DocumentTab::Notes, "我的笔记"),
         ];
         let mut content = div()
@@ -2449,6 +2969,11 @@ impl Workspace {
                 self.problem().id,
                 self.selected_note,
                 self.document_tab as u8,
+                if self.document_tab == DocumentTab::Explanation {
+                    self.filter.clone()
+                } else {
+                    String::new()
+                },
             );
             if self
                 .document_view
@@ -2477,21 +3002,29 @@ impl Workspace {
                 let markdown = if self.document_tab == DocumentTab::Description {
                     problem.description.clone()
                 } else {
-                    self.explanations
-                        .get(self.selected_note)
-                        .map(|(_, body)| catalog::markdown_body(body).to_string())
-                        .filter(|body| !body.trim().is_empty())
-                        .unwrap_or_else(|| {
-                            "还没有做法讲解。点击顶部“导入 MD 文件”选择 .md，或选择“导入文件夹”。"
-                                .into()
-                        })
+                    leetdesk::learning::lesson(
+                        &self.filter,
+                        problem,
+                        ui::language(cx),
+                        self.store.site(),
+                        &self.problems,
+                        self.explanations
+                            .get(self.selected_note)
+                            .map(|(name, body)| {
+                                (ui::text(name.clone(), cx), catalog::markdown_body(body))
+                            })
+                            .as_ref()
+                            .map(|(name, body)| (name.as_str(), *body)),
+                    )
                 };
                 let state =
                     if self.document_tab == DocumentTab::Description && problem.online.is_some() {
                         cx.new(|cx| {
+                            let placeholder =
+                                ui::text("<p>正在从 LeetCode 加载题面和 Go 模板…</p>", cx);
                             TextViewState::html(
                                 if markdown.is_empty() {
-                                    "<p>正在从 LeetCode 加载题面和 Go 模板…</p>"
+                                    &placeholder
                                 } else {
                                     &markdown
                                 },
@@ -2547,7 +3080,7 @@ impl Workspace {
                     .border_color(theme::color(LINE, cx))
                     .children(tabs.into_iter().enumerate().map(|(index, (tab, label))| {
                         Button::new(("document-tab", index))
-                            .label(label)
+                            .label(ui::text(label, cx))
                             .small()
                             .ghost()
                             .when(self.document_tab == tab, |button| {
@@ -2559,28 +3092,36 @@ impl Workspace {
                             }))
                     })),
             )
-            .when(self.document_tab == DocumentTab::Explanation, |el| {
-                el.child(
-                    div().px_3().py_2().flex().flex_wrap().gap_1().children(
-                        self.explanations
-                            .iter()
-                            .enumerate()
-                            .map(|(index, (name, _))| {
-                                Button::new(("explanation", index))
-                                    .label(name.clone())
-                                    .small()
-                                    .ghost()
-                                    .when(index == self.selected_note, |button| {
-                                        button.text_color(theme::color(ACCENT, cx))
-                                    })
-                                    .on_click(cx.listener(move |this, _, _, cx| {
-                                        this.selected_note = index;
-                                        cx.notify();
-                                    }))
-                            }),
-                    ),
-                )
-            })
+            .when(
+                self.document_tab == DocumentTab::Explanation
+                    && self
+                        .explanations
+                        .iter()
+                        .any(|(_, body)| !body.trim().is_empty()),
+                |el| {
+                    el.child(
+                        div().px_3().py_2().flex().flex_wrap().gap_1().children(
+                            self.explanations
+                                .iter()
+                                .enumerate()
+                                .filter(|(_, (_, body))| !body.trim().is_empty())
+                                .map(|(index, (name, _))| {
+                                    Button::new(("explanation", index))
+                                        .label(ui::text(name.clone(), cx))
+                                        .small()
+                                        .ghost()
+                                        .when(index == self.selected_note, |button| {
+                                            button.text_color(theme::color(ACCENT, cx))
+                                        })
+                                        .on_click(cx.listener(move |this, _, _, cx| {
+                                            this.selected_note = index;
+                                            cx.notify();
+                                        }))
+                                }),
+                        ),
+                    )
+                },
+            )
             .child(content)
             .child(
                 div()
@@ -2592,16 +3133,239 @@ impl Workspace {
             )
     }
 
-    fn editor_panel(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn settings_panel(&self, cx: &mut Context<Self>) -> gpui_kit::AnyElement {
+        div()
+            .id("settings-panel")
+            .track_focus(&self.settings_focus)
+            .size_full()
+            .flex()
+            .flex_col()
+            .bg(theme::color(BG, cx))
+            .child(
+                div()
+                    .h_9()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .px_3()
+                    .bg(theme::color(PANEL, cx))
+                    .border_b_1()
+                    .border_color(theme::color(LINE, cx))
+                    .child(
+                        Button::new("solution-tab")
+                            .label(self.practice_language.filename())
+                            .small()
+                            .ghost()
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.settings_open = false;
+                                this.editor.update(cx, |state, cx| state.focus(window, cx));
+                                cx.notify();
+                            })),
+                    )
+                    .child(div().flex_1().text_sm().child(ui::text("设置", cx)))
+                    .child(
+                        Button::new("close-settings")
+                            .icon(gpui_kit::assets::IconName::X)
+                            .accessibility_label(ui::text("关闭", cx))
+                            .small()
+                            .ghost()
+                            .tooltip(ui::text("关闭", cx))
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.settings_open = false;
+                                this.editor.update(cx, |state, cx| state.focus(window, cx));
+                                cx.notify();
+                            })),
+                    ),
+            )
+            .child(
+                div()
+                    .id("settings-scroll")
+                    .test_support()
+                    .flex_1()
+                    .min_h_0()
+                    .overflow_y_scroll()
+                    .p_5()
+                    .child(
+                        div()
+                            .text_xl()
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(ui::text("设置", cx)),
+                    )
+                    .child(self.language_settings(cx))
+                    .child(
+                        div()
+                            .mt_5()
+                            .text_sm()
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(ui::text("外观", cx)),
+                    )
+                    .child(div().mt_2().flex().gap_2().flex_wrap().children(
+                        Appearance::ALL.into_iter().map(|appearance| {
+                            Button::new(gpui_kit::SharedString::from(format!(
+                                "appearance-{}",
+                                appearance.key()
+                            )))
+                            .label(format!(
+                                "{}{}",
+                                if theme::current(cx) == appearance {
+                                    "✓ "
+                                } else {
+                                    ""
+                                },
+                                ui::text(appearance.label(), cx)
+                            ))
+                            .small()
+                            .ghost()
+                            .border_1()
+                            .border_color(theme::color(
+                                if theme::current(cx) == appearance {
+                                    ACCENT
+                                } else {
+                                    LINE
+                                },
+                                cx,
+                            ))
+                            .on_click(cx.listener(
+                                move |this, _, _, cx| this.set_appearance(appearance, cx),
+                            ))
+                        }),
+                    ))
+                    .child(
+                        div()
+                            .mt_5()
+                            .text_sm()
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(ui::text("编辑器", cx)),
+                    )
+                    .child(self.font_settings(cx))
+                    .child(
+                        div()
+                            .mt_3()
+                            .flex()
+                            .items_center()
+                            .gap_3()
+                            .child(div().flex_1().text_sm().child(ui::text("代码字号", cx)))
+                            .child(
+                                Button::new("font-smaller")
+                                    .label("−")
+                                    .small()
+                                    .ghost()
+                                    .tooltip(ui::text("减小字号", cx))
+                                    .disabled(self.editor_font_size <= 12)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.editor_font_size =
+                                            this.editor_font_size.saturating_sub(1).max(12);
+                                        this.save_editor_preferences(cx);
+                                    })),
+                            )
+                            .child(div().text_sm().child(self.editor_font_size.to_string()))
+                            .child(
+                                Button::new("font-larger")
+                                    .label("+")
+                                    .small()
+                                    .ghost()
+                                    .tooltip(ui::text("增大字号", cx))
+                                    .disabled(self.editor_font_size >= 24)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.editor_font_size = (this.editor_font_size + 1).min(24);
+                                        this.save_editor_preferences(cx);
+                                    })),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .mt_3()
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .child(div().text_sm().child(ui::text("自动折行", cx)))
+                            .child(
+                                Button::new("settings-wrap")
+                                    .label(ui::text(
+                                        if self.soft_wrap {
+                                            "开启"
+                                        } else {
+                                            "关闭折行"
+                                        },
+                                        cx,
+                                    ))
+                                    .small()
+                                    .ghost()
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.toggle_wrap(&ToggleWrap, window, cx)
+                                    })),
+                            ),
+                    )
+                    .child(self.editor_theme_settings(cx))
+                    .child(
+                        div()
+                            .mt_5()
+                            .text_sm()
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(ui::text("工具与导入", cx)),
+                    )
+                    .child(
+                        div()
+                            .mt_2()
+                            .flex()
+                            .gap_2()
+                            .flex_wrap()
+                            .child(
+                                Button::new("import-md")
+                                    .label(ui::text("导入 MD 文件", cx))
+                                    .small()
+                                    .ghost()
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.import_notes(&ImportNotes, window, cx)
+                                    })),
+                            )
+                            .child(
+                                Button::new("import-md-folder")
+                                    .label(ui::text("导入文件夹", cx))
+                                    .small()
+                                    .ghost()
+                                    .on_click(cx.listener(|this, _, window, cx| {
+                                        this.import_notes_from(true, window, cx)
+                                    })),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .mt_5()
+                            .text_sm()
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(ui::text("快捷键", cx)),
+                    )
+                    .child(
+                        div()
+                            .mt_2()
+                            .text_xs()
+                            .text_color(theme::color(MUTED, cx))
+                            .child(ui::text(
+                                if cfg!(target_os = "macos") {
+                                    "⌘, 设置 · ⌘S 保存 · ⌘↵ 运行"
+                                } else {
+                                    "Ctrl+, 设置 · Ctrl+S 保存 · Ctrl+Enter 运行"
+                                },
+                                cx,
+                            )),
+                    ),
+            )
+            .into_any_element()
+    }
+
+    fn editor_panel(&self, cx: &mut Context<Self>) -> gpui_kit::AnyElement {
+        if self.settings_open {
+            return self.settings_panel(cx);
+        }
         if let Some(path) = &self.reference_path {
             return div()
                 .size_full()
-                .min_w_0()
                 .flex()
                 .flex_col()
                 .child(
                     div()
-                        .h(px(36.))
+                        .h_9()
                         .px_3()
                         .flex()
                         .items_center()
@@ -2610,8 +3374,9 @@ impl Workspace {
                         .child(div().text_xs().child(path.clone()))
                         .child(
                             Button::new("close-definition")
-                                .label("返回解法")
+                                .label(ui::text("返回解法", cx))
                                 .small()
+                                .ghost()
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.reference_path = None;
                                     cx.notify();
@@ -2622,11 +3387,10 @@ impl Workspace {
                     Editor::new(&self.reference_editor)
                         .readonly(true)
                         .size_full()
-                        .min_w_0()
                         .flex_1()
                         .min_h_0()
-                        .font_family(CODE_FONT)
-                        .text_size(px(15.)),
+                        .font_family(self.code_font().to_owned())
+                        .text_size(px(self.editor_font_size as f32)),
                 )
                 .into_any_element();
         }
@@ -2637,112 +3401,121 @@ impl Workspace {
             .flex_col()
             .child(
                 div()
-                    .min_h(px(36.))
-                    .px_3()
-                    .py_1()
+                    .h_9()
+                    .px_2()
                     .flex()
-                    .flex_col()
+                    .items_center()
                     .gap_1()
-                    .items_start()
                     .bg(theme::color(PANEL, cx))
                     .border_b_1()
                     .border_color(theme::color(LINE, cx))
                     .child(
                         div()
+                            .h_full()
+                            .px_3()
                             .flex()
-                            .gap_3()
+                            .gap_2()
                             .items_center()
+                            .bg(theme::color(BG, cx))
+                            .border_t_2()
+                            .border_color(theme::color(ACCENT, cx))
                             .child(
-                                Button::new("language-go")
-                                    .label("Go")
-                                    .small()
-                                    .ghost()
-                                    .when(
-                                        self.practice_language == PracticeLanguage::Go,
-                                        |button| button.text_color(theme::color(ACCENT, cx)),
-                                    )
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.switch_language(PracticeLanguage::Go, window, cx)
-                                    })),
+                                gpui_kit::component::Icon::new(
+                                    gpui_kit::assets::IconName::FileCode,
+                                )
+                                .small(),
                             )
-                            .child(
-                                Button::new("language-java")
-                                    .label("Java")
-                                    .small()
-                                    .ghost()
-                                    .when(
-                                        self.practice_language == PracticeLanguage::Java,
-                                        |button| button.text_color(theme::color(ACCENT, cx)),
-                                    )
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.switch_language(PracticeLanguage::Java, window, cx)
-                                    })),
-                            )
-                            .child(
-                                Button::new("toggle-wrap")
-                                    .label("折行")
-                                    .small()
-                                    .ghost()
-                                    .when(self.soft_wrap, |button| {
-                                        button.text_color(theme::color(ACCENT, cx))
-                                    })
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.toggle_wrap(&ToggleWrap, window, cx)
-                                    })),
-                            )
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .text_color(theme::color(ACCENT, cx))
-                                    .child(self.practice_language.filename()),
-                            )
-                            .child(
-                                div()
-                                    .text_xs()
-                                    .text_color(theme::color(MUTED, cx))
-                                    .child(if self.dirty { "未保存" } else { "已保存" }),
+                            .child(div().text_sm().child(self.practice_language.filename()))
+                            .when(self.dirty, |tab| {
+                                tab.child(
+                                    div()
+                                        .text_xs()
+                                        .text_color(theme::color(ACCENT, cx))
+                                        .child("●"),
+                                )
+                            }),
+                    )
+                    .child(div().flex_1())
+                    .children(
+                        [PracticeLanguage::Go, PracticeLanguage::Java]
+                            .into_iter()
+                            .map(|language| {
+                                Button::new(if language == PracticeLanguage::Go {
+                                    "language-go"
+                                } else {
+                                    "language-java"
+                                })
+                                .label(language.label())
+                                .small()
+                                .ghost()
+                                .when(self.practice_language == language, |button| {
+                                    button.text_color(theme::color(ACCENT, cx))
+                                })
+                                .on_click(cx.listener(
+                                    move |this, _, window, cx| {
+                                        this.switch_language(language, window, cx)
+                                    },
+                                ))
+                            }),
+                    )
+                    .child(
+                        Button::new("toggle-wrap")
+                            .label(ui::text("折行", cx))
+                            .small()
+                            .ghost()
+                            .tooltip(ui::text("折行", cx))
+                            .when(self.soft_wrap, |button| {
+                                button.text_color(theme::color(ACCENT, cx))
+                            })
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.toggle_wrap(&ToggleWrap, window, cx)
+                            })),
+                    ),
+            )
+            .child(
+                div()
+                    .min_h(px(30.))
+                    .px_2()
+                    .flex()
+                    .items_center()
+                    .gap_1()
+                    .flex_wrap()
+                    .bg(theme::color(BG, cx))
+                    .border_b_1()
+                    .border_color(theme::color(LINE, cx))
+                    .child(
+                        Button::new("initialize-code")
+                            .label(ui::text("恢复初始模板", cx))
+                            .small()
+                            .ghost()
+                            .on_click(cx.listener(Self::initialize_code)),
+                    )
+                    .when(self.practice_language == PracticeLanguage::Go, |row| {
+                        row.child(
+                            Button::new("organize-imports")
+                                .label(ui::text("整理导入", cx))
+                                .small()
+                                .ghost()
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    this.organize_imports(&OrganizeImports, window, cx)
+                                })),
+                        )
+                    })
+                    .child(
+                        Button::new("format")
+                            .label(ui::text("格式化", cx))
+                            .small()
+                            .ghost()
+                            .on_click(
+                                cx.listener(|this, _, window, cx| this.format(&Format, window, cx)),
                             ),
                     )
                     .child(
-                        div()
-                            .flex()
-                            .flex_wrap()
-                            .gap_1()
-                            .items_center()
-                            .child(
-                                Button::new("initialize-code")
-                                    .label("恢复初始模板")
-                                    .small()
-                                    .primary()
-                                    .on_click(cx.listener(Self::initialize_code)),
-                            )
-                            .when(self.practice_language == PracticeLanguage::Go, |row| {
-                                row.child(
-                                    Button::new("organize-imports")
-                                        .label("整理导入")
-                                        .small()
-                                        .ghost()
-                                        .on_click(cx.listener(|this, _, window, cx| {
-                                            this.organize_imports(&OrganizeImports, window, cx)
-                                        })),
-                                )
-                            })
-                            .child(
-                                Button::new("format")
-                                    .label("格式化")
-                                    .small()
-                                    .ghost()
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.format(&Format, window, cx)
-                                    })),
-                            )
-                            .child(
-                                Button::new("copy-code")
-                                    .label("复制解法")
-                                    .small()
-                                    .ghost()
-                                    .on_click(cx.listener(Self::copy_submission)),
-                            ),
+                        Button::new("copy-code")
+                            .label(ui::text("复制解法", cx))
+                            .small()
+                            .ghost()
+                            .on_click(cx.listener(Self::copy_submission)),
                     ),
             )
             .child(
@@ -2757,8 +3530,8 @@ impl Workspace {
                     .min_w_0()
                     .flex_1()
                     .min_h_0()
-                    .font_family(CODE_FONT)
-                    .text_size(px(16.)),
+                    .font_family(self.code_font().to_owned())
+                    .text_size(px(self.editor_font_size as f32)),
             )
             .into_any_element()
     }
@@ -2788,18 +3561,24 @@ impl Workspace {
                                 .text_xs()
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(theme::color(ACCENT, cx))
-                                .child(if self.problem().online.is_some() {
-                                    "在线测试输入"
-                                } else {
-                                    "本地测试数据"
-                                }),
+                                .child(ui::text(
+                                    if self.problem().online.is_some() {
+                                        "在线测试输入"
+                                    } else {
+                                        "本地测试数据"
+                                    },
+                                    cx,
+                                )),
                         )
                         .child(div().text_xs().text_color(theme::color(MUTED, cx)).child(
-                            if self.problem().online.is_some() {
-                                "每个参数占一行 · 修改后点击上方测试"
-                            } else {
-                                "按参数顺序填写 JSON · 链表和树使用数组"
-                            },
+                            ui::text(
+                                if self.problem().online.is_some() {
+                                    "每个参数占一行 · 修改后点击上方测试"
+                                } else {
+                                    "按参数顺序填写 JSON · 链表和树使用数组"
+                                },
+                                cx,
+                            ),
                         )),
                 )
                 .child(
@@ -2814,7 +3593,7 @@ impl Workspace {
                         .child(
                             Editor::new(&self.cases_editor)
                                 .size_full()
-                                .font_family(CODE_FONT)
+                                .font_family(self.code_font().to_owned())
                                 .text_size(px(13.)),
                         ),
                 )
@@ -2849,7 +3628,7 @@ impl Workspace {
                     .flex()
                     .flex_col()
                     .gap_2()
-                    .font_family(CODE_FONT)
+                    .font_family(self.code_font().to_owned())
                     .when(self.has_run_input, |panel| {
                         panel.child(
                             div()
@@ -2863,18 +3642,15 @@ impl Workspace {
                                 .border_1()
                                 .border_color(theme::color(LINE, cx))
                                 .bg(theme::color(CODE_BG, cx))
-                                .child(
-                                    div()
-                                        .text_xs()
-                                        .text_color(theme::color(MUTED, cx))
-                                        .child("本次运行的测试用例 · 保留运行开始时的输入"),
-                                )
+                                .child(div().text_xs().text_color(theme::color(MUTED, cx)).child(
+                                    ui::text("本次运行的测试用例 · 保留运行开始时的输入", cx),
+                                ))
                                 .child(
                                     div().h(px(100.)).child(
                                         Editor::new(&self.run_input_editor)
                                             .readonly(true)
                                             .size_full()
-                                            .font_family(CODE_FONT)
+                                            .font_family(self.code_font().to_owned())
                                             .text_size(px(13.)),
                                     ),
                                 ),
@@ -2900,7 +3676,7 @@ impl Workspace {
                             .text_sm()
                             .font_weight(FontWeight::SEMIBOLD)
                             .text_color(theme::color(tone, cx))
-                            .child(heading.to_string()),
+                            .child(ui::text(heading, cx)),
                     )
                     .when(output.is_empty(), |panel| {
                         panel.child(
@@ -2908,7 +3684,10 @@ impl Workspace {
                                 .px_3()
                                 .text_xs()
                                 .text_color(theme::color(MUTED, cx))
-                                .child("运行代码后，这里会显示每个用例的输入、预期和实际结果。"),
+                                .child(ui::text(
+                                    "运行代码后，这里会显示每个用例的输入、预期和实际结果。",
+                                    cx,
+                                )),
                         )
                     })
                     .children(
@@ -2950,7 +3729,7 @@ impl Workspace {
                                                             if ok { ACCENT } else { 0xff928c },
                                                             cx,
                                                         ))
-                                                        .child(line.to_string())
+                                                        .child(ui::text(line, cx))
                                                         .into_any_element()
                                                 } else if let Some((label, value)) =
                                                     line.split_once('：')
@@ -2967,7 +3746,7 @@ impl Workspace {
                                                                 .w(px(64.))
                                                                 .flex_shrink_0()
                                                                 .text_color(theme::color(MUTED, cx))
-                                                                .child(label.to_string()),
+                                                                .child(ui::text(label, cx)),
                                                         )
                                                         .child(
                                                             div()
@@ -2988,7 +3767,7 @@ impl Workspace {
                                                     div()
                                                         .text_xs()
                                                         .text_color(theme::color(INK, cx))
-                                                        .child(line.to_string())
+                                                        .child(ui::text(line, cx))
                                                         .into_any_element()
                                                 }
                                             },
@@ -3032,22 +3811,28 @@ impl Workspace {
                                         },
                                         cx,
                                     ))
-                                    .child(if self.practice_language == PracticeLanguage::Java {
-                                        "Java 本地编译时检查代码"
-                                    } else if self.language.is_some() {
-                                        "✓ 暂无代码问题"
-                                    } else {
-                                        "等待 Go 语言服务"
-                                    }),
+                                    .child(ui::text(
+                                        if self.practice_language == PracticeLanguage::Java {
+                                            "Java 本地编译时检查代码"
+                                        } else if self.language.is_some() {
+                                            "✓ 暂无代码问题"
+                                        } else {
+                                            "等待 Go 语言服务"
+                                        },
+                                        cx,
+                                    )),
                             )
                             .child(div().text_xs().text_color(theme::color(MUTED, cx)).child(
-                                if self.practice_language == PracticeLanguage::Java {
-                                    "运行用例后，编译错误会显示在运行结果中。"
-                                } else if self.language.is_some() {
-                                    "继续编写代码，检查结果会实时更新。"
-                                } else {
-                                    "连接后会在这里显示错误和警告。"
-                                },
+                                ui::text(
+                                    if self.practice_language == PracticeLanguage::Java {
+                                        "运行用例后，编译错误会显示在运行结果中。"
+                                    } else if self.language.is_some() {
+                                        "继续编写代码，检查结果会实时更新。"
+                                    } else {
+                                        "连接后会在这里显示错误和警告。"
+                                    },
+                                    cx,
+                                ),
                             )),
                     )
                 })
@@ -3088,13 +3873,16 @@ impl Workspace {
                                             div()
                                                 .font_weight(FontWeight::SEMIBOLD)
                                                 .text_color(theme::color(color, cx))
-                                                .child(kind),
+                                                .child(ui::text(kind, cx)),
                                         )
                                         .child(div().text_color(theme::color(MUTED, cx)).child(
-                                            format!(
-                                                "{}:{}",
-                                                position.line + 1,
-                                                position.character + 1
+                                            ui::text(
+                                                format!(
+                                                    "{}:{}",
+                                                    position.line + 1,
+                                                    position.character + 1
+                                                ),
+                                                cx,
                                             ),
                                         )),
                                 )
@@ -3146,7 +3934,7 @@ impl Workspace {
                             ))
                             .child(
                                 Button::new(("bottom-tab", index))
-                                    .label(label)
+                                    .label(ui::text(label, cx))
                                     .small()
                                     .ghost()
                                     .when(self.bottom_tab == tab, |button| {
@@ -3197,12 +3985,12 @@ impl Render for Workspace {
                     .size_range(px(140.)..px(1200.))
                     .child(self.bottom_panel(cx)),
             );
-        let mut panels = h_resizable("workspace-v2");
+        let mut panels = h_resizable("workspace-learning-v1");
         if self.show_categories && !self.focus_mode {
             panels = panels.child(
                 resizable_panel()
-                    .size(px(160.))
-                    .size_range(px(135.)..px(250.))
+                    .size(px(230.))
+                    .size_range(px(190.)..px(400.))
                     .child(self.navigation(cx)),
             );
         }
@@ -3210,13 +3998,13 @@ impl Render for Workspace {
             panels = panels
                 .child(
                     resizable_panel()
-                        .size(px(270.))
+                        .size(px(250.))
                         .size_range(px(220.)..px(450.))
                         .child(self.sidebar(cx)),
                 )
                 .child(
                     resizable_panel()
-                        .size(px(440.))
+                        .size(px(380.))
                         .size_range(px(300.)..px(1500.))
                         .child(self.document(cx)),
                 );
@@ -3243,9 +4031,10 @@ impl Render for Workspace {
             .on_action(cx.listener(Self::import_notes))
             .on_action(cx.listener(Self::organize_imports))
             .on_action(cx.listener(Self::toggle_wrap))
+            .on_action(cx.listener(Self::settings))
             .child(
                 div()
-                    .h(px(46.))
+                    .h(px(38.))
                     .px_3()
                     .flex()
                     .items_center()
@@ -3254,7 +4043,7 @@ impl Render for Workspace {
                     .border_color(theme::color(LINE, cx))
                     .child(
                         Button::new("toggle-categories")
-                            .label("☰ 分类")
+                            .label(ui::text("☰ 分类", cx))
                             .small()
                             .ghost()
                             .on_click(cx.listener(|this, _, _, cx| {
@@ -3285,56 +4074,47 @@ impl Render for Workspace {
                                 div()
                                     .text_xs()
                                     .text_color(theme::color(ACCENT, cx))
-                                    .child(platform),
+                                    .child(ui::text(platform, cx)),
                             ),
                     )
                     .child(
-                        Button::new("import-md")
-                            .label("导入 MD 文件")
-                            .small()
-                            .ghost()
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.import_notes(&ImportNotes, window, cx)
-                            })),
-                    )
-                    .child(
-                        Button::new("import-md-folder")
-                            .label("导入文件夹")
-                            .small()
-                            .ghost()
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.import_notes_from(true, window, cx)
-                            })),
-                    )
-                    .child(
                         Button::new("favorite")
-                            .label(if self.progress.favorite {
-                                "★ 收藏"
-                            } else {
-                                "☆ 收藏"
-                            })
+                            .label(ui::text(
+                                if self.progress.favorite {
+                                    "★ 收藏"
+                                } else {
+                                    "☆ 收藏"
+                                },
+                                cx,
+                            ))
                             .small()
                             .ghost()
                             .on_click(cx.listener(Self::toggle_favorite)),
                     )
                     .child(
                         Button::new("review")
-                            .label(if self.progress.state == "待复习" {
-                                "✓ 待复习"
-                            } else {
-                                "复习"
-                            })
+                            .label(ui::text(
+                                if self.progress.state == "待复习" {
+                                    "✓ 待复习"
+                                } else {
+                                    "复习"
+                                },
+                                cx,
+                            ))
                             .small()
                             .ghost()
                             .on_click(cx.listener(Self::mark_review)),
                     )
                     .child(
                         Button::new("focus-code")
-                            .label(if self.focus_mode {
-                                "退出专注"
-                            } else {
-                                "专注编码"
-                            })
+                            .label(ui::text(
+                                if self.focus_mode {
+                                    "退出专注"
+                                } else {
+                                    "专注编码"
+                                },
+                                cx,
+                            ))
                             .small()
                             .ghost()
                             .on_click(cx.listener(|this, _, _, cx| {
@@ -3344,15 +4124,18 @@ impl Render for Workspace {
                     )
                     .child(
                         Button::new("run")
-                            .label(if running && self.problem().online.is_some() {
-                                "停止等待"
-                            } else if running {
-                                "取消运行"
-                            } else if self.problem().online.is_some() {
-                                "▶ 测试"
-                            } else {
-                                "▶ 运行用例"
-                            })
+                            .label(ui::text(
+                                if running && self.problem().online.is_some() {
+                                    "停止等待"
+                                } else if running {
+                                    "取消运行"
+                                } else if self.problem().online.is_some() {
+                                    "▶ 测试"
+                                } else {
+                                    "▶ 运行用例"
+                                },
+                                cx,
+                            ))
                             .small()
                             .primary()
                             .on_click(cx.listener(|this, _, window, cx| {
@@ -3365,7 +4148,7 @@ impl Render for Workspace {
                     )
                     .child(
                         Button::new("submit")
-                            .label("提交")
+                            .label(ui::text("提交", cx))
                             .small()
                             .primary()
                             .disabled(
@@ -3381,14 +4164,25 @@ impl Render for Workspace {
                     )
                     .child(
                         Button::new("platform")
-                            .label("题目网页")
+                            .label(ui::text("题目网页", cx))
                             .small()
                             .ghost()
                             .on_click(move |_, _, cx| cx.open_url(&link)),
                     )
                     .child(
+                        Button::new("settings")
+                            .icon(gpui_kit::assets::IconName::Settings)
+                            .accessibility_label(ui::text("设置", cx))
+                            .small()
+                            .ghost()
+                            .tooltip(ui::text("设置", cx))
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.settings(&Settings, window, cx)
+                            })),
+                    )
+                    .child(
                         Button::new("close-window")
-                            .label("关闭")
+                            .label(ui::text("关闭", cx))
                             .small()
                             .ghost()
                             .on_click(cx.listener(|this, _, window, cx| match this.save(cx) {
@@ -3403,7 +4197,7 @@ impl Render for Workspace {
             .child(div().flex_1().min_h_0().child(panels))
             .child(
                 div()
-                    .h(px(32.))
+                    .h(px(28.))
                     .px_3()
                     .flex()
                     .items_center()
@@ -3417,39 +4211,23 @@ impl Render for Workspace {
                             .truncate()
                             .text_xs()
                             .text_color(theme::color(MUTED, cx))
-                            .child(self.notice.clone()),
+                            .child(ui::text(self.notice.clone(), cx)),
                     )
                     .child(
                         div()
                             .flex()
                             .items_center()
                             .gap_2()
-                            .children(Appearance::ALL.into_iter().map(|appearance| {
-                                Button::new(gpui_kit::SharedString::from(format!(
-                                    "appearance-{}",
-                                    appearance.key()
-                                )))
-                                .label(if theme::current(cx) == appearance {
-                                    format!("✓ {}", appearance.label())
-                                } else {
-                                    appearance.label().into()
-                                })
-                                .small()
-                                .ghost()
-                                .when(theme::current(cx) == appearance, |button| {
-                                    button.text_color(theme::color(ACCENT, cx))
-                                })
-                                .on_click(cx.listener(
-                                    move |this, _, _, cx| this.set_appearance(appearance, cx),
-                                ))
-                            }))
                             .child(
                                 Button::new("reconnect")
-                                    .label(if self.language.is_some() {
-                                        "Go 检查已连接"
-                                    } else {
-                                        "连接 Go 检查"
-                                    })
+                                    .label(ui::text(
+                                        if self.language.is_some() {
+                                            "Go 检查已连接"
+                                        } else {
+                                            "连接 Go 检查"
+                                        },
+                                        cx,
+                                    ))
                                     .small()
                                     .ghost()
                                     .on_click(cx.listener(|this, _, window, cx| {
@@ -3457,7 +4235,14 @@ impl Render for Workspace {
                                     })),
                             )
                             .child(div().text_xs().text_color(theme::color(MUTED, cx)).child(
-                                format!("Ln {}, Col {}", position.line + 1, position.character + 1),
+                                ui::text(
+                                    format!(
+                                        "Ln {}, Col {}",
+                                        position.line + 1,
+                                        position.character + 1
+                                    ),
+                                    cx,
+                                ),
                             )),
                     ),
             )
@@ -3530,13 +4315,13 @@ pub fn launch(store: Store, smoke: bool) -> Result<()> {
                     size(px(1380.), px(900.)),
                     cx,
                 ))),
-                window_min_size: Some(size(px(1060.), px(650.))),
+                window_min_size: Some(size(px(1120.), px(650.))),
                 app_id: Some("leetdesk".into()),
                 show: !smoke,
                 ..Default::default()
             };
             let (_, view) = gpui_kit::open_window(options, cx, move |window, cx| {
-                window.set_window_title("LeetDesk · Go / Java 刷题工作区");
+                window.set_window_title("LeetDesk · Go / Java");
                 cx.new(|cx| Workspace::new(store, window, cx).expect("无法初始化刷题工作区"))
             })
             .expect("无法打开窗口");
@@ -3619,6 +4404,7 @@ pub fn apply_theme(cx: &mut App) {
 }
 
 pub fn apply_appearance(appearance: Appearance, cx: &mut App) {
+    let editor_theme = theme::editor_theme(cx);
     theme::select(appearance, cx);
     let color = |value| rgb(appearance.color(value));
     gpui_kit::component::Theme::change(
@@ -3672,7 +4458,7 @@ pub fn apply_appearance(appearance: Appearance, cx: &mut App) {
         ("punctuation", 0xeee3e6, None, None),
     ];
     let colors: serde_json::Map<String, serde_json::Value> = palette.into_iter().map(|(name, value, weight, style)| {
-        (name.into(), json!({"color": gpui_kit::Hsla::from(color(value)), "font_weight": weight, "font_style": style}))
+        (name.into(), json!({"color": gpui_kit::Hsla::from(rgb(editor_theme.color(value, appearance))), "font_weight": weight, "font_style": style}))
     }).collect();
     syntax.style.syntax = serde_json::from_value(colors.into()).expect("Go 高亮颜色有效");
     cx.refresh_windows();
@@ -3726,6 +4512,7 @@ fn document_style(cx: &App) -> TextViewStyle {
 
 pub fn bind_keys(cx: &mut App) {
     cx.bind_keys([
+        KeyBinding::new("ctrl-,", Settings, Some("LeetDesk")),
         KeyBinding::new("ctrl-s", Save, Some("LeetDesk")),
         KeyBinding::new("alt-z", ToggleWrap, Some("LeetDesk")),
         KeyBinding::new("ctrl-enter", RunCases, Some("LeetDesk")),
@@ -3751,6 +4538,7 @@ pub fn bind_keys(cx: &mut App) {
     ]);
     #[cfg(target_os = "macos")]
     cx.bind_keys([
+        KeyBinding::new("cmd-,", Settings, Some("LeetDesk")),
         KeyBinding::new("cmd-s", Save, Some("LeetDesk")),
         KeyBinding::new("cmd-enter", RunCases, Some("LeetDesk")),
         KeyBinding::new("cmd-shift-enter", Submit, Some("LeetDesk")),
@@ -3772,6 +4560,165 @@ mod ui_tests {
     use gpui_kit::test::TestWindowExt;
 
     #[gpui_kit::test]
+    fn learning_tree_opens_bilingual_guides_filters_by_approach_and_keeps_drafts(
+        cx: &mut TestAppContext,
+    ) {
+        let (handle, view, temp) = practice_window(cx);
+        let source = "package solution\n// 学习图论时保留的草稿";
+        cx.update_window(handle, |_, window, cx| {
+            view.update(cx, |workspace, cx| {
+                let mut problems = online::parse_page(online::Site::China, &json!({"data":{"problemsetQuestionList":{"total":4,"questions":[
+                    {"frontendQuestionId":"1","titleSlug":"two-sum","title":"两数之和","difficulty":"Easy"},
+                    {"frontendQuestionId":"200","titleSlug":"number-of-islands","title":"岛屿数量","difficulty":"Medium"},
+                    {"frontendQuestionId":"994","titleSlug":"rotting-oranges","title":"腐烂的橘子","difficulty":"Medium","status":"ac"},
+                    {"frontendQuestionId":"207","titleSlug":"course-schedule","title":"课程表","difficulty":"Medium"}
+                ]}}})).unwrap().problems;
+                for problem in &mut problems {
+                    problem.online.as_mut().unwrap().loaded = true;
+                    problem.online.as_mut().unwrap().go_supported = true;
+                    problem.starter = "package solution\nfunc answer() int { return 0 }".into();
+                }
+                workspace.problems = problems;
+                workspace.catalog_view.replace(&workspace.problems);
+                workspace.editor.update(cx, |state, cx| { state.set_value(source, window, cx); state.set_selected_range(8..16, cx); });
+                workspace.document_view = None;
+            });
+            window.render_frame(cx);
+            assert!(view.read(cx).show_categories);
+            window.click("chapter-graph", cx);
+            window.render_frame(cx);
+            assert!(view.read(cx).document_tab == DocumentTab::Explanation);
+            assert_eq!(view.read(cx).filter, "@chapter:graph");
+            assert_eq!(view.read(cx).filtered_indices().as_ref(), &[1,2,3]);
+        }).unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            let text = view
+                .read(cx)
+                .document_view
+                .as_ref()
+                .unwrap()
+                .1
+                .read(cx)
+                .rendered_text();
+            assert!(text.as_str().contains("图与状态搜索"));
+            assert!(text.as_str().contains("复杂度与前提"));
+            assert!(text.as_str().contains("易错点"));
+            window.click("pattern-bfs-distance", cx);
+            window.render_frame(cx);
+            assert_eq!(view.read(cx).filtered_indices().as_ref(), &[2]);
+        })
+        .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            let text = view
+                .read(cx)
+                .document_view
+                .as_ref()
+                .unwrap()
+                .1
+                .read(cx)
+                .rendered_text();
+            assert!(text.as_str().contains("BFS 最少步数"));
+            assert!(text.as_str().contains("994. 腐烂的橘子"));
+            assert_eq!(view.read(cx).editor.read(cx).value().as_ref(), source);
+            assert_eq!(
+                view.read(cx).editor.read(cx).selected_value().as_ref(),
+                "solution"
+            );
+            window.click(("study-plan", 1_usize), cx);
+            window.render_frame(cx);
+            assert_eq!(view.read(cx).filtered_indices().as_ref(), &[2]);
+            window.click(("status-filter", 1_usize), cx);
+            window.render_frame(cx);
+            assert!(view.read(cx).filtered_indices().is_empty());
+            window.click(("status-filter", 0_usize), cx);
+            view.update(cx, |workspace, cx| {
+                workspace.set_interface_language(InterfaceLanguage::English, window, cx)
+            });
+            window.render_frame(cx);
+        })
+        .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            let text = view
+                .read(cx)
+                .document_view
+                .as_ref()
+                .unwrap()
+                .1
+                .read(cx)
+                .rendered_text();
+            assert!(text.as_str().contains("BFS distance"));
+            assert!(text.as_str().contains("Cost and assumptions"));
+            window.click("chapter-toggle-graph", cx);
+            window.render_frame(cx);
+            assert!(window.try_find("pattern-bfs-distance").is_none());
+            assert_eq!(view.read(cx).filter, "@pattern:bfs-distance");
+            window.click(("problem", 994_usize), cx);
+            window.render_frame(cx);
+            assert!(view.read(cx).document_tab == DocumentTab::Explanation);
+            assert_eq!(view.read(cx).problem().id, 994);
+            assert_eq!(
+                Store::open(temp.path().join("data"))
+                    .unwrap()
+                    .source(1)
+                    .unwrap(),
+                source
+            );
+        })
+        .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            let text = view
+                .read(cx)
+                .document_view
+                .as_ref()
+                .unwrap()
+                .1
+                .read(cx)
+                .rendered_text();
+            assert!(text.as_str().contains("Graphs and state-space search"));
+            assert!(text.as_str().contains("Seed BFS with all rotten oranges"));
+            assert!(text.as_str().contains("Applying the general method"));
+            assert!(text.as_str().contains("Why this is correct"));
+            assert!(text.as_str().contains("Go reference solution"));
+            assert!(text.as_str().contains("func orangesRotting"));
+            assert!(text.as_str().contains("Step-by-step example"));
+            assert!(text.as_str().contains("fresh=0"));
+            assert!(text.as_str().contains("Problem-specific pitfall"));
+            assert!(!text.as_str().contains("Look up target minus"));
+        })
+        .unwrap();
+    }
+
+    fn reveal_setting(id: &str, window: &mut Window, cx: &mut App) {
+        for _ in 0..12 {
+            window.render_frame(cx);
+            let viewport = window.find("settings-scroll").bounds();
+            let target = window.find(id.to_owned());
+            if target.visible() && viewport.contains(&target.bounds().center()) {
+                return;
+            }
+            let delta = if target.bounds().center().y < viewport.origin.y {
+                160.
+            } else {
+                -160.
+            };
+            window.scroll(
+                "settings-scroll",
+                gpui_kit::ScrollDelta::Pixels(gpui_kit::point(px(0.), px(delta))),
+                cx,
+            );
+        }
+        panic!("Setting {id} could not be scrolled into view");
+    }
+
+    #[gpui_kit::test]
     fn markdown_import_picker_selects_files_and_folder_picker_selects_folders(
         cx: &mut TestAppContext,
     ) {
@@ -3781,6 +4728,9 @@ mod ui_tests {
 
         cx.update_window(handle, |_, window, cx| {
             window.render_frame(cx);
+            window.click("settings", cx);
+            window.render_frame(cx);
+            reveal_setting("import-md", window, cx);
             window.click("import-md", cx);
         })
         .unwrap();
@@ -3802,6 +4752,7 @@ mod ui_tests {
                     .any(|(_, body)| body.contains("双指针做法"))
             );
             assert!(workspace.document_tab == DocumentTab::Explanation);
+            reveal_setting("import-md-folder", window, cx);
             window.click("import-md-folder", cx);
         })
         .unwrap();
@@ -3810,6 +4761,32 @@ mod ui_tests {
             None
         });
         cx.run_until_parked();
+        cx.update_window(handle, |_, window, cx| {
+            window.click("close-settings", cx);
+            window.render_frame(cx);
+        })
+        .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            let workspace = view.read(cx);
+            let (_, state, origin) = workspace.document_view.as_ref().unwrap();
+            let text = state.read(cx).rendered_text();
+            assert!(text.as_str().contains("哈希与前缀统计"));
+            assert!(text.as_str().contains("哈希表保存已扫描值的下标"));
+            assert!(text.as_str().contains("双指针做法"));
+            assert!(text.as_str().contains("从两侧收缩"));
+            assert_eq!(
+                origin.as_ref().unwrap().canonicalize().unwrap(),
+                temp.path().canonicalize().unwrap()
+            );
+            assert_eq!(
+                fs::read_to_string(&file).unwrap(),
+                "# 双指针做法\n\n从两侧收缩。\n"
+            );
+            assert!(window.try_find(("document-tab", 3_usize)).is_none());
+        })
+        .unwrap();
     }
 
     #[gpui_kit::test]
@@ -3870,6 +4847,8 @@ mod ui_tests {
                 workspace.catalog_view.replace(&workspace.problems);
                 workspace.document_view = None;
             });
+            window.render_frame(cx);
+            window.click("navigation-topics", cx);
             window.render_frame(cx);
             assert!(view.read(cx).show_categories);
             window.click(("study-plan", 1_usize), cx);
@@ -5260,6 +6239,167 @@ mod ui_tests {
     }
 
     #[gpui_kit::test]
+    fn settings_language_font_and_palette_apply_immediately_and_restore(cx: &mut TestAppContext) {
+        let (handle, view, temp) = practice_window(cx);
+        let source = "package solution\n// 我的代码\nfunc answer() int { return 42 }";
+        cx.update_window(handle, |_, window, cx| {
+            view.read(cx).editor.clone().update(cx, |state, cx| {
+                state.set_value(source, window, cx);
+                state.set_selected_range(8..16, cx);
+            });
+            window.render_frame(cx);
+            window.click("settings", cx);
+            window.render_frame(cx);
+            window.click("interface-language-english", cx);
+            window.render_frame(cx);
+            assert_eq!(window.find("submit").label(), Some("Submit"));
+            assert_eq!(
+                view.read(cx)
+                    .search
+                    .read(cx)
+                    .presentation()
+                    .placeholder()
+                    .as_ref(),
+                "Search problems, titles, or topics"
+            );
+            ui::set_site(online::Site::China, cx);
+            assert_eq!(ui::language(cx), leetdesk::i18n::UiLanguage::English);
+            window.click("interface-language-chinese", cx);
+            window.render_frame(cx);
+            assert_eq!(window.find("submit").label(), Some("提交"));
+            ui::set_site(online::Site::Global, cx);
+            assert_eq!(ui::language(cx), leetdesk::i18n::UiLanguage::Chinese);
+            window.click("interface-language-auto", cx);
+            assert_eq!(ui::language(cx), leetdesk::i18n::UiLanguage::Chinese);
+            ui::set_site(online::Site::Global, cx);
+            assert_eq!(ui::language(cx), leetdesk::i18n::UiLanguage::English);
+            window.click("interface-language-english", cx);
+            let font = view
+                .read(cx)
+                .editor_fonts
+                .iter()
+                .find(|font| font.as_str() != CODE_FONT)
+                .cloned()
+                .or_else(|| view.read(cx).editor_fonts.first().cloned());
+            if let Some(font) = &font {
+                let id = format!("editor-font-{font}");
+                reveal_setting(&id, window, cx);
+                window.click(id, cx);
+                assert_eq!(view.read(cx).code_font(), font);
+            }
+            for value in [EditorTheme::Mono, EditorTheme::Amber] {
+                let id = format!("editor-theme-{}", value.key());
+                reveal_setting(&id, window, cx);
+                window.click(id, cx);
+                window.render_frame(cx);
+                assert_eq!(theme::editor_theme(cx), value);
+                let keyword = gpui_kit::component::Theme::global(cx)
+                    .highlight_theme
+                    .style
+                    .syntax
+                    .style("keyword")
+                    .unwrap()
+                    .color;
+                assert_eq!(
+                    keyword,
+                    Some(rgb(value.color(0xff8f9c, theme::current(cx))).into())
+                );
+                assert!(!view.read(cx).settings_preview.read(cx).is_editable());
+            }
+            reveal_setting("appearance-beige", window, cx);
+            window.click("appearance-beige", cx);
+            window.render_frame(cx);
+            assert_eq!(theme::editor_theme(cx), EditorTheme::Amber);
+            let keyword = gpui_kit::component::Theme::global(cx)
+                .highlight_theme
+                .style
+                .syntax
+                .style("keyword")
+                .unwrap()
+                .color;
+            assert_eq!(
+                keyword,
+                Some(rgb(EditorTheme::Amber.color(0xff8f9c, Appearance::Beige)).into())
+            );
+            let saved = Store::open(temp.path().join("data"))
+                .unwrap()
+                .editor_preferences();
+            assert_eq!(saved.interface_language, InterfaceLanguage::English);
+            assert_eq!(saved.editor_theme, EditorTheme::Amber);
+            assert_eq!(saved.font_family, font.unwrap_or_default());
+            window.click("close-settings", cx);
+            window.render_frame(cx);
+            assert_eq!(view.read(cx).editor.read(cx).value().as_ref(), source);
+            assert_eq!(
+                view.read(cx).editor.read(cx).selected_value().as_ref(),
+                "solution"
+            );
+            view.update(cx, |workspace, cx| workspace.save(cx).unwrap());
+            let reopened = cx.new(|cx| {
+                Workspace::new(Store::open(temp.path().join("data")).unwrap(), window, cx).unwrap()
+            });
+            assert_eq!(
+                reopened.read(cx).editor_preferences.interface_language,
+                InterfaceLanguage::English
+            );
+            assert_eq!(reopened.read(cx).code_font(), view.read(cx).code_font());
+            assert_eq!(theme::editor_theme(cx), EditorTheme::Amber);
+            assert_eq!(ui::language(cx), leetdesk::i18n::UiLanguage::English);
+            assert_eq!(reopened.read(cx).editor.read(cx).value().as_ref(), source);
+        })
+        .unwrap();
+    }
+
+    #[gpui_kit::test]
+    fn settings_gear_and_shortcut_keep_drafts_and_persist_editor_preferences(
+        cx: &mut TestAppContext,
+    ) {
+        let (handle, view, temp) = practice_window(cx);
+        let source = "package solution\n// 我的草稿";
+        cx.update_window(handle, |_, window, cx| {
+            view.read(cx).editor.clone().update(cx, |state, cx| {
+                state.set_value(source, window, cx);
+                state.set_selected_range(8..16, cx);
+                state.focus(window, cx);
+            });
+            ui::set_site(online::Site::Global, cx);
+            window.render_frame(cx);
+            assert_eq!(window.find("submit").label(), Some("Submit"));
+            window.click("settings", cx);
+            window.render_frame(cx);
+            assert!(view.read(cx).settings_open);
+            assert_eq!(window.find("appearance-beige").label(), Some("Beige"));
+            reveal_setting("font-larger", window, cx);
+            window.click("font-larger", cx);
+            reveal_setting("settings-wrap", window, cx);
+            window.click("settings-wrap", cx);
+            window.render_frame(cx);
+            let saved = Store::open(temp.path().join("data"))
+                .unwrap()
+                .editor_preferences();
+            assert_eq!(saved.font_size, 17);
+            assert!(!saved.soft_wrap);
+            window.click("close-settings", cx);
+            window.render_frame(cx);
+            assert!(!view.read(cx).settings_open);
+            window.press("ctrl-,", cx);
+            window.render_frame(cx);
+            assert!(view.read(cx).settings_open);
+            window.press("ctrl-,", cx);
+            assert!(!view.read(cx).settings_open);
+            assert_eq!(view.read(cx).editor.read(cx).value().as_ref(), source);
+            assert_eq!(
+                view.read(cx).editor.read(cx).selected_value().as_ref(),
+                "solution"
+            );
+            ui::set_site(online::Site::China, cx);
+            window.render_frame(cx);
+            assert_eq!(window.find("submit").label(), Some("提交"));
+        })
+        .unwrap();
+    }
+
+    #[gpui_kit::test]
     fn appearance_buttons_update_all_surfaces_without_changing_drafts(cx: &mut TestAppContext) {
         let (handle, view, temp) = practice_window(cx);
         let source = "package solution\nfunc answer() int { return 42 }";
@@ -5269,6 +6409,8 @@ mod ui_tests {
                 state.set_selected_range(8..16, cx);
             });
             let input = view.read(cx).cases_editor.read(cx).value().to_string();
+            window.render_frame(cx);
+            window.click("settings", cx);
             for appearance in [Appearance::White, Appearance::Beige, Appearance::Dark] {
                 window.render_frame(cx);
                 window.click(format!("appearance-{}", appearance.key()), cx);

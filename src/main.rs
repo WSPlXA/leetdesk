@@ -5,6 +5,7 @@ mod auth;
 mod desktop;
 mod markdown;
 mod theme;
+mod ui;
 
 use anyhow::{Context, Result};
 use leetdesk::store::Store;

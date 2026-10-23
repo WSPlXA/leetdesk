@@ -1,0 +1,2390 @@
+{
+  "two-sum-ii-input-array-is-sorted": {
+    "solution": {
+      "zh": "左右指针夹住候选区间。和偏小就增加左值，偏大就减小右值；排序保证被跳过的配对都不可能命中。",
+      "en": "Start at both ends. Increase the left value when the sum is too small; decrease the right value otherwise. Sorted order makes each discarded pair impossible."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "返回下标从 1 开始。",
+      "en": "Return one-based indices."
+    }
+  },
+  "3sum": {
+    "solution": {
+      "zh": "排序后固定第一个数，对右侧做两数之和。固定值和左右指针都跳过重复值，避免重复三元组。",
+      "en": "Sort, fix the first value, and use opposing pointers on the suffix. Skip repeated fixed values and repeated pointer values to emit each triplet once."
+    },
+    "cost": {
+      "zh": "O(n²) / O(log n), 不含输出",
+      "en": "O(n²) / O(log n), excluding output"
+    },
+    "pitfall": {
+      "zh": "不能重复使用同一下标。",
+      "en": "Use three distinct indices."
+    }
+  },
+  "container-with-most-water": {
+    "solution": {
+      "zh": "面积取决于短板与距离。每次移动较短一端；保留它而缩小宽度不可能改进当前面积。",
+      "en": "Area is width times the shorter height. Move the shorter endpoint: keeping it while reducing width cannot improve the current area."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "先算面积再移动。",
+      "en": "Measure before moving."
+    }
+  },
+  "trapping-rain-water": {
+    "solution": {
+      "zh": "维护左右已见最高柱。较小边界一侧的蓄水量已确定，结算该格并向内推进；另一侧一定有足够高的挡板。",
+      "en": "Track the maximum height seen from each end. Settle the side with the lower maximum, whose opposite boundary is already tall enough, then advance it."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "水量用边界减柱高。",
+      "en": "Use boundary height minus bar height."
+    },
+    "alternatives": {
+      "monotone-stack": {
+        "solution": {
+          "zh": "维护高度单调不增的下标栈。新柱更高时弹出洼底，若仍有左边界，就按两边较矮高度减洼底高度、乘两边间距结算一层水。",
+          "en": "Keep a nonincreasing stack of bar indices. When a taller bar pops a basin bottom, use the remaining left boundary and current right boundary to settle that horizontal water layer."
+        },
+        "cost": {
+          "zh": "O(n) / O(n)",
+          "en": "O(n) / O(n)"
+        },
+        "pitfall": {
+          "zh": "弹出后栈空意味着没有左挡板，不能结算。",
+          "en": "An empty stack after popping means there is no left boundary."
+        }
+      }
+    }
+  },
+  "valid-palindrome": {
+    "solution": {
+      "zh": "两端跳过非字母数字字符，统一大小写后比较。每轮只丢弃已确认匹配的字符对。",
+      "en": "Skip non-alphanumeric characters from both ends, normalize case, and compare. Each iteration discards a pair already known to match."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "按题目字符范围处理。",
+      "en": "Respect the specified character domain."
+    }
+  },
+  "move-zeroes": {
+    "solution": {
+      "zh": "写指针指向下一个非零位置，读指针遍历原数组。先稳定压紧非零元素，再将尾部填零。",
+      "en": "Keep a write index for the next nonzero element. Compact nonzero values in encounter order, then fill the remaining suffix with zeros."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "保持非零元素相对顺序。",
+      "en": "Preserve nonzero relative order."
+    }
+  },
+  "remove-duplicates-from-sorted-array": {
+    "solution": {
+      "zh": "写指针保存去重后的前缀。读到与前一个保留值不同的数时才写入；有序性让重复值连续出现。",
+      "en": "Maintain a unique prefix with a write index. Append a value only when it differs from the last retained value; sorting keeps duplicates adjacent."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "只返回有效前缀长度。",
+      "en": "Return the valid prefix length."
+    }
+  },
+  "remove-element": {
+    "solution": {
+      "zh": "读指针遇到非目标值就写到有效前缀。写指针最终等于保留数量，不需要维护尾部内容。",
+      "en": "Copy each value unequal to the target into the retained prefix. The final write index is the retained count; the suffix is irrelevant."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "不要一边删一边漏读。",
+      "en": "Avoid skipping elements during removal."
+    }
+  },
+  "longest-substring-without-repeating-characters": {
+    "solution": {
+      "zh": "记录字符最近位置。遇到重复时把左界推进到旧位置之后，右界逐个扩展并更新最大窗口。",
+      "en": "Store each character's latest index. Move the left boundary past a duplicate's previous occurrence, then update the longest window ending at the current position."
+    },
+    "cost": {
+      "zh": "O(n) / O(Σ)",
+      "en": "O(n) / O(Σ)"
+    },
+    "pitfall": {
+      "zh": "左界不能向后退。",
+      "en": "Never move the left boundary backward."
+    }
+  },
+  "minimum-window-substring": {
+    "solution": {
+      "zh": "统计目标字符需求和窗口满足数。右界扩到覆盖后反复收缩左界，每次收缩前记录更短的合法窗口。",
+      "en": "Count required multiplicities and satisfied characters. Expand until covered, then shrink repeatedly, recording the shortest valid window before removing its leftmost character."
+    },
+    "cost": {
+      "zh": "O(n+m) / O(Σ)",
+      "en": "O(n+m) / O(Σ)"
+    },
+    "pitfall": {
+      "zh": "需求是次数，不是种类集合。",
+      "en": "Respect multiplicities, not just membership."
+    }
+  },
+  "minimum-size-subarray-sum": {
+    "solution": {
+      "zh": "正数数组中，扩张窗口只会增大和。和达到目标就反复收缩并记录长度，因此每个端点最多移动一次。",
+      "en": "With positive values, expansion only increases the sum. Whenever the target is reached, shrink and record the length; each endpoint moves at most once per element."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "有负数时此单调性失效。",
+      "en": "Negative values invalidate this window rule."
+    }
+  },
+  "find-all-anagrams-in-a-string": {
+    "solution": {
+      "zh": "维护长度等于模式串的字符频次窗口。每次移入一个、移出一个，频次完全一致时记录窗口起点。",
+      "en": "Maintain character counts in a window matching the pattern length. Add the incoming character, remove the outgoing one, and record starts when all counts match."
+    },
+    "cost": {
+      "zh": "O(n+m) / O(Σ)",
+      "en": "O(n+m) / O(Σ)"
+    },
+    "pitfall": {
+      "zh": "文本短于模式直接返回空。",
+      "en": "Return empty when the text is shorter."
+    }
+  },
+  "permutation-in-string": {
+    "solution": {
+      "zh": "排列只改变顺序，不改变字符频次。滑动固定长度窗口比较需求，第一次完全匹配即可返回真。",
+      "en": "A permutation preserves character frequencies. Slide a fixed-length window over the second string and return true at the first complete count match."
+    },
+    "cost": {
+      "zh": "O(n+m) / O(Σ)",
+      "en": "O(n+m) / O(Σ)"
+    },
+    "pitfall": {
+      "zh": "窗口必须与第一个串等长。",
+      "en": "Match the first string's exact length."
+    }
+  },
+  "maximum-average-subarray-i": {
+    "solution": {
+      "zh": "先求前 k 项和。每次加新元素减旧元素，维护最大窗口和；长度固定，最大和等价于最大平均值。",
+      "en": "Sum the first k elements, then add one incoming value and subtract one outgoing value per step. Fixed length makes maximizing sum equivalent to maximizing average."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "全负数时不能从零初始化最大值。",
+      "en": "Initialize from a real window, not zero."
+    }
+  },
+  "two-sum": {
+    "solution": {
+      "zh": "哈希表保存已扫描值的下标。先查询 target-x 再插入 x，命中时得到两个不同位置。",
+      "en": "Map scanned values to indices. Look up target minus the current value before insertion, ensuring a match always uses two distinct positions."
+    },
+    "cost": {
+      "zh": "O(n) 期望 / O(n)",
+      "en": "O(n) expected / O(n)"
+    },
+    "pitfall": {
+      "zh": "先查询可避免使用自己。",
+      "en": "Lookup before insertion avoids self-matching."
+    }
+  },
+  "four-sum-ii": {
+    "solution": {
+      "zh": "统计前两个数组的所有配对和及次数。再枚举后两个数组的和，累加其相反数在表中的频次。",
+      "en": "Count sums of pairs from the first two arrays. Enumerate pairs from the other two and add the frequency of the opposite sum."
+    },
+    "cost": {
+      "zh": "O(n²) / O(n²)",
+      "en": "O(n²) / O(n²)"
+    },
+    "pitfall": {
+      "zh": "相同配对和值需累计次数。",
+      "en": "Count repeated sums with multiplicity."
+    }
+  },
+  "group-anagrams": {
+    "solution": {
+      "zh": "为每个单词构造固定字母表上的字符频次键。键相同等价于字母多重集相同，哈希表按键收集单词。",
+      "en": "Use a character-count tuple over the fixed alphabet as a key. Equal keys identify equal letter multisets, so collect words under their shared key."
+    },
+    "cost": {
+      "zh": "O(字符总数), 固定字母表 / O(字符总数)",
+      "en": "O(total characters), fixed alphabet / O(total characters)"
+    },
+    "pitfall": {
+      "zh": "计数键须有分隔或固定宽度。",
+      "en": "Encode counts without ambiguous concatenation."
+    }
+  },
+  "valid-anagram": {
+    "solution": {
+      "zh": "先比较长度，再对一个串计数、另一个串扣减。所有频次归零才说明两者字符及出现次数完全一致。",
+      "en": "Compare lengths, add counts from one string, and subtract counts from the other. All-zero counts establish equal characters with equal multiplicities."
+    },
+    "cost": {
+      "zh": "O(n) / O(Σ)",
+      "en": "O(n) / O(Σ)"
+    },
+    "pitfall": {
+      "zh": "不同字符编码需统一计数单位。",
+      "en": "Use a consistent character unit."
+    }
+  },
+  "longest-consecutive-sequence": {
+    "solution": {
+      "zh": "把数字放进集合，只从不存在前驱 x-1 的数开始向后扩展。每段只被扫描一次，避免从中间重复计数。",
+      "en": "Build a set and extend a run only from values lacking a predecessor. Each run is scanned once, avoiding repeated scans from interior values."
+    },
+    "cost": {
+      "zh": "O(n) 期望 / O(n)",
+      "en": "O(n) expected / O(n)"
+    },
+    "pitfall": {
+      "zh": "按去重后的集合枚举起点。",
+      "en": "Enumerate starts from the deduplicated set."
+    }
+  },
+  "subarray-sum-equals-k": {
+    "solution": {
+      "zh": "前缀和差为 k 就是一段答案。扫描当前和 s 时累加历史 s-k 的次数，然后登记 s。",
+      "en": "A subarray sums to k when two prefix sums differ by k. Add the frequency of earlier sum s-k, then register current sum s."
+    },
+    "cost": {
+      "zh": "O(n) 期望 / O(n)",
+      "en": "O(n) expected / O(n)"
+    },
+    "pitfall": {
+      "zh": "初始前缀 0 的次数为 1。",
+      "en": "Seed prefix zero with frequency one."
+    }
+  },
+  "continuous-subarray-sum": {
+    "solution": {
+      "zh": "相同余数的两个前缀之差能被 k 整除。保存每个余数最早位置，检查距离至少为 2；k 为 0 时比较原始前缀和。",
+      "en": "Equal prefix remainders delimit a sum divisible by k. Store earliest indices and require a gap of at least two; for k=0, compare raw prefix sums."
+    },
+    "cost": {
+      "zh": "O(n) 期望 / O(n)",
+      "en": "O(n) expected / O(n)"
+    },
+    "pitfall": {
+      "zh": "不要覆盖余数的最早位置。",
+      "en": "Keep the earliest index for each remainder."
+    }
+  },
+  "contiguous-array": {
+    "solution": {
+      "zh": "把 0 视为 -1，问题化为最长零和区间。相同前缀值之间的长度就是候选，只保留最早出现位置。",
+      "en": "Treat zero as minus one. Equal prefix balances enclose equal counts of zeros and ones; retaining each balance's earliest index maximizes the interval length."
+    },
+    "cost": {
+      "zh": "O(n) 期望 / O(n)",
+      "en": "O(n) expected / O(n)"
+    },
+    "pitfall": {
+      "zh": "起始平衡 0 对应下标 -1。",
+      "en": "Seed balance zero at index minus one."
+    }
+  },
+  "path-sum-iii": {
+    "solution": {
+      "zh": "DFS 维护根到当前节点的前缀和频次。进入节点查询 s-target，再登记 s；离开时减回，保证只统计当前祖先链。",
+      "en": "During DFS, count prefix sums on the current ancestor chain. Query s-target before registering s, and decrement on return so sibling paths cannot contaminate the count."
+    },
+    "cost": {
+      "zh": "O(n) 期望 / O(h)",
+      "en": "O(n) expected / O(h)"
+    },
+    "pitfall": {
+      "zh": "回溯必须撤销当前前缀。",
+      "en": "Remove the current prefix during backtracking."
+    }
+  },
+  "product-of-array-except-self": {
+    "solution": {
+      "zh": "答案先存左侧前缀乘积，再反向乘右侧后缀积。两次扫描都不包含当前位置，所以无需除法，也能处理零。",
+      "en": "Store the product strictly to each element's left, then multiply by a running product strictly to its right. No division is needed, including when zeros occur."
+    },
+    "cost": {
+      "zh": "O(n) / O(1), 不含输出",
+      "en": "O(n) / O(1), excluding output"
+    },
+    "pitfall": {
+      "zh": "先使用乘积再纳入当前元素。",
+      "en": "Use the running product before updating it."
+    }
+  },
+  "range-sum-query-immutable": {
+    "solution": {
+      "zh": "构造多一个位置的前缀和，prefix[i] 表示前 i 项总和。闭区间查询为 prefix[r+1]-prefix[l]。",
+      "en": "Build an extra leading-zero prefix array, where prefix[i] sums the first i values. An inclusive query is prefix[r+1] minus prefix[l]."
+    },
+    "cost": {
+      "zh": "构建 O(n), 查询 O(1) / O(n)",
+      "en": "Build O(n), query O(1) / O(n)"
+    },
+    "pitfall": {
+      "zh": "右端点需要加一。",
+      "en": "Convert the inclusive right endpoint correctly."
+    }
+  },
+  "range-sum-query-2d-immutable": {
+    "solution": {
+      "zh": "二维前缀表记录左上矩形和。查询时取大矩形，减上方和左方，再补回被减两次的重叠区。",
+      "en": "Store sums of top-left rectangles in a padded prefix table. For a query, subtract the upper and left strips and add their overlap back once."
+    },
+    "cost": {
+      "zh": "构建 O(mn), 查询 O(1) / O(mn)",
+      "en": "Build O(mn), query O(1) / O(mn)"
+    },
+    "pitfall": {
+      "zh": "使用补零边界简化首行首列。",
+      "en": "Pad boundaries to handle the first row and column."
+    }
+  },
+  "reverse-linked-list": {
+    "solution": {
+      "zh": "维护已反转前缀 prev 和未处理节点 cur。先保存 next，再把 cur.next 指向 prev，三个指针同步前移。",
+      "en": "Track a reversed prefix and the next unprocessed node. Save next before reversing the current link, then advance the pointers; every step grows the reversed prefix."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "改链接前先保存后继。",
+      "en": "Save the successor before rewiring."
+    }
+  },
+  "reverse-linked-list-ii": {
+    "solution": {
+      "zh": "哑节点定位区间前驱。反复把区间中的下一节点摘下并插到区间头，区间首节点最终成为尾节点。",
+      "en": "Use a sentinel to locate the segment predecessor. Repeatedly extract the next node and insert it at the segment front; the original first node becomes the tail."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "left=1 时也通过哑节点处理。",
+      "en": "Handle a segment starting at the head."
+    }
+  },
+  "reverse-nodes-in-k-group": {
+    "solution": {
+      "zh": "每组先探测是否有 k 个节点。只反转完整分组并接回前驱与后继，不足 k 个的尾部保持原顺序。",
+      "en": "Check that k nodes remain before each reversal. Reverse a complete group and reconnect both boundaries; leave an incomplete final group untouched."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "先探测，避免反转不足一组的尾部。",
+      "en": "Check group length before reversing."
+    }
+  },
+  "swap-nodes-in-pairs": {
+    "solution": {
+      "zh": "哑节点的后两节点为 a、b，依次接成 prev→b→a→后继。随后让 prev 移到 a，继续下一对。",
+      "en": "With a sentinel predecessor, rewire each pair a,b into predecessor→b→a→successor, then advance the predecessor to a for the next pair."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "交换节点连接，不只交换值。",
+      "en": "Rewire nodes rather than swapping values."
+    }
+  },
+  "merge-two-sorted-lists": {
+    "solution": {
+      "zh": "维护结果尾指针，每次接入两个表头中较小者并推进对应链表。一方耗尽后直接接上另一方剩余部分。",
+      "en": "Append the smaller current head to a result tail, advancing that input. When one list ends, attach the remaining suffix of the other list directly."
+    },
+    "cost": {
+      "zh": "O(m+n) / O(1)",
+      "en": "O(m+n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "接入后同时推进尾指针。",
+      "en": "Advance the output tail after attachment."
+    }
+  },
+  "sort-list": {
+    "solution": {
+      "zh": "快慢指针断开成两半，递归排序后线性归并。每层处理所有节点，共有对数层数。",
+      "en": "Split with slow and fast pointers, recursively sort each half, and merge the sorted lists. Each recursion level processes all nodes across logarithmically many levels."
+    },
+    "cost": {
+      "zh": "O(n log n) / O(log n)",
+      "en": "O(n log n) / O(log n)"
+    },
+    "pitfall": {
+      "zh": "切断中点连接，保证递归缩小。",
+      "en": "Sever the midpoint link before recursion."
+    }
+  },
+  "merge-k-sorted-lists": {
+    "solution": {
+      "zh": "最小堆保存每条非空链表的当前头节点。弹出最小者接入结果，再把它的后继入堆，维持所有候选头的最小值。",
+      "en": "Keep each nonempty list's current head in a min-heap. Append the minimum node and push its successor, maintaining the smallest available head across all lists."
+    },
+    "cost": {
+      "zh": "O(N log k) / O(k)",
+      "en": "O(N log k) / O(k)"
+    },
+    "pitfall": {
+      "zh": "堆比较节点值，别比较地址。",
+      "en": "Order heap entries by value, not address."
+    }
+  },
+  "linked-list-cycle": {
+    "solution": {
+      "zh": "慢指针走一步，快指针走两步。若有环，二者在环内的相对距离每轮减少一步，最终相遇；否则快指针到空。",
+      "en": "Move slow by one link and fast by two. Within a cycle their relative offset changes by one each round, forcing a meeting; otherwise fast reaches null."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "访问 fast.next 前先判空。",
+      "en": "Check null before advancing fast twice."
+    }
+  },
+  "linked-list-cycle-ii": {
+    "solution": {
+      "zh": "先用快慢指针找到环内交点。再让一个指针回表头，两者每次各走一步，首次相遇就是环入口。",
+      "en": "Find a meeting point using slow and fast pointers. Reset one pointer to the head and move both one step at a time; their next meeting is the cycle entry."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "未检测到环时返回空。",
+      "en": "Return null when no cycle exists."
+    }
+  },
+  "intersection-of-two-linked-lists": {
+    "solution": {
+      "zh": "两个指针分别遍历 A+B 与 B+A。总路程相同，抵消不同长度的独有前缀后，会在公共节点或空位置相遇。",
+      "en": "Traverse A then B with one pointer and B then A with the other. Equal total lengths cancel unequal prefixes, making them meet at the shared node or null."
+    },
+    "cost": {
+      "zh": "O(m+n) / O(1)",
+      "en": "O(m+n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "交点比较节点身份，不比较值。",
+      "en": "Compare node identity, not values."
+    }
+  },
+  "remove-nth-node-from-end-of-list": {
+    "solution": {
+      "zh": "从哑节点出发让快指针领先 n+1 步。两者同步前进到快指针为空时，慢指针正好指向待删节点前驱。",
+      "en": "Start at a sentinel and advance fast n+1 links. Move both until fast is null; slow then points immediately before the node to remove."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "删除头节点也要正确更新表头。",
+      "en": "Use the sentinel to handle head removal."
+    }
+  },
+  "palindrome-linked-list": {
+    "solution": {
+      "zh": "快慢指针找中点，反转后半段，再逐对比较前后两段。比较结束可反转回去恢复链表。",
+      "en": "Find the midpoint, reverse the second half, and compare the two halves pairwise. Reverse the half again afterward if preserving the input is desired."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "奇数长度时跳过正中节点。",
+      "en": "Skip the center node for odd lengths."
+    }
+  },
+  "add-two-numbers": {
+    "solution": {
+      "zh": "两链表按低位到高位给数，可直接同步相加。每步输出 sum%10，把 sum/10 作为进位交给下一轮。",
+      "en": "Digits arrive least significant first, so add both lists with a carry. Emit sum modulo ten and propagate integer sum divided by ten."
+    },
+    "cost": {
+      "zh": "O(max(m,n)) / O(1), 不含输出",
+      "en": "O(max(m,n)) / O(1), excluding output"
+    },
+    "pitfall": {
+      "zh": "末尾进位也要生成节点。",
+      "en": "Emit a final carry node when needed."
+    }
+  },
+  "add-two-numbers-ii": {
+    "solution": {
+      "zh": "把两表数字分别压栈，从低位弹出相加。每轮把新数字插到结果头部，保留高位在前的输出顺序。",
+      "en": "Push digits from both lists onto stacks, pop from the least significant end, and prepend each result digit while carrying to the next addition."
+    },
+    "cost": {
+      "zh": "O(m+n) / O(m+n)",
+      "en": "O(m+n) / O(m+n)"
+    },
+    "pitfall": {
+      "zh": "两个栈空后仍需检查进位。",
+      "en": "Continue while a carry remains."
+    }
+  },
+  "copy-list-with-random-pointer": {
+    "solution": {
+      "zh": "第一遍为每个原节点创建映射副本。第二遍用映射同时连接 next 与 random，保证任意交叉引用都指向副本。",
+      "en": "First map every original node to a new node. Then connect both next and random through that map, preserving arbitrary references without sharing original nodes."
+    },
+    "cost": {
+      "zh": "O(n) / O(n)",
+      "en": "O(n) / O(n)"
+    },
+    "pitfall": {
+      "zh": "空引用映射为空，不能指回原表。",
+      "en": "Map null to null and never reuse original nodes."
+    }
+  },
+  "search-insert-position": {
+    "solution": {
+      "zh": "在半开区间内查找首个大于等于 target 的位置。小于目标时丢弃左半，否则保留 mid 作为可能边界。",
+      "en": "Find the first value at least target in a half-open interval. Discard the left half when mid is smaller; otherwise retain mid as a possible boundary."
+    },
+    "cost": {
+      "zh": "O(log n) / O(1)",
+      "en": "O(log n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "插入位置可以等于数组长度。",
+      "en": "Allow insertion at the array length."
+    }
+  },
+  "find-first-and-last-position-of-element-in-sorted-array": {
+    "solution": {
+      "zh": "分别找首个 >=target 与首个 >target 的位置。两者相减得到相等区间，右边界减一即最后位置。",
+      "en": "Find the first value at least target and the first strictly greater value. These lower and upper bounds delimit the target range; subtract one from the upper bound."
+    },
+    "cost": {
+      "zh": "O(log n) / O(1)",
+      "en": "O(log n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "先确认下界位置确实等于目标。",
+      "en": "Verify that the lower bound actually matches."
+    }
+  },
+  "search-a-2d-matrix": {
+    "solution": {
+      "zh": "每行首值大于上一行末值，可把矩阵视为一维有序数组。用 mid/列数、mid%列数映射坐标做二分。",
+      "en": "Rows form one globally sorted sequence. Binary-search flattened positions, mapping mid to row mid/columns and column mid%columns."
+    },
+    "cost": {
+      "zh": "O(log(mn)) / O(1)",
+      "en": "O(log(mn)) / O(1)"
+    },
+    "pitfall": {
+      "zh": "不要混用仅行列各自有序的条件。",
+      "en": "Require globally ordered consecutive rows."
+    }
+  },
+  "binary-search": {
+    "solution": {
+      "zh": "维护仍可能包含目标的区间。比较中点后排除一半，直到找到目标或区间为空。",
+      "en": "Maintain an interval that may contain the target. Compare the middle value and discard the impossible half until a match is found or the interval becomes empty."
+    },
+    "cost": {
+      "zh": "O(log n) / O(1)",
+      "en": "O(log n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "统一闭区间或半开区间写法。",
+      "en": "Use one interval convention consistently."
+    }
+  },
+  "search-in-rotated-sorted-array": {
+    "solution": {
+      "zh": "无重复值时，中点左右至少一半有序。先识别有序半区，再判断 target 是否落在它的值域中，排除另一半。",
+      "en": "With distinct values, at least one half around mid is sorted. Identify it, test whether target lies in its range, and discard the impossible half."
+    },
+    "cost": {
+      "zh": "O(log n) / O(1)",
+      "en": "O(log n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "值域判断要包含正确端点。",
+      "en": "Handle range endpoints consistently."
+    }
+  },
+  "find-minimum-in-rotated-sorted-array": {
+    "solution": {
+      "zh": "比较中点与右端：中点更大则最小值在右半，否则最小值可能是中点或在其左侧。保持最小值始终在区间内。",
+      "en": "Compare mid with the right endpoint. If mid is larger, the minimum lies to its right; otherwise retain mid and the left half."
+    },
+    "cost": {
+      "zh": "O(log n) / O(1)",
+      "en": "O(log n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "右半有序时不能丢掉 mid。",
+      "en": "Retain mid when it may be the minimum."
+    }
+  },
+  "search-in-rotated-sorted-array-ii": {
+    "solution": {
+      "zh": "先处理左右与中点相等导致的歧义，缩小重复边界。其余情况按有序半区二分，保证不丢掉可能目标。",
+      "en": "Shrink duplicate boundaries when endpoint and middle values are indistinguishable. Otherwise use the sorted half to discard impossible positions as in rotated binary search."
+    },
+    "cost": {
+      "zh": "Worst O(n) / O(1)",
+      "en": "Worst O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "重复值会使最坏复杂度退化。",
+      "en": "Duplicates can force linear-time shrinking."
+    }
+  },
+  "koko-eating-bananas": {
+    "solution": {
+      "zh": "速度越大，所需小时数越少。二分最小可行速度，检查时累计每堆 ceil(数量/速度)。",
+      "en": "Eating time decreases monotonically with speed. Binary-search the smallest feasible speed, checking it by summing ceiling pile-size divided by speed."
+    },
+    "cost": {
+      "zh": "O(n log M) / O(1)",
+      "en": "O(n log M) / O(1)"
+    },
+    "pitfall": {
+      "zh": "整除向上取整并用足够宽的累计类型。",
+      "en": "Round up and avoid overflow in total hours."
+    }
+  },
+  "capacity-to-ship-packages-within-d-days": {
+    "solution": {
+      "zh": "容量给定时按原顺序尽量装满一天，得到所需最少天数。容量越大越容易可行，因此在最大包裹至总重间二分。",
+      "en": "For a candidate capacity, greedily fill each day in order. Larger capacities never need more days, so binary-search between the largest weight and total weight."
+    },
+    "cost": {
+      "zh": "O(n log S) / O(1)",
+      "en": "O(n log S) / O(1)"
+    },
+    "pitfall": {
+      "zh": "不能调整包裹顺序。",
+      "en": "Preserve package order."
+    }
+  },
+  "split-array-largest-sum": {
+    "solution": {
+      "zh": "非负数使上限越大，所需分段越少。贪心累计到超限才分段，二分能用至多 k 段完成的最小上限。",
+      "en": "With nonnegative values, a larger limit requires no more segments. Greedily split only before exceeding the limit, then binary-search the smallest limit allowing at most k segments."
+    },
+    "cost": {
+      "zh": "O(n log S) / O(1)",
+      "en": "O(n log S) / O(1)"
+    },
+    "pitfall": {
+      "zh": "依赖非负数，才能继续拆成恰好 k 段。",
+      "en": "Nonnegative values justify feasibility and further splitting."
+    }
+  },
+  "median-of-two-sorted-arrays": {
+    "solution": {
+      "zh": "在较短数组二分切分点，另一切分点由左半总长度确定。左右交叉最大最小值满足顺序时，中位数直接从边界取得。",
+      "en": "Binary-search a partition in the shorter array; derive the other partition from the required left-side size. When cross-boundaries are ordered, obtain the median from their extrema."
+    },
+    "cost": {
+      "zh": "O(log min(m,n)) / O(1)",
+      "en": "O(log min(m,n)) / O(1)"
+    },
+    "pitfall": {
+      "zh": "空半区用正负无穷作边界。",
+      "en": "Handle empty partition sides with sentinels."
+    }
+  },
+  "binary-tree-inorder-traversal": {
+    "solution": {
+      "zh": "用显式栈模拟左→根→右。沿左链压栈，弹出访问，再进入右子树，栈保存尚未处理的祖先。",
+      "en": "Simulate left-root-right traversal with a stack. Push a left spine, pop and visit its root, then enter its right subtree; ancestors remain pending on the stack."
+    },
+    "cost": {
+      "zh": "O(n) / O(h)",
+      "en": "O(n) / O(h)"
+    },
+    "pitfall": {
+      "zh": "访问后转入弹出节点的右子树。",
+      "en": "Continue from the popped node's right child."
+    }
+  },
+  "maximum-depth-of-binary-tree": {
+    "solution": {
+      "zh": "空树深度为 0。当前深度等于左右子树最大深度加一，后序返回的子结果完整覆盖每条根叶路径。",
+      "en": "An empty tree has depth zero. Return one plus the larger child depth; postorder combines all root-to-leaf possibilities through the two subtrees."
+    },
+    "cost": {
+      "zh": "O(n) / O(h)",
+      "en": "O(n) / O(h)"
+    },
+    "pitfall": {
+      "zh": "节点数深度与边数高度不要混淆。",
+      "en": "Distinguish node-count depth from edge-count height."
+    }
+  },
+  "binary-tree-level-order-traversal": {
+    "solution": {
+      "zh": "队列逐层处理，开始一层前固定当前队长。只弹出这批节点，把孩子留到下一层，避免层间混合。",
+      "en": "Use a queue and freeze its current length before processing a level. Pop exactly that many nodes; newly enqueued children belong to the next level."
+    },
+    "cost": {
+      "zh": "O(n) / O(w)",
+      "en": "O(n) / O(w)"
+    },
+    "pitfall": {
+      "zh": "层内不要重新读取增长后的队长。",
+      "en": "Freeze each level's queue length."
+    }
+  },
+  "binary-tree-right-side-view": {
+    "solution": {
+      "zh": "逐层遍历时记录每层最后访问的节点。按左后右入队，这个节点就是该层最右侧可见节点。",
+      "en": "Traverse level by level, enqueueing left before right. Record the final node processed in each level, which is the rightmost visible node."
+    },
+    "cost": {
+      "zh": "O(n) / O(w)",
+      "en": "O(n) / O(w)"
+    },
+    "pitfall": {
+      "zh": "先固定每层长度。",
+      "en": "Keep level boundaries fixed."
+    }
+  },
+  "symmetric-tree": {
+    "solution": {
+      "zh": "成对比较两个子树。根值相同后，左树左孩子与右树右孩子镜像，另一对同理；空节点必须同时为空。",
+      "en": "Compare paired subtrees: equal roots require outer children to mirror each other and inner children to mirror each other. Null nodes must occur in pairs."
+    },
+    "cost": {
+      "zh": "O(n) / O(h)",
+      "en": "O(n) / O(h)"
+    },
+    "pitfall": {
+      "zh": "不能只比较中序或每层值序列。",
+      "en": "Value sequences alone lose structural information."
+    }
+  },
+  "diameter-of-binary-tree": {
+    "solution": {
+      "zh": "后序返回子树高度，同时用左右高度之和更新直径。每条最长路径都有一个最高转折点，会在该节点被完整结算。",
+      "en": "Return subtree height in postorder and maximize left height plus right height. Every longest path has a highest turning node where both arms are considered together."
+    },
+    "cost": {
+      "zh": "O(n) / O(h)",
+      "en": "O(n) / O(h)"
+    },
+    "pitfall": {
+      "zh": "直径按边数，不必经过根。",
+      "en": "Count edges; the diameter may avoid the root."
+    }
+  },
+  "binary-tree-maximum-path-sum": {
+    "solution": {
+      "zh": "向父节点只返回一条向下的正收益支路。当前节点可连接左右正收益来更新全局答案，但双支路径不能再向上传递。",
+      "en": "Return only the best positive downward arm to the parent. At each node, combine both positive arms for the global answer, but never propagate a two-arm path upward."
+    },
+    "cost": {
+      "zh": "O(n) / O(h)",
+      "en": "O(n) / O(h)"
+    },
+    "pitfall": {
+      "zh": "全负树答案应初始化为负无穷。",
+      "en": "Initialize for an all-negative tree."
+    }
+  },
+  "balanced-binary-tree": {
+    "solution": {
+      "zh": "后序一次求高度。子树已失衡或左右高度差超过一时返回失败标记，向上传播即可，避免重复计算高度。",
+      "en": "Compute height once in postorder. Propagate a failure sentinel if either child is unbalanced or their heights differ by more than one."
+    },
+    "cost": {
+      "zh": "O(n) / O(h)",
+      "en": "O(n) / O(h)"
+    },
+    "pitfall": {
+      "zh": "失败标记不能参与正常高度运算。",
+      "en": "Propagate failure before computing a height."
+    }
+  },
+  "lowest-common-ancestor-of-a-binary-tree": {
+    "solution": {
+      "zh": "遇到目标节点就返回它，分别递归左右子树。两侧都找到目标时当前节点为祖先，否则返回唯一非空结果。",
+      "en": "Return immediately on either target, then search both children. Two non-null results make the current node their common ancestor; otherwise propagate the one non-null result."
+    },
+    "cost": {
+      "zh": "O(n) / O(h)",
+      "en": "O(n) / O(h)"
+    },
+    "pitfall": {
+      "zh": "题目保证目标存在；通用接口需另行校验。",
+      "en": "This version assumes both targets exist."
+    }
+  },
+  "validate-binary-search-tree": {
+    "solution": {
+      "zh": "递归携带严格开区间上下界。当前值必须在界内，左子树收紧上界，右子树收紧下界，从而检查全部祖先约束。",
+      "en": "Carry strict lower and upper bounds through recursion. A left child tightens the upper bound, and a right child tightens the lower bound, enforcing every ancestor's constraint."
+    },
+    "cost": {
+      "zh": "O(n) / O(h)",
+      "en": "O(n) / O(h)"
+    },
+    "pitfall": {
+      "zh": "只比较直接孩子会漏掉跨层违规。",
+      "en": "Checking only immediate children is insufficient."
+    }
+  },
+  "kth-smallest-element-in-a-bst": {
+    "solution": {
+      "zh": "BST 中序序列递增。按中序访问并递减 k，到零时返回该节点；显式栈可在找到后立即停止。",
+      "en": "A BST's inorder sequence is sorted. Traverse inorder, decrementing k for each visited node; return when it reaches zero and stop further traversal."
+    },
+    "cost": {
+      "zh": "O(h+k) / O(h)",
+      "en": "O(h+k) / O(h)"
+    },
+    "pitfall": {
+      "zh": "在弹出访问时计数，不在入栈时。",
+      "en": "Count on visitation, not when pushing."
+    }
+  },
+  "convert-sorted-array-to-binary-search-tree": {
+    "solution": {
+      "zh": "选中点作根，左右两半递归建树。两侧元素数量最多差一，递归维持有序性与高度平衡。",
+      "en": "Choose a midpoint as the root and recursively build from both halves. Their sizes differ by at most one, preserving sorted order and height balance."
+    },
+    "cost": {
+      "zh": "O(n) / O(log n), 不含输出",
+      "en": "O(n) / O(log n), excluding output"
+    },
+    "pitfall": {
+      "zh": "空区间返回空节点。",
+      "en": "Return null for an empty interval."
+    }
+  },
+  "delete-node-in-a-bst": {
+    "solution": {
+      "zh": "按大小定位目标。零或一个孩子时直接提升孩子；两个孩子时用右子树最小值替代，再删除那个后继节点。",
+      "en": "Locate the key by BST ordering. Promote the child when at most one exists; otherwise replace the value with the right subtree's minimum and delete that successor."
+    },
+    "cost": {
+      "zh": "O(h) / O(h)",
+      "en": "O(h) / O(h)"
+    },
+    "pitfall": {
+      "zh": "递归返回值要接回原孩子位置。",
+      "en": "Reconnect each recursive result to its parent."
+    }
+  },
+  "path-sum-ii": {
+    "solution": {
+      "zh": "DFS 保存当前根到节点路径和剩余目标。只有到叶节点且剩余为零才复制答案，离开节点时弹出恢复路径。",
+      "en": "Track the current path and remaining target during DFS. Copy a path only at a leaf with zero remainder; pop on return to restore the parent state."
+    },
+    "cost": {
+      "zh": "O(nh) 含复制 / O(h), 不含输出",
+      "en": "O(nh) incl. copying / O(h), excluding output"
+    },
+    "pitfall": {
+      "zh": "内部节点满足和也不是完整根叶路径。",
+      "en": "Only leaf endpoints qualify."
+    }
+  },
+  "sum-root-to-leaf-numbers": {
+    "solution": {
+      "zh": "向下传递 value*10+节点数字。到叶节点贡献当前值，内部节点返回左右贡献之和，空孩子贡献零。",
+      "en": "Pass value times ten plus the current digit downward. A leaf contributes that number; an internal node returns the sum of its children's contributions."
+    },
+    "cost": {
+      "zh": "O(n) / O(h)",
+      "en": "O(n) / O(h)"
+    },
+    "pitfall": {
+      "zh": "只在叶节点累计完整数字。",
+      "en": "Accumulate complete numbers only at leaves."
+    }
+  },
+  "construct-binary-tree-from-preorder-and-inorder-traversal": {
+    "solution": {
+      "zh": "前序首值确定根，哈希表在中序中定位它。左子树大小决定前序切分范围，再递归构造两侧。",
+      "en": "The next preorder value identifies the root. Locate it in inorder using a map; the left subtree size determines both preorder ranges for recursive construction."
+    },
+    "cost": {
+      "zh": "O(n) / O(n)",
+      "en": "O(n) / O(n)"
+    },
+    "pitfall": {
+      "zh": "依赖节点值唯一；区间长度要一致。",
+      "en": "Unique values and consistent slice lengths are required."
+    }
+  },
+  "flatten-binary-tree-to-linked-list": {
+    "solution": {
+      "zh": "按右→左→根逆前序遍历，维护已展开链表的头 prev。令当前右指针指向 prev、左指针置空，再更新 prev。",
+      "en": "Traverse right-left-root, the reverse of preorder. Point each node's right link to the previously processed node, clear its left link, and update the flattened head."
+    },
+    "cost": {
+      "zh": "O(n) / O(h)",
+      "en": "O(n) / O(h)"
+    },
+    "pitfall": {
+      "zh": "先处理孩子再覆盖连接。",
+      "en": "Process children before overwriting links."
+    }
+  },
+  "invert-binary-tree": {
+    "solution": {
+      "zh": "每个节点交换左右孩子，再递归翻转两棵子树。局部交换与子树翻转一起构成整棵树的镜像。",
+      "en": "Swap each node's children and recursively invert both subtrees. The local swap plus recursively mirrored descendants yields the complete mirror tree."
+    },
+    "cost": {
+      "zh": "O(n) / O(h)",
+      "en": "O(n) / O(h)"
+    },
+    "pitfall": {
+      "zh": "空树直接返回。",
+      "en": "Return immediately for null nodes."
+    }
+  },
+  "number-of-provinces": {
+    "solution": {
+      "zh": "把城市视为节点，矩阵中的连接视为无向边。从每个未访问城市发起遍历，一次遍历对应一个省份。",
+      "en": "Treat cities as vertices and matrix connections as undirected edges. Start a traversal from each unvisited city; each traversal discovers exactly one province."
+    },
+    "cost": {
+      "zh": "O(n²) / O(n)",
+      "en": "O(n²) / O(n)"
+    },
+    "pitfall": {
+      "zh": "邻接矩阵扫描本身是平方成本。",
+      "en": "Account for scanning the full adjacency matrix."
+    },
+    "alternatives": {
+      "union-find": {
+        "solution": {
+          "zh": "每个城市初始独立。扫描邻接矩阵上三角，连接的两个城市用路径压缩与按大小合并；最终不同根的数量就是省份数。",
+          "en": "Initialize one set per city. Scan the upper triangle of the adjacency matrix and union connected cities using path compression and union by size. The remaining root count is the province count."
+        },
+        "cost": {
+          "zh": "O(n²·α(n)) / O(n)",
+          "en": "O(n²·α(n)) / O(n)"
+        },
+        "pitfall": {
+          "zh": "只有两个根不同时合并并减少连通块数量。",
+          "en": "Decrement the component count only when distinct roots merge."
+        }
+      }
+    }
+  },
+  "keys-and-rooms": {
+    "solution": {
+      "zh": "从房间 0 遍历，钥匙是到其他房间的有向边。进入时永久标记，最终比较访问数量与房间总数。",
+      "en": "Traverse from room zero, treating keys as directed edges. Mark rooms permanently when discovered and compare the visited count with the total room count."
+    },
+    "cost": {
+      "zh": "O(V+E) / O(V)",
+      "en": "O(V+E) / O(V)"
+    },
+    "pitfall": {
+      "zh": "不能从其他未访问房间额外启动遍历。",
+      "en": "Only room zero is an allowed starting point."
+    }
+  },
+  "clone-graph": {
+    "solution": {
+      "zh": "映射表记录原节点到克隆节点。首次遇到节点先创建并登记，再递归复制邻居，环会命中已有副本而停止重复创建。",
+      "en": "Map original nodes to clones. Create and register a clone before copying neighbors; cycles then reuse an existing clone instead of recursing indefinitely."
+    },
+    "cost": {
+      "zh": "O(V+E) / O(V), 不含输出",
+      "en": "O(V+E) / O(V), excluding output"
+    },
+    "pitfall": {
+      "zh": "必须在递归邻居之前登记映射。",
+      "en": "Register the clone before visiting neighbors."
+    }
+  },
+  "number-of-islands": {
+    "solution": {
+      "zh": "扫描每个格子，遇到未访问陆地就计数并洪泛标记整块四连通陆地。每块只会触发一次计数。",
+      "en": "Scan all cells. Each unvisited land cell starts a flood fill over its four-connected component and increments the island count once."
+    },
+    "cost": {
+      "zh": "O(mn) / O(mn)",
+      "en": "O(mn) / O(mn)"
+    },
+    "pitfall": {
+      "zh": "对角相接不算连通。",
+      "en": "Diagonal contact does not connect islands."
+    }
+  },
+  "max-area-of-island": {
+    "solution": {
+      "zh": "每个未访问陆地启动洪泛，返回本次实际访问的陆地数。取所有连通块计数的最大值。",
+      "en": "Flood-fill each unvisited land component and count the cells discovered in that traversal. The largest component count is the maximum island area."
+    },
+    "cost": {
+      "zh": "O(mn) / O(mn)",
+      "en": "O(mn) / O(mn)"
+    },
+    "pitfall": {
+      "zh": "标记访问后再扩展，避免重复累计。",
+      "en": "Mark before expanding to avoid double-counting."
+    }
+  },
+  "surrounded-regions": {
+    "solution": {
+      "zh": "从边界 O 出发标记可逃离区域。剩余未标记 O 才是被包围部分；最后翻转它们并恢复标记。",
+      "en": "Mark all O cells reachable from boundary O cells. Unmarked O cells are enclosed; flip them and restore the boundary-connected marked cells."
+    },
+    "cost": {
+      "zh": "O(mn) / O(mn)",
+      "en": "O(mn) / O(mn)"
+    },
+    "pitfall": {
+      "zh": "从四条边界出发而非只看四角。",
+      "en": "Start from all boundary cells, not only corners."
+    }
+  },
+  "flood-fill": {
+    "solution": {
+      "zh": "记住起点原颜色，遍历与它同色的四连通格子并改色。新颜色可充当已访问标记。",
+      "en": "Remember the starting color and recolor its four-connected component. The replacement color doubles as a visited mark when it differs from the original."
+    },
+    "cost": {
+      "zh": "O(mn) / O(mn)",
+      "en": "O(mn) / O(mn)"
+    },
+    "pitfall": {
+      "zh": "新旧颜色相同时立即返回。",
+      "en": "Return immediately when both colors match."
+    }
+  },
+  "rotting-oranges": {
+    "solution": {
+      "zh": "所有腐烂橘子同时入队作为第 0 层。每层感染相邻新鲜橘子，入队时即改色并减少新鲜数，最后检查是否仍有剩余。",
+      "en": "Seed BFS with all rotten oranges at time zero. Each layer infects adjacent fresh oranges, marking on enqueue and decrementing the fresh count; leftovers mean impossibility."
+    },
+    "cost": {
+      "zh": "O(mn) / O(mn)",
+      "en": "O(mn) / O(mn)"
+    },
+    "pitfall": {
+      "zh": "没有新鲜橘子时分钟数为 0。",
+      "en": "Return zero when no fresh oranges exist."
+    }
+  },
+  "word-ladder": {
+    "solution": {
+      "zh": "把单词作为状态，一次改变一个字母构成边。BFS 首次到终点对应最少变化次数，字典中取出即标记避免重复入队。",
+      "en": "Words are states linked by one-letter changes. BFS finds the fewest transformations; remove dictionary entries when enqueuing to avoid duplicate states."
+    },
+    "cost": {
+      "zh": "O(NL²·Σ) 复制字符串时 / O(NL)",
+      "en": "O(NL²·Σ) with string copying / O(NL)"
+    },
+    "pitfall": {
+      "zh": "返回序列单词数，不是边数。",
+      "en": "Return the number of words, not edges."
+    }
+  },
+  "open-the-lock": {
+    "solution": {
+      "zh": "四位密码为状态，每位加一或减一形成八个邻居。跳过死锁并在入队时标记，BFS 层数就是最少转动次数。",
+      "en": "Treat each four-digit code as a state with eight wheel-turn neighbors. Skip deadends, mark on enqueue, and use BFS distance as the minimum number of turns."
+    },
+    "cost": {
+      "zh": "O(10⁴·4) / O(10⁴)",
+      "en": "O(10⁴·4) / O(10⁴)"
+    },
+    "pitfall": {
+      "zh": "起点在死锁集合时直接失败。",
+      "en": "A deadlocked start is immediately impossible."
+    }
+  },
+  "shortest-path-in-binary-matrix": {
+    "solution": {
+      "zh": "从左上角对空格做八方向 BFS。距离从 1 个格子开始，首次到右下角即最短路径长度。",
+      "en": "Run eight-direction BFS over open cells from the top-left corner. Start the distance at one cell; the first arrival at bottom-right gives the shortest path length."
+    },
+    "cost": {
+      "zh": "O(n²) / O(n²)",
+      "en": "O(n²) / O(n²)"
+    },
+    "pitfall": {
+      "zh": "起点终点任一被挡都无解。",
+      "en": "Reject a blocked start or destination."
+    }
+  },
+  "all-paths-from-source-to-target": {
+    "solution": {
+      "zh": "沿邻接表 DFS，进入节点压入当前路径，到终点复制路径。退出时弹出；输入是 DAG，无需全局 visited，否则会漏掉共享后缀的路径。",
+      "en": "DFS along adjacency lists, pushing each node onto the current path. Copy at the target and pop on return. The DAG needs no global visited set, which would suppress shared suffixes."
+    },
+    "cost": {
+      "zh": "取决于输出，最坏 O(n·2ⁿ) / O(n), 不含输出",
+      "en": "Output-sensitive, worst O(n·2ⁿ) / O(n), excluding output"
+    },
+    "pitfall": {
+      "zh": "Go 保存答案时复制切片底层内容。",
+      "en": "Copy the path buffer when storing an answer."
+    }
+  },
+  "course-schedule": {
+    "solution": {
+      "zh": "先修关系建边，计算入度。反复移除入度为零的课程并减少后继入度；能移除全部课程等价于不存在有向环。",
+      "en": "Build prerequisite-to-course edges and indegrees. Repeatedly remove zero-indegree courses and decrement their successors; removing every course is equivalent to having no directed cycle."
+    },
+    "cost": {
+      "zh": "O(V+E) / O(V+E)",
+      "en": "O(V+E) / O(V+E)"
+    },
+    "pitfall": {
+      "zh": "边方向要从先修课指向后续课。",
+      "en": "Direct edges from prerequisite to dependent course."
+    }
+  },
+  "course-schedule-ii": {
+    "solution": {
+      "zh": "用入度队列执行拓扑排序，把弹出的课程依次写入答案。若处理数不足课程总数，环使剩余课程无法安排，返回空。",
+      "en": "Run Kahn's topological sort and append each removed course to the schedule. If fewer than all courses are processed, a cycle prevents completion; return an empty ordering."
+    },
+    "cost": {
+      "zh": "O(V+E) / O(V+E)",
+      "en": "O(V+E) / O(V+E)"
+    },
+    "pitfall": {
+      "zh": "拓扑序可能有多个合法答案。",
+      "en": "Multiple valid topological orders may exist."
+    }
+  },
+  "find-eventual-safe-states": {
+    "solution": {
+      "zh": "反转边并记录原出度。从终点开始删除安全节点，出度降为零的前驱也安全；剩余节点可到达环。",
+      "en": "Reverse edges and track original outdegrees. Remove terminal nodes, then predecessors whose outdegree reaches zero. Remaining nodes can reach a cycle and are unsafe."
+    },
+    "cost": {
+      "zh": "O(V+E) / O(V+E)",
+      "en": "O(V+E) / O(V+E)"
+    },
+    "pitfall": {
+      "zh": "输出需按原节点编号排序。",
+      "en": "Return safe nodes in ascending index order."
+    }
+  },
+  "redundant-connection": {
+    "solution": {
+      "zh": "依次加入无向边。若两端已在同一并查集，加入它会形成环；否则合并两个连通块。",
+      "en": "Process undirected edges in order. If both endpoints already share a union-find root, the edge closes a cycle; otherwise union the two components."
+    },
+    "cost": {
+      "zh": "O(E·α(V)) / O(V)",
+      "en": "O(E·α(V)) / O(V)"
+    },
+    "pitfall": {
+      "zh": "按输入顺序处理，满足题目最后边规则。",
+      "en": "Process input order to satisfy the tie rule."
+    }
+  },
+  "accounts-merge": {
+    "solution": {
+      "zh": "邮箱是身份连接依据。将同账户邮箱连通，按并查集根收集邮箱并排序，再补回账户姓名。",
+      "en": "Union emails appearing in the same account, group emails by root, sort each group, and attach its account name. Shared email, rather than equal names, establishes identity."
+    },
+    "cost": {
+      "zh": "O(M log M) / O(M)",
+      "en": "O(M log M) / O(M)"
+    },
+    "pitfall": {
+      "zh": "同名账户不一定属于同一个人。",
+      "en": "Equal names alone do not imply identity."
+    }
+  },
+  "network-delay-time": {
+    "solution": {
+      "zh": "非负权图从源点运行 Dijkstra。每次弹出当前最短距离并松弛出边，答案取所有最短距离最大值；不可达则为 -1。",
+      "en": "Run Dijkstra from the source in the nonnegative graph. Relax outgoing edges from the minimum-distance entry; return the maximum final distance, or minus one if any node is unreachable."
+    },
+    "cost": {
+      "zh": "O((V+E) log V) / O(V+E)",
+      "en": "O((V+E) log V) / O(V+E)"
+    },
+    "pitfall": {
+      "zh": "弹出的过期堆条目要跳过。",
+      "en": "Skip stale heap entries."
+    }
+  },
+  "path-with-minimum-effort": {
+    "solution": {
+      "zh": "路径代价定义为沿途最大高度差。Dijkstra 松弛用 max(已用代价,新边差)，选择当前最小代价状态继续，首次确定终点即答案。",
+      "en": "Define path cost as its maximum edge difference. Dijkstra relaxes with max(current cost, new edge difference); the destination's first settled cost is the minimum possible effort."
+    },
+    "cost": {
+      "zh": "O(mn log(mn)) / O(mn)",
+      "en": "O(mn log(mn)) / O(mn)"
+    },
+    "pitfall": {
+      "zh": "不能把高度差相加。",
+      "en": "Use a maximum, not a sum, for path cost."
+    }
+  },
+  "reconstruct-itinerary": {
+    "solution": {
+      "zh": "按目的地字典序取边执行 Hierholzer。只有一个机场的出边耗尽后才加入逆序结果，最后反转，保证每张票恰好使用一次。",
+      "en": "Use Hierholzer with destinations consumed in lexical order. Append an airport after exhausting its outgoing tickets, then reverse the result so every ticket is used exactly once."
+    },
+    "cost": {
+      "zh": "O(E log E) / O(E)",
+      "en": "O(E log E) / O(E)"
+    },
+    "pitfall": {
+      "zh": "重复机票必须作为不同边保留。",
+      "en": "Preserve duplicate tickets as distinct edges."
+    }
+  },
+  "valid-arrangement-of-pairs": {
+    "solution": {
+      "zh": "用入出度差选欧拉路径起点；若全平衡可任选有边节点。Hierholzer 消耗每条边并逆序记录，反转后还原相邻数对。",
+      "en": "Choose the vertex with outdegree minus indegree one, or any active vertex for a circuit. Consume edges with Hierholzer, reverse the resulting vertex sequence, and rebuild consecutive pairs."
+    },
+    "cost": {
+      "zh": "O(E) / O(E)",
+      "en": "O(E) / O(E)"
+    },
+    "pitfall": {
+      "zh": "访问状态属于边，不是节点。",
+      "en": "Track edge consumption rather than visited vertices."
+    }
+  },
+  "subsets": {
+    "solution": {
+      "zh": "用 start 限定下一元素下标。每个递归节点先保存当前子集，再逐个选择后续元素；下标递增保证每个子集唯一。",
+      "en": "Save the current subset at every recursion node, then choose each later element using an increasing start index. Every index subset has one unique construction path."
+    },
+    "cost": {
+      "zh": "O(n·2ⁿ) / O(n), 不含输出",
+      "en": "O(n·2ⁿ) / O(n), excluding output"
+    },
+    "pitfall": {
+      "zh": "保存时复制当前路径。",
+      "en": "Copy the current path when saving it."
+    }
+  },
+  "subsets-ii": {
+    "solution": {
+      "zh": "先排序，让相同值相邻。每一层跳过与前一个候选相同的值，但不同深度仍可使用相同值，保留合法重复元素。",
+      "en": "Sort values and skip equal candidates only at the same recursion depth. Equal values remain usable at deeper levels, preserving subsets containing multiple copies."
+    },
+    "cost": {
+      "zh": "O(n·2ⁿ) / O(n), 不含输出",
+      "en": "O(n·2ⁿ) / O(n), excluding output"
+    },
+    "pitfall": {
+      "zh": "同层去重条件是 i>start。",
+      "en": "Deduplicate siblings using i greater than start."
+    }
+  },
+  "combination-sum": {
+    "solution": {
+      "zh": "排序后逐个选择不超过剩余目标的数。递归继续从当前下标开始，允许复用；下标不回退避免排列式重复。",
+      "en": "Choose sorted candidates no larger than the remaining target. Recurse from the current index to allow reuse; nondecreasing indices prevent permutations of the same combination."
+    },
+    "cost": {
+      "zh": "指数级搜索 / O(T/最小候选), 不含输出",
+      "en": "Exponential search / O(T/min value), excluding output"
+    },
+    "pitfall": {
+      "zh": "输入为正数才保证剩余目标递减。",
+      "en": "Positive candidates ensure termination."
+    }
+  },
+  "combination-sum-ii": {
+    "solution": {
+      "zh": "排序后按递增下标选数，每个位置最多用一次。同层跳过相同值，剩余目标不足当前值时直接剪枝。",
+      "en": "Sort, choose indices in increasing order, and advance past each chosen index. Skip equal siblings and stop a branch once its candidate exceeds the remaining target."
+    },
+    "cost": {
+      "zh": "O(n·2ⁿ) / O(n), 不含输出",
+      "en": "O(n·2ⁿ) / O(n), excluding output"
+    },
+    "pitfall": {
+      "zh": "递归用 i+1，不能继续用 i。",
+      "en": "Recurse from i+1 to prevent reuse."
+    }
+  },
+  "combinations": {
+    "solution": {
+      "zh": "从 1 到 n 递增选择，选满 k 个就保存。若剩余可选数量不足所需数量，停止该分支。",
+      "en": "Choose increasing values from one through n and save paths of length k. Prune whenever too few remaining values exist to complete the combination."
+    },
+    "cost": {
+      "zh": "O(k·C(n,k)) / O(k), 不含输出",
+      "en": "O(k·C(n,k)) / O(k), excluding output"
+    },
+    "pitfall": {
+      "zh": "剪枝上界要保留最后可行候选。",
+      "en": "Keep the final feasible candidate in the bound."
+    }
+  },
+  "permutations": {
+    "solution": {
+      "zh": "每层选择一个尚未使用的下标。路径长度到 n 时保存；返回时同时撤销路径和 used 状态。",
+      "en": "At each depth choose an unused index. Save a path once it contains n values, then restore both the path and used flag on return."
+    },
+    "cost": {
+      "zh": "O(n·n!) / O(n), 不含输出",
+      "en": "O(n·n!) / O(n), excluding output"
+    },
+    "pitfall": {
+      "zh": "used 记录下标，不是取值。",
+      "en": "Track used indices rather than values."
+    }
+  },
+  "permutations-ii": {
+    "solution": {
+      "zh": "排序并维护 used。若当前值等于前值且前值本轮未用，就跳过；相同元素按固定先后使用，消除等价排列。",
+      "en": "Sort and track used indices. Skip a duplicate when its previous equal element is unused, enforcing a consistent order among identical elements and eliminating equivalent permutations."
+    },
+    "cost": {
+      "zh": "O(n·n!) / O(n), 不含输出",
+      "en": "O(n·n!) / O(n), excluding output"
+    },
+    "pitfall": {
+      "zh": "去重看前一项未用，而非已用。",
+      "en": "Skip when the previous equal item is unused."
+    }
+  },
+  "letter-combinations-of-a-phone-number": {
+    "solution": {
+      "zh": "映射每个数字到字母集合，递归深度对应数字位置。从当前数字选一个字母，处理下一位，全部处理后保存字符串。",
+      "en": "Map each digit to its letters. At each digit position choose one letter and recurse to the next; save the constructed string after all positions are processed."
+    },
+    "cost": {
+      "zh": "O(d·4ᵈ) / O(d), 不含输出",
+      "en": "O(d·4ᵈ) / O(d), excluding output"
+    },
+    "pitfall": {
+      "zh": "空输入返回空列表。",
+      "en": "An empty input produces an empty list."
+    }
+  },
+  "n-queens": {
+    "solution": {
+      "zh": "逐行放置皇后，列、主对角线、副对角线分别记录占用。只尝试三种约束均未占用的位置，回溯时撤销。",
+      "en": "Place one queen per row, tracking occupied columns and both diagonals. Explore only positions free in all three constraints and undo their marks on backtracking."
+    },
+    "cost": {
+      "zh": "O(n·n!) 上界 / O(n²), 不含输出",
+      "en": "O(n·n!) upper bound / O(n²), excluding output"
+    },
+    "pitfall": {
+      "zh": "两条对角线键分别为 row-col 与 row+col。",
+      "en": "Use row-col and row+col as diagonal keys."
+    }
+  },
+  "word-search": {
+    "solution": {
+      "zh": "从每个匹配首字母的格子 DFS 下一字符。当前路径临时标记格子，四邻匹配后递归；返回时恢复，供其他起点使用。",
+      "en": "DFS from each matching first character, temporarily marking cells on the current path. Follow matching four-neighbor cells and restore marks on return so other paths can reuse them."
+    },
+    "cost": {
+      "zh": "O(mn·3ᴸ) / O(L)",
+      "en": "O(mn·3ᴸ) / O(L)"
+    },
+    "pitfall": {
+      "zh": "同一条路径不能重复使用格子。",
+      "en": "A path cannot reuse a cell."
+    }
+  },
+  "sudoku-solver": {
+    "solution": {
+      "zh": "行、列、宫分别维护已用数字。选择空格尝试所有合法数字，递归失败就撤销；选择候选最少的空格能减少分支。",
+      "en": "Track used digits for rows, columns, and boxes. Try legal digits in an empty cell and undo failed choices; selecting the cell with fewest candidates reduces branching."
+    },
+    "cost": {
+      "zh": "O(9ᵉ) 上界 / O(e)",
+      "en": "O(9ᵉ) upper bound / O(e)"
+    },
+    "pitfall": {
+      "zh": "回溯时同步恢复棋盘和约束。",
+      "en": "Restore both board and constraint marks."
+    }
+  },
+  "generate-parentheses": {
+    "solution": {
+      "zh": "维护已用左括号与右括号数。左括号少于 n 才能加左括号，右括号少于左括号才能加右括号，始终保持前缀合法。",
+      "en": "Track opening and closing counts. Add an opening while fewer than n are used; add a closing only when fewer closings than openings exist, keeping every prefix valid."
+    },
+    "cost": {
+      "zh": "O(n·Cₙ) / O(n), 不含输出",
+      "en": "O(n·Cₙ) / O(n), excluding output"
+    },
+    "pitfall": {
+      "zh": "合法性约束应在递归前剪枝。",
+      "en": "Prune invalid prefixes before recursing."
+    }
+  },
+  "palindrome-partitioning": {
+    "solution": {
+      "zh": "预计算每段是否回文。DFS 枚举下一切分终点，只递归回文片段，到串尾保存本次分割。",
+      "en": "Precompute which intervals are palindromes. DFS over the next cut endpoint, recurse only through palindromic pieces, and save the partition upon reaching the string end."
+    },
+    "cost": {
+      "zh": "O(n²+n·2ⁿ) / O(n²), 不含输出",
+      "en": "O(n²+n·2ⁿ) / O(n²), excluding output"
+    },
+    "pitfall": {
+      "zh": "切分片段覆盖全文且不能重叠。",
+      "en": "Pieces must cover the string without overlap."
+    }
+  },
+  "restore-ip-addresses": {
+    "solution": {
+      "zh": "递归构造恰好四段，每段取一至三位且值不超过 255。用剩余字符数与剩余段数剪枝，拒绝多位前导零。",
+      "en": "Build exactly four segments, each one to three digits and at most 255. Prune using remaining lengths and reject multi-digit segments beginning with zero."
+    },
+    "cost": {
+      "zh": "O(3⁴) 搜索 / O(1), 不含输出",
+      "en": "O(3⁴) search / O(1), excluding output"
+    },
+    "pitfall": {
+      "zh": "用完四段时必须也用完整个字符串。",
+      "en": "All characters must be consumed after four segments."
+    }
+  },
+  "climbing-stairs": {
+    "solution": {
+      "zh": "最后一步只能来自前一级或前两级，所以 ways[i]=ways[i-1]+ways[i-2]。滚动保存两个前态即可。",
+      "en": "The final step comes from one or two stairs below, so ways[i] is the sum of those two counts. Keep only the previous two states."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "初始化要覆盖 n=1。",
+      "en": "Initialize correctly for one stair."
+    }
+  },
+  "house-robber": {
+    "solution": {
+      "zh": "到当前房屋只有偷或不偷两种选择。最优值为上一位置最优值与前两位置最优值加当前金额的较大者。",
+      "en": "At each house either skip it or rob it. Take the maximum of the previous optimum and the optimum two houses back plus the current amount."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "更新滚动状态前保留旧值。",
+      "en": "Preserve old states before rolling them forward."
+    }
+  },
+  "pascals-triangle": {
+    "solution": {
+      "zh": "每行两端固定为 1，内部元素等于上一行相邻两数之和。按行构造，上一行就是完整依赖。",
+      "en": "Set both ends of each row to one. Every interior entry is the sum of its two parents from the preceding row; construct rows in order."
+    },
+    "cost": {
+      "zh": "O(r²) / O(1), 不含输出",
+      "en": "O(r²) / O(1), excluding output"
+    },
+    "pitfall": {
+      "zh": "新行不能覆盖尚需使用的上一行。",
+      "en": "Do not overwrite parent values prematurely."
+    }
+  },
+  "maximum-subarray": {
+    "solution": {
+      "zh": "维护以当前元素结尾的最大和：要么独自起段，要么接到前一段。全局取各结尾状态的最大值。",
+      "en": "Track the best sum ending at each position: start a new segment or extend the previous one. The global answer is the maximum over these ending states."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "全负数也必须选非空子数组。",
+      "en": "An all-negative array still requires a nonempty choice."
+    }
+  },
+  "maximum-product-subarray": {
+    "solution": {
+      "zh": "负数会交换最大和最小乘积的作用，因此同时维护以当前位置结尾的两种极值。由当前值与两种旧极值相乘取新极值。",
+      "en": "Track both maximum and minimum products ending here, since a negative value swaps their roles. Form new extrema from the value alone and its products with both old extrema."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "两个新状态必须使用同一轮旧值。",
+      "en": "Compute both new states from the old pair."
+    }
+  },
+  "coin-change": {
+    "solution": {
+      "zh": "dp[s] 表示凑出金额 s 的最少硬币数。由每个可用硬币转移 dp[s-c]+1，正金额从小到大处理。",
+      "en": "Let dp[s] be the fewest coins making amount s. Minimize dp[s-c]+1 over available coins, processing amounts in increasing order."
+    },
+    "cost": {
+      "zh": "O(金额·硬币数) / O(金额)",
+      "en": "O(amount·coins) / O(amount)"
+    },
+    "pitfall": {
+      "zh": "不可达状态用无穷，避免误算成零。",
+      "en": "Use an unreachable sentinel, not zero."
+    }
+  },
+  "perfect-squares": {
+    "solution": {
+      "zh": "预生成不超过 n 的平方数。把它们视为可无限使用的硬币，dp[s] 从所有 dp[s-square]+1 中取最小值。",
+      "en": "Generate squares up to n and treat them as unlimited coin denominations. For each sum, minimize dp[sum-square]+1 over eligible squares."
+    },
+    "cost": {
+      "zh": "O(n√n) / O(n)",
+      "en": "O(n√n) / O(n)"
+    },
+    "pitfall": {
+      "zh": "平方数包含 1，不可只用不同平方数。",
+      "en": "Squares may be reused, including one."
+    }
+  },
+  "partition-equal-subset-sum": {
+    "solution": {
+      "zh": "总和为奇数直接失败；否则找能否凑出一半。布尔背包按容量倒序更新，确保每个元素最多使用一次。",
+      "en": "Reject an odd total, then test whether a subset reaches half the sum. Update a boolean knapsack in descending capacity order so each element is used once."
+    },
+    "cost": {
+      "zh": "O(nS) / O(S), S=总和/2",
+      "en": "O(nS) / O(S), S=total/2"
+    },
+    "pitfall": {
+      "zh": "正序容量会错误地重复使用元素。",
+      "en": "Ascending capacities would reuse the same element."
+    }
+  },
+  "coin-change-ii": {
+    "solution": {
+      "zh": "dp[s] 记录组合数，dp[0]=1。外层枚举硬币，内层金额递增，允许复用当前硬币而不重复计算不同排列。",
+      "en": "Count combinations with dp[0]=1. Iterate coins outside and amounts upward inside, allowing repeated use of a denomination without counting different orders separately."
+    },
+    "cost": {
+      "zh": "O(金额·硬币数) / O(金额)",
+      "en": "O(amount·coins) / O(amount)"
+    },
+    "pitfall": {
+      "zh": "交换循环顺序会变为排列计数。",
+      "en": "Loop order distinguishes combinations from sequences."
+    }
+  },
+  "longest-increasing-subsequence": {
+    "solution": {
+      "zh": "维护每种长度的最小结尾 tails。对新值找首个大于等于它的位置并替换，或追加；更小结尾保留更多后续扩展机会。",
+      "en": "Maintain the smallest possible tail for each subsequence length. Replace the first tail at least the new value, or append; smaller tails preserve all future extension opportunities."
+    },
+    "cost": {
+      "zh": "O(n log n) / O(n)",
+      "en": "O(n log n) / O(n)"
+    },
+    "pitfall": {
+      "zh": "严格递增使用 >= 的下界。",
+      "en": "Use the first tail greater than or equal."
+    }
+  },
+  "longest-common-subsequence": {
+    "solution": {
+      "zh": "dp[i][j] 表示两个前缀的最长公共子序列。末字符相等就对角加一，否则从丢掉任一末字符的状态取最大。",
+      "en": "Let dp[i][j] describe the two prefixes. Equal final characters extend the diagonal state by one; otherwise take the best state dropping either final character."
+    },
+    "cost": {
+      "zh": "O(mn) / O(min(m,n)) 滚动数组",
+      "en": "O(mn) / O(min(m,n)) with rolling rows"
+    },
+    "pitfall": {
+      "zh": "子序列允许跳过字符，不要求连续。",
+      "en": "Subsequences need not be contiguous."
+    }
+  },
+  "edit-distance": {
+    "solution": {
+      "zh": "前缀 DP 考虑替换、删除、插入三种最后操作。字符相等沿对角继承，否则取三个前态的最小值加一。",
+      "en": "Use prefix DP over replacement, deletion, and insertion as the final operation. Equal characters keep the diagonal cost; otherwise add one to the smallest of three predecessor costs."
+    },
+    "cost": {
+      "zh": "O(mn) / O(min(m,n)) 滚动数组",
+      "en": "O(mn) / O(min(m,n)) with rolling rows"
+    },
+    "pitfall": {
+      "zh": "空串边界为另一前缀长度。",
+      "en": "Initialize empty-string boundaries to prefix lengths."
+    }
+  },
+  "word-break": {
+    "solution": {
+      "zh": "dp[i] 表示前 i 个字符可被拆分。枚举最后一段起点 j，若 dp[j] 为真且 s[j:i] 在字典中，就标记 dp[i]。",
+      "en": "Let dp[i] mean the first i characters can be segmented. Try a final word starting at j; a reachable prefix j plus a dictionary suffix makes i reachable."
+    },
+    "cost": {
+      "zh": "O(n³) 复制子串时 / O(n+词典)",
+      "en": "O(n³) with copied substrings / O(n+dictionary)"
+    },
+    "pitfall": {
+      "zh": "字典单词可重复使用。",
+      "en": "Dictionary words may be reused."
+    }
+  },
+  "unique-paths": {
+    "solution": {
+      "zh": "每格只能从上方或左方进入，路径数相加。第一行第一列只有一种到达方式，逐行滚动累计。",
+      "en": "Each cell can be entered only from above or the left, so add those path counts. Initialize the first row and column with one path and roll rows."
+    },
+    "cost": {
+      "zh": "O(mn) / O(n)",
+      "en": "O(mn) / O(n)"
+    },
+    "pitfall": {
+      "zh": "起点到自身有一条空移动路径。",
+      "en": "The starting cell has one initial path."
+    }
+  },
+  "minimum-path-sum": {
+    "solution": {
+      "zh": "dp 保存到每格的最小累计代价。取上方与左方的较小值加当前格，边界只能来自唯一合法方向。",
+      "en": "Store the minimum accumulated cost to each cell. Add its value to the smaller cost from above or left, handling borders through their sole valid predecessor."
+    },
+    "cost": {
+      "zh": "O(mn) / O(n)",
+      "en": "O(mn) / O(n)"
+    },
+    "pitfall": {
+      "zh": "起点自身数值也计入路径和。",
+      "en": "Include the starting cell's value."
+    }
+  },
+  "unique-paths-ii": {
+    "solution": {
+      "zh": "沿用网格路径 DP，但障碍格路径数强制为零。其余格累加上方与左方，障碍后方自然无法从被挡方向到达。",
+      "en": "Use grid path DP, setting every obstacle's count to zero. Other cells add counts from above and left, naturally blocking all paths passing through obstacles."
+    },
+    "cost": {
+      "zh": "O(mn) / O(n)",
+      "en": "O(mn) / O(n)"
+    },
+    "pitfall": {
+      "zh": "起点或终点是障碍时结果为零。",
+      "en": "A blocked start or destination yields zero."
+    }
+  },
+  "longest-palindromic-substring": {
+    "solution": {
+      "zh": "区间 DP 记录 s[l:r+1] 是否回文。两端字符相等且内部区间为回文时成立，长度不超过二时只需两端相等；按长度递增填表并记录最长区间。",
+      "en": "Use interval DP to mark whether s[l:r+1] is a palindrome. Endpoints must match and the interior must be palindromic; lengths up to two need only matching endpoints. Fill increasing lengths and retain the longest interval."
+    },
+    "cost": {
+      "zh": "O(n²) / O(n²)",
+      "en": "O(n²) / O(n²)"
+    },
+    "pitfall": {
+      "zh": "先处理短区间，不能读取尚未计算的内部状态。",
+      "en": "Compute shorter intervals before reading interior states."
+    }
+  },
+  "longest-palindromic-subsequence": {
+    "solution": {
+      "zh": "区间 DP：两端相等则内区间加二，否则取丢弃左端或右端的较大值。按短区间到长区间填表。",
+      "en": "Use interval DP. Matching endpoints add two to the interior result; otherwise take the maximum after dropping either endpoint. Fill from short intervals to long ones."
+    },
+    "cost": {
+      "zh": "O(n²) / O(n²)",
+      "en": "O(n²) / O(n²)"
+    },
+    "pitfall": {
+      "zh": "单字符值为 1，空区间为 0。",
+      "en": "Initialize singleton and empty intervals correctly."
+    }
+  },
+  "burst-balloons": {
+    "solution": {
+      "zh": "两端补 1，dp[l][r] 表示开区间全部戳完的最大分数。枚举最后戳的气球 k，此时相邻值固定为两端，左右区间独立。",
+      "en": "Pad with ones and define dp[l][r] on an open interval. Choose balloon k as the last burst; its neighbors are then the fixed endpoints and the two subintervals are independent."
+    },
+    "cost": {
+      "zh": "O(n³) / O(n²)",
+      "en": "O(n³) / O(n²)"
+    },
+    "pitfall": {
+      "zh": "枚举最后戳，不是第一个戳。",
+      "en": "Choose the last balloon, not the first."
+    }
+  },
+  "best-time-to-buy-and-sell-stock": {
+    "solution": {
+      "zh": "扫描时记录历史最低价，当前价减最低价就是今日卖出的最佳利润。全局取最大值，无法盈利时保持零。",
+      "en": "Track the lowest earlier price. Selling today yields today's price minus that minimum; maximize this profit globally, keeping zero when no profitable trade exists."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "只允许一次买入卖出。",
+      "en": "Allow at most one completed transaction."
+    },
+    "alternatives": {
+      "state-machine": {
+        "solution": {
+          "zh": "维护持股和已卖出的最优收益。单次交易的持股状态只可由空仓买入得到 -price，卖出状态取原值与旧持股加今日价格的较大者。",
+          "en": "Track the best holding and sold profits. For one allowed transaction, holding can only improve by buying at -price; sold takes the maximum of its old value and yesterday's holding plus today's price."
+        },
+        "cost": {
+          "zh": "O(n) / O(1)",
+          "en": "O(n) / O(1)"
+        },
+        "pitfall": {
+          "zh": "买入不能使用之前卖出的利润，否则会允许多次交易。",
+          "en": "Do not fund a buy from earlier sale profits; that would allow multiple transactions."
+        }
+      }
+    }
+  },
+  "best-time-to-buy-and-sell-stock-ii": {
+    "solution": {
+      "zh": "把每段上涨的相邻差值累加。任一长上涨交易可拆成逐日交易且利润不变，下跌日不持仓即可。",
+      "en": "Sum all positive adjacent price changes. Any rising-run trade can be split into daily trades with identical profit, while declining intervals can be skipped."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "同一时刻不能持有多股。",
+      "en": "Never hold more than one share."
+    }
+  },
+  "best-time-to-buy-and-sell-stock-with-cooldown": {
+    "solution": {
+      "zh": "维护持有、今日卖出、空仓休息三个状态。买入只能来自昨日休息状态，休息可接昨日卖出，从状态转移落实冷冻一天。",
+      "en": "Track holding, sold-today, and resting states. Buying may follow only yesterday's rest; resting may follow yesterday's sale, enforcing the one-day cooldown through transitions."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "所有转移都使用昨日状态。",
+      "en": "Compute every transition from yesterday's states."
+    }
+  },
+  "longest-valid-parentheses": {
+    "solution": {
+      "zh": "dp[i] 为以右括号 i 结尾的最长合法长度。根据前一段长度找到可能配对的左括号，匹配后再接上它之前的合法后缀。",
+      "en": "Let dp[i] be the longest valid suffix ending at a closing parenthesis. Jump over the preceding valid suffix to find a matching opening, then attach any valid suffix before that pair."
+    },
+    "cost": {
+      "zh": "O(n) / O(n)",
+      "en": "O(n) / O(n)"
+    },
+    "pitfall": {
+      "zh": "匹配位置 i-dp[i-1]-1 必须非负。",
+      "en": "Bounds-check the potential matching position."
+    },
+    "alternatives": {
+      "nested-stack": {
+        "solution": {
+          "zh": "下标栈先放 -1 作为有效区间之前的边界。左括号压栈；右括号先弹出，栈空则把当前下标作为新边界，否则用当前下标减栈顶更新长度。",
+          "en": "Seed an index stack with -1 as a boundary. Push openings; on a closing, pop once. If empty, install the current index as a new boundary; otherwise maximize current index minus stack top."
+        },
+        "cost": {
+          "zh": "O(n) / O(n)",
+          "en": "O(n) / O(n)"
+        },
+        "pitfall": {
+          "zh": "失配右括号必须成为新的左边界。",
+          "en": "An unmatched closing parenthesis resets the boundary."
+        }
+      }
+    }
+  },
+  "daily-temperatures": {
+    "solution": {
+      "zh": "栈保存尚未找到更暖日的下标，温度保持单调不增。遇到更高温就弹出所有较低温下标，距离由当前下标相减得到。",
+      "en": "Keep unresolved indices in a nonincreasing-temperature stack. A warmer day pops all cooler pending days, whose waits are the differences between their indices and the current index."
+    },
+    "cost": {
+      "zh": "O(n) / O(n)",
+      "en": "O(n) / O(n)"
+    },
+    "pitfall": {
+      "zh": "相同温度不算更暖。",
+      "en": "Equal temperature is not warmer."
+    }
+  },
+  "largest-rectangle-in-histogram": {
+    "solution": {
+      "zh": "单调递增栈保存柱下标。遇到更矮柱时弹出并结算：右界为当前下标，左界为弹出后的新栈顶。",
+      "en": "Keep increasing bar indices. When a shorter bar arrives, pop taller bars and compute each rectangle between the current right boundary and the new stack top on the left."
+    },
+    "cost": {
+      "zh": "O(n) / O(n)",
+      "en": "O(n) / O(n)"
+    },
+    "pitfall": {
+      "zh": "末尾加零或显式清栈。",
+      "en": "Flush remaining bars at the end."
+    }
+  },
+  "next-greater-element-i": {
+    "solution": {
+      "zh": "扫描第二个数组，用单调栈给尚未匹配的值找第一个更大值。映射完成后按第一个数组的顺序查询。",
+      "en": "Scan the second array with a decreasing stack, mapping each popped value to its first greater successor. Answer the first array's queries from that map."
+    },
+    "cost": {
+      "zh": "O(m+n) / O(n)",
+      "en": "O(m+n) / O(n)"
+    },
+    "pitfall": {
+      "zh": "此按值映射依赖元素唯一。",
+      "en": "Mapping by value assumes distinct elements."
+    }
+  },
+  "valid-parentheses": {
+    "solution": {
+      "zh": "遇左括号压栈，遇右括号检查栈顶类型并弹出。任何失配立即失败，扫描结束栈空才全部配对。",
+      "en": "Push openings; for each closing, require and pop the matching stack top. Reject any mismatch immediately and accept only if the stack is empty at the end."
+    },
+    "cost": {
+      "zh": "O(n) / O(n)",
+      "en": "O(n) / O(n)"
+    },
+    "pitfall": {
+      "zh": "空栈遇右括号要先判失败。",
+      "en": "Check for an empty stack before popping."
+    }
+  },
+  "decode-string": {
+    "solution": {
+      "zh": "数字累计成重复次数，遇左括号保存外层字符串和次数并开始内层。遇右括号重复内层并接回外层。",
+      "en": "Accumulate multidigit repeat counts. At an opening bracket save the outer string and count; at a closing bracket repeat the inner result and append it to the saved outer string."
+    },
+    "cost": {
+      "zh": "朴素字符串拼接最坏 O(n·D) / O(n+D)，D 为展开长度",
+      "en": "Worst O(n·D) / O(n+D) with naive concatenation; D is decoded length"
+    },
+    "pitfall": {
+      "zh": "每次进入新层要重置次数与字符串。",
+      "en": "Reset count and buffer when entering a new level."
+    }
+  },
+  "sliding-window-maximum": {
+    "solution": {
+      "zh": "双端队列存候选下标，值从大到小。先移除过期下标，尾部删去不优于新值者，队首就是当前窗口最大值。",
+      "en": "Keep candidate indices in decreasing value order. Remove expired indices at the front and dominated values at the back; the front is the current window maximum."
+    },
+    "cost": {
+      "zh": "O(n) / O(k)",
+      "en": "O(n) / O(k)"
+    },
+    "pitfall": {
+      "zh": "队列存下标才能判断过期。",
+      "en": "Store indices to detect expiration."
+    }
+  },
+  "longest-continuous-subarray-with-absolute-diff-less-than-or-equal-to-limit": {
+    "solution": {
+      "zh": "两个单调队列分别维护窗口最大和最小。差超限就推进左界并清理过期下标，合法后更新最长长度。",
+      "en": "Maintain window maxima and minima with two monotonic deques. While their difference exceeds the limit, advance the left boundary and expire indices; update the longest valid length."
+    },
+    "cost": {
+      "zh": "O(n) / O(n)",
+      "en": "O(n) / O(n)"
+    },
+    "pitfall": {
+      "zh": "收缩要用 while，可能需移出多个值。",
+      "en": "Shrink repeatedly, not just once."
+    }
+  },
+  "kth-largest-element-in-an-array": {
+    "solution": {
+      "zh": "维护容量为 k 的最小堆。每次加入新值后若超容量就弹出最小值，最终堆顶就是第 k 大。",
+      "en": "Maintain a min-heap containing the k largest values seen. Insert each value and remove the minimum when over capacity; the final minimum is the kth largest."
+    },
+    "cost": {
+      "zh": "O(n log k) / O(k)",
+      "en": "O(n log k) / O(k)"
+    },
+    "pitfall": {
+      "zh": "重复值按元素个数计入排名。",
+      "en": "Duplicates count as separate ranked elements."
+    }
+  },
+  "top-k-frequent-elements": {
+    "solution": {
+      "zh": "先统计频次，再用大小 k 的最小堆保留最高频元素。堆按频次比较，输出其中元素即可。",
+      "en": "Count frequencies, then retain the k highest-frequency keys in a bounded min-heap ordered by frequency. Return the retained keys."
+    },
+    "cost": {
+      "zh": "O(n+u log k) / O(u+k)",
+      "en": "O(n+u log k) / O(u+k)"
+    },
+    "pitfall": {
+      "zh": "不要按数值大小替代频次排序。",
+      "en": "Rank by frequency rather than key value."
+    }
+  },
+  "kth-smallest-element-in-a-sorted-matrix": {
+    "solution": {
+      "zh": "把每一行视为有序流，堆中保留各行当前候选。弹出最小后加入同一行下一列，连续弹出 k 次得到答案。",
+      "en": "Treat rows as sorted streams. Keep each row's current candidate in a min-heap; after popping, push its next column. The kth pop is the answer."
+    },
+    "cost": {
+      "zh": "O(n+k log n) / O(n)",
+      "en": "O(n+k log n) / O(n)"
+    },
+    "pitfall": {
+      "zh": "相同值也分别消耗一次排名。",
+      "en": "Equal entries still occupy distinct ranks."
+    }
+  },
+  "find-median-from-data-stream": {
+    "solution": {
+      "zh": "最大堆存较小一半，最小堆存较大一半。插入后平衡数量并维持左侧不大于右侧，中位数由堆顶决定。",
+      "en": "Store the lower half in a max-heap and the upper half in a min-heap. Rebalance sizes while keeping every lower value at most every upper value; medians come from their roots."
+    },
+    "cost": {
+      "zh": "插入 O(log n), 查询 O(1) / O(n)",
+      "en": "Insert O(log n), query O(1) / O(n)"
+    },
+    "pitfall": {
+      "zh": "偶数平均前避免整数加法溢出。",
+      "en": "Avoid overflow before averaging two roots."
+    }
+  },
+  "sliding-window-median": {
+    "solution": {
+      "zh": "双堆分别维护窗口的较小一半与较大一半，过期元素延迟到堆顶删除，并单独维护有效数量。物理条目超过窗口大小两倍时，用当前窗口重建，限制过期条目的空间占用。",
+      "en": "Maintain the lower and upper window halves in two heaps with lazy expiration and separate logical sizes. Rebuild from the current window when physical entries exceed twice its size, bounding stale-entry storage."
+    },
+    "cost": {
+      "zh": "均摊 O(n log k) / O(k)，含定期重建",
+      "en": "Amortized O(n log k) / O(k), including periodic rebuilding"
+    },
+    "pitfall": {
+      "zh": "重复值删除一个实例，不能删掉全部。",
+      "en": "Remove only one instance of a repeated value."
+    }
+  },
+  "merge-intervals": {
+    "solution": {
+      "zh": "按起点排序。若当前区间与结果末区间重叠就扩展右端，否则开启新区间；已完成区间不会再与后续相交。",
+      "en": "Sort by start. Extend the last output interval when the next overlaps it; otherwise start a new interval. Earlier completed intervals cannot overlap later starts."
+    },
+    "cost": {
+      "zh": "O(n log n) / O(n), 含输出",
+      "en": "O(n log n) / O(n), including output"
+    },
+    "pitfall": {
+      "zh": "闭区间端点相等也算重叠。",
+      "en": "Touching closed intervals overlap."
+    }
+  },
+  "non-overlapping-intervals": {
+    "solution": {
+      "zh": "按结束位置升序，每次保留最早结束且不与已保留区间冲突的区间。它留下最多后续空间，删除数等于总数减保留数。",
+      "en": "Sort by end and retain each interval compatible with the last chosen one. Earliest finishing leaves maximal room for later intervals; removals equal total minus retained."
+    },
+    "cost": {
+      "zh": "O(n log n) / O(log n), 排序栈",
+      "en": "O(n log n) / O(log n), sorting"
+    },
+    "pitfall": {
+      "zh": "端点接触在本题不算重叠。",
+      "en": "Touching endpoints are compatible in this problem."
+    }
+  },
+  "minimum-number-of-arrows-to-burst-balloons": {
+    "solution": {
+      "zh": "按气球右端排序，把箭射在尚未覆盖气球的最右端。它能覆盖后面所有左端不超过该点的气球。",
+      "en": "Sort balloons by right endpoint. Shoot at the right edge of the next uncovered balloon, covering every subsequent balloon whose left edge is no greater than that point."
+    },
+    "cost": {
+      "zh": "O(n log n) / O(log n), 排序栈",
+      "en": "O(n log n) / O(log n), sorting"
+    },
+    "pitfall": {
+      "zh": "闭区间用 left>arrow 才需新箭。",
+      "en": "Only left greater than arrow requires another shot."
+    }
+  },
+  "jump-game": {
+    "solution": {
+      "zh": "维护已可达位置的最远右界。只扫描右界内的位置并扩展边界，若当前位置已超过右界则后面也不可达。",
+      "en": "Maintain the farthest reachable index. Scan only positions inside that frontier and extend it; once the next index exceeds the frontier, no later position is reachable."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "零跳跃值不一定失败，要看整体右界。",
+      "en": "A zero value is harmless if the frontier passes it."
+    }
+  },
+  "jump-game-ii": {
+    "solution": {
+      "zh": "把当前跳数可达区间当一层。扫描本层时计算下一层最远右界，到本层终点才增加跳数并切换边界。",
+      "en": "Treat indices reachable with the current jump count as a layer. Scan that layer to compute the next frontier, increasing the count only when the current layer ends."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "最后一个位置不需要再起跳。",
+      "en": "Do not jump again from the destination."
+    }
+  },
+  "partition-labels": {
+    "solution": {
+      "zh": "先记录每个字符的最后出现位置。扫描时扩展当前段右界，当前位置到达右界就切段，保证段内字符不会在后面出现。",
+      "en": "Record each character's final occurrence. Expand the current segment boundary while scanning; close a segment when the scan reaches it, ensuring no contained character appears later."
+    },
+    "cost": {
+      "zh": "O(n) / O(Σ)",
+      "en": "O(n) / O(Σ)"
+    },
+    "pitfall": {
+      "zh": "右界取当前段所有字符最后位置的最大值。",
+      "en": "Keep the maximum final position across the segment."
+    }
+  },
+  "gas-station": {
+    "solution": {
+      "zh": "累计油量差。若候选起点到当前位置总和为负，这段内任何起点都无法越过此处，下一位置成为新候选；总和非负才有解。",
+      "en": "Accumulate gas minus cost. If the candidate segment becomes negative, none of its starts can cross this point, so restart afterward. A solution exists only if the total is nonnegative."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "同时维护全程总差与候选段差。",
+      "en": "Track total balance separately from the current segment."
+    }
+  },
+  "first-missing-positive": {
+    "solution": {
+      "zh": "将范围 1..n 内的值 x 交换到下标 x-1。每次交换放对一个值，最后第一个位置不符处就是缺失正数。",
+      "en": "Swap each in-range value x into index x-1. Each successful swap places a value correctly; the first mismatching position afterward identifies the missing positive."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "目标位置已有相同值时停止，避免死循环。",
+      "en": "Stop when the destination already contains that value."
+    }
+  },
+  "find-all-numbers-disappeared-in-an-array": {
+    "solution": {
+      "zh": "利用值域 1..n，把每个绝对值 x 对应位置 x-1 标成负数。最后仍为正的位置未被任何值访问，即缺失数字。",
+      "en": "Exploit values from one to n by marking index abs(value)-1 negative. Positions left positive were never referenced and correspond to missing numbers."
+    },
+    "cost": {
+      "zh": "O(n) / O(1), 不含输出",
+      "en": "O(n) / O(1), excluding output"
+    },
+    "pitfall": {
+      "zh": "读取时取绝对值，避免标记污染下标。",
+      "en": "Take absolute values before deriving indices."
+    }
+  },
+  "find-all-duplicates-in-an-array": {
+    "solution": {
+      "zh": "扫描值 x，用位置 abs(x)-1 的符号记录是否出现过。已为负说明第二次遇见该值，否则把它置负。",
+      "en": "For each value, inspect index abs(value)-1. A negative marker means the value has appeared before, so report it; otherwise negate that position."
+    },
+    "cost": {
+      "zh": "O(n) / O(1), 不含输出",
+      "en": "O(n) / O(1), excluding output"
+    },
+    "pitfall": {
+      "zh": "依赖每个值最多出现两次的约束。",
+      "en": "This reporting rule assumes at most two occurrences."
+    }
+  },
+  "spiral-matrix": {
+    "solution": {
+      "zh": "维护尚未输出矩形的上下左右边界。依次遍历上、右、下、左边，每完成一边缩进边界，反向边前检查矩形仍存在。",
+      "en": "Maintain four boundaries of the unvisited rectangle. Traverse top, right, bottom, and left edges, shrinking after each; check remaining dimensions before traversing reverse edges."
+    },
+    "cost": {
+      "zh": "O(mn) / O(1), 不含输出",
+      "en": "O(mn) / O(1), excluding output"
+    },
+    "pitfall": {
+      "zh": "单行单列不能重复输出。",
+      "en": "Avoid duplicate visits for a single row or column."
+    }
+  },
+  "rotate-image": {
+    "solution": {
+      "zh": "先沿主对角线转置，再把每一行反转。坐标由 (r,c) 变为 (c,n-1-r)，正好是顺时针九十度。",
+      "en": "Transpose across the main diagonal, then reverse each row. The coordinate mapping becomes (r,c) to (c,n-1-r), a ninety-degree clockwise rotation."
+    },
+    "cost": {
+      "zh": "O(n²) / O(1)",
+      "en": "O(n²) / O(1)"
+    },
+    "pitfall": {
+      "zh": "转置只交换对角线一侧。",
+      "en": "Swap only one side of the diagonal."
+    }
+  },
+  "set-matrix-zeroes": {
+    "solution": {
+      "zh": "用首行首列记录内部零所在行列，另存首行首列本身是否含零。先按标记处理内部，再处理边界。",
+      "en": "Use the first row and column as markers, separately remembering whether they originally contain zeros. Apply markers to the interior before zeroing the boundary row and column."
+    },
+    "cost": {
+      "zh": "O(mn) / O(1)",
+      "en": "O(mn) / O(1)"
+    },
+    "pitfall": {
+      "zh": "先改首行首列会污染未处理标记。",
+      "en": "Do not overwrite marker boundaries prematurely."
+    }
+  },
+  "search-a-2d-matrix-ii": {
+    "solution": {
+      "zh": "从右上角开始，大于目标就左移，小于目标就下移。每次利用行列有序性排除整列或整行。",
+      "en": "Start at the top-right corner. Move left when the value is too large and down when too small, eliminating an entire column or row each time."
+    },
+    "cost": {
+      "zh": "O(m+n) / O(1)",
+      "en": "O(m+n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "本题不能直接把矩阵当全局有序数组。",
+      "en": "Rows do not necessarily form one sorted sequence."
+    }
+  },
+  "rotate-array": {
+    "solution": {
+      "zh": "先将 k 对长度取模。反转整个数组，再反转前 k 项与剩余部分，整体改变顺序后分别恢复每块内部顺序。",
+      "en": "Reduce k modulo the length. Reverse the whole array, then reverse the first k elements and the remainder, restoring each block's internal order in its new position."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "空数组先处理，避免对零取模。",
+      "en": "Handle empty input before taking a modulus."
+    }
+  },
+  "next-permutation": {
+    "solution": {
+      "zh": "从右找首个上升相邻对的左位置 i。再找右侧最小的更大值交换，最后反转原本降序的后缀，得到最小增量。",
+      "en": "Find the rightmost ascending pair's left index. Swap it with the rightmost larger suffix value, then reverse the descending suffix to obtain the smallest possible increase."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "全降序时直接反转成最小排列。",
+      "en": "Reverse the whole array if no pivot exists."
+    }
+  },
+  "sort-colors": {
+    "solution": {
+      "zh": "维护 0 区、未知区、2 区，扫描指针位于未知区左端。0 换到前面，2 换到后面，1 直接越过。",
+      "en": "Maintain a zero prefix, unknown middle, and two suffix. Scan the unknown region: move zeros left, twos right, and advance past ones."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "与右端交换后，扫描指针不立即前进。",
+      "en": "Recheck a value swapped in from the right."
+    }
+  },
+  "single-number": {
+    "solution": {
+      "zh": "所有数异或，成对相同值相消，零与任意数异或不变，最后只剩唯一出现一次的值。",
+      "en": "XOR every value. Equal pairs cancel, and zero leaves any value unchanged, so the sole unpaired value remains."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "依赖其他元素恰好出现两次。",
+      "en": "All other values must occur exactly twice."
+    }
+  },
+  "majority-element": {
+    "solution": {
+      "zh": "维护候选值与票数，同值加一、异值减一，票数归零就换候选。多数元素数量超过其他总和，成对抵消后仍能留下。",
+      "en": "Maintain a candidate and vote count, canceling unequal values. Replace the candidate at zero votes; a strict majority outnumbers all opponents and survives cancellation."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "无多数保证时需再扫描验证候选。",
+      "en": "Verify the candidate if a majority is not guaranteed."
+    }
+  },
+  "find-the-duplicate-number": {
+    "solution": {
+      "zh": "把下标到 nums[index] 看作函数图，值域 1..n 使从 0 出发最终进入环。用快慢指针求环入口，即重复值。",
+      "en": "Interpret index→nums[index] as a functional graph. Values from one to n force the path from zero into a cycle; Floyd's cycle entry identifies the duplicate value."
+    },
+    "cost": {
+      "zh": "O(n) / O(1)",
+      "en": "O(n) / O(1)"
+    },
+    "pitfall": {
+      "zh": "按数组值跳转，不要修改数组。",
+      "en": "Follow value-based links without modifying input."
+    }
+  },
+  "implement-trie-prefix-tree": {
+    "solution": {
+      "zh": "每条边代表一个字符，节点保存孩子映射与单词结束标记。插入创建路径，前缀查询只需路径存在，完整词查询还需结束标记。",
+      "en": "Store character edges and terminal flags in trie nodes. Insertion builds a path; prefix search needs only that path, while exact search additionally requires its terminal flag."
+    },
+    "cost": {
+      "zh": "O(L) 每次操作 / O(插入字符总数)",
+      "en": "O(L) per operation / O(total inserted characters)"
+    },
+    "pitfall": {
+      "zh": "前缀存在不代表完整单词存在。",
+      "en": "Distinguish a prefix node from a terminal word."
+    }
+  },
+  "design-add-and-search-words-data-structure": {
+    "solution": {
+      "zh": "插入使用普通 Trie。搜索遇普通字符走对应边，遇点号递归所有孩子，只有模式结束且节点为词尾才成功。",
+      "en": "Insert into a trie. Search a literal along its matching edge; for a dot, explore every child. Accept only when the pattern ends at a terminal node."
+    },
+    "cost": {
+      "zh": "插入 O(L), 搜索最坏 O(T) Trie 节点 / O(T)",
+      "en": "Insert O(L), search worst O(T) trie nodes / O(T)"
+    },
+    "pitfall": {
+      "zh": "通配符恰好匹配一个字符。",
+      "en": "A wildcard matches exactly one character."
+    }
+  },
+  "word-search-ii": {
+    "solution": {
+      "zh": "把词典合成 Trie，从每格 DFS 与前缀匹配的边。非前缀立即剪枝，找到单词后清除词尾避免重复，回溯恢复格子。",
+      "en": "Build a dictionary trie and DFS from each board cell along matching prefixes. Prune absent prefixes, clear terminal words after reporting to deduplicate, and restore visited cells on return."
+    },
+    "cost": {
+      "zh": "O(词典总字符数+mn·3ᴸ) / O(trie+L)",
+      "en": "O(total word length+mn·3ᴸ) / O(trie+L)"
+    },
+    "pitfall": {
+      "zh": "格子不能在同一路径中复用。",
+      "en": "Do not reuse a cell within one path."
+    }
+  },
+  "lru-cache": {
+    "solution": {
+      "zh": "哈希表定位节点，双向链表维护最近使用顺序。命中或更新移到表头，超容量删除表尾，并同步删除哈希索引。",
+      "en": "Use a hash map for node lookup and a doubly linked list for recency. Move accessed nodes to the front; evict the tail and its map entry when capacity is exceeded."
+    },
+    "cost": {
+      "zh": "O(1) 期望 per get/put / O(容量)",
+      "en": "O(1) expected per get/put / O(capacity)"
+    },
+    "pitfall": {
+      "zh": "更新已有键不能重复创建链表节点。",
+      "en": "Updating a key must not duplicate its list node."
+    }
+  },
+  "min-stack": {
+    "solution": {
+      "zh": "每次压栈同时保存截至该层的最小值。弹栈同时丢弃对应最小值，栈顶的记录就是当前全栈最小值。",
+      "en": "Store each pushed value together with the minimum up to that depth. Popping removes both records, so the top's saved minimum always describes the current stack."
+    },
+    "cost": {
+      "zh": "O(1) 每次操作 / O(n)",
+      "en": "O(1) per operation / O(n)"
+    },
+    "pitfall": {
+      "zh": "相同最小值也要逐层保留。",
+      "en": "Preserve repeated minima at each relevant depth."
+    }
+  },
+  "implement-queue-using-stacks": {
+    "solution": {
+      "zh": "入队压入输入栈。取队头时若输出栈为空，才把输入栈全部倒入；两次反转使最早元素位于输出栈顶。",
+      "en": "Push enqueued values onto an input stack. When the output stack is empty, transfer all input values into it; the reversal exposes the oldest value first."
+    },
+    "cost": {
+      "zh": "均摊 O(1), 最坏 O(n) 每次出队 / O(n)",
+      "en": "Amortized O(1), worst O(n) per pop / O(n)"
+    },
+    "pitfall": {
+      "zh": "输出栈非空时不能继续倒入。",
+      "en": "Transfer only when the output stack is empty."
+    }
+  }
+}

@@ -1,5 +1,19 @@
 use gpui_kit::{App, Global, Rgba, rgb};
 use leetdesk::appearance::Appearance;
+use leetdesk::preferences::EditorTheme;
+
+#[derive(Default)]
+struct SelectedEditorTheme(EditorTheme);
+impl Global for SelectedEditorTheme {}
+
+pub fn editor_theme(cx: &App) -> EditorTheme {
+    cx.try_global::<SelectedEditorTheme>()
+        .map_or(EditorTheme::Red, |value| value.0)
+}
+
+pub fn select_editor_theme(value: EditorTheme, cx: &mut App) {
+    cx.set_global(SelectedEditorTheme(value));
+}
 
 #[derive(Default)]
 struct SelectedAppearance(Appearance);

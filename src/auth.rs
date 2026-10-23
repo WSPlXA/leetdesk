@@ -1,5 +1,5 @@
 use crate::desktop::{Workspace, WorkspaceEvent};
-use crate::theme;
+use crate::{theme, ui};
 use anyhow::{Context, Result, anyhow};
 use gpui_kit::component::{
     Sizable,
@@ -106,11 +106,12 @@ pub struct AccountShell {
 }
 
 impl AccountShell {
-    fn blank(root: PathBuf, _cx: &mut gpui_kit::Context<Self>) -> Self {
-        let site = fs::read_to_string(root.join("site.json"))
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default();
+    fn blank(root: PathBuf, cx: &mut gpui_kit::Context<Self>) -> Self {
+        let site = leetdesk::store::selected_site(&root);
+        let preferences = leetdesk::store::editor_preferences_at(&root);
+        ui::configure(site, preferences.interface_language, cx);
+        theme::select_editor_theme(preferences.editor_theme, cx);
+        crate::desktop::apply_appearance(theme::current(cx), cx);
         let (_, events) = mpsc::channel();
         Self {
             root,
@@ -1020,13 +1021,13 @@ impl Render for AccountShell {
             }
         });
         let mut header = div()
-            .h(px(if editing { 36. } else { 62. }))
+            .h(px(if editing { 30. } else { 46. }))
             .px_4()
             .flex()
             .items_center()
             .gap_3()
             .border_b_1()
-            .border_color(theme::color(0x292929, cx))
+            .border_color(theme::color(0x81808b, cx))
             .child(
                 div()
                     .flex_1()
@@ -1040,22 +1041,22 @@ impl Render for AccountShell {
                         div()
                             .text_color(theme::color(0x79e6bd, cx))
                             .font_weight(FontWeight::BOLD)
-                            .child("LeetDesk"),
+                            .child(ui::text("LeetDesk", cx)),
                     )
                     .child(
                         div()
                             .text_xs()
                             .text_color(theme::color(0xa9b0bb, cx))
-                            .child(format!("{} · {account}", self.site.label())),
+                            .child(ui::text(format!("{} · {account}", self.site.label()), cx)),
                     )
                     .when(editing, |header| {
                         header.child(
                             div()
                                 .text_xs()
                                 .text_color(theme::color(0x79e6bd, cx))
-                                .child(format!(
-                                    "已通过 {} / {}",
-                                    self.solved, self.catalogue_total
+                                .child(ui::text(
+                                    format!("已通过 {} / {}", self.solved, self.catalogue_total),
+                                    cx,
                                 )),
                         )
                     }),
@@ -1064,11 +1065,14 @@ impl Render for AccountShell {
             header = header
                 .child(
                     Button::new("sync-account")
-                        .label(if self.phase == Phase::Syncing {
-                            "同步中…"
-                        } else {
-                            "同步题库"
-                        })
+                        .label(ui::text(
+                            if self.phase == Phase::Syncing {
+                                "同步中…"
+                            } else {
+                                "同步题库"
+                            },
+                            cx,
+                        ))
                         .small()
                         .ghost()
                         .on_click(cx.listener(|this, _, _, cx| {
@@ -1087,7 +1091,7 @@ impl Render for AccountShell {
                 )
                 .child(
                     Button::new("account-page")
-                        .label("账号")
+                        .label(ui::text("账号", cx))
                         .small()
                         .ghost()
                         .on_click(cx.listener(|this, _, _, cx| {
@@ -1102,7 +1106,7 @@ impl Render for AccountShell {
                     .child(div().flex_1())
                     .children([Site::China, Site::Global].into_iter().map(|site| {
                         Button::new(site.key())
-                            .label(site.label())
+                            .label(ui::text(site.label(), cx))
                             .small()
                             .ghost()
                             .on_click(cx.listener(move |this, _, window, cx| {
@@ -1111,6 +1115,7 @@ impl Render for AccountShell {
                                         return;
                                     }
                                     this.site = site;
+                                    ui::set_site(site, cx);
                                     this.username = None;
                                     this.workspace = None;
                                     this._subscription = None;
@@ -1138,11 +1143,14 @@ impl Render for AccountShell {
                                 "appearance-{}",
                                 appearance.key()
                             )))
-                            .label(if theme::current(cx) == appearance {
-                                format!("✓ {}", appearance.label())
-                            } else {
-                                appearance.label().into()
-                            })
+                            .label(ui::text(
+                                if theme::current(cx) == appearance {
+                                    format!("✓ {}", appearance.label())
+                                } else {
+                                    appearance.label().into()
+                                },
+                                cx,
+                            ))
                             .small()
                             .ghost()
                             .on_click(cx.listener(
@@ -1164,7 +1172,7 @@ impl Render for AccountShell {
                 }))
                 .child(
                     Button::new("close-account-window")
-                        .label("关闭")
+                        .label(ui::text("关闭", cx))
                         .small()
                         .ghost()
                         .on_click(cx.listener(|this, _, window, cx| {
@@ -1177,7 +1185,7 @@ impl Render for AccountShell {
             .size_full()
             .flex()
             .flex_col()
-            .bg(theme::color(0x000000, cx))
+            .bg(theme::color(0x1b1c23, cx))
             .text_color(theme::color(0xf4f5f7, cx))
             .font_family(crate::desktop::ui_font())
             .child(header);
@@ -1194,7 +1202,7 @@ impl Render for AccountShell {
                 .gap_2()
                 .child(
                     Button::new("sync-from-login")
-                        .label("同步题库")
+                        .label(ui::text("同步题库", cx))
                         .ghost()
                         .on_click(cx.listener(|this, _, _, cx| {
                             if this.username.is_some() {
@@ -1207,7 +1215,7 @@ impl Render for AccountShell {
                 )
                 .child(
                     Button::new("check-login")
-                        .label("我已登录，开始同步")
+                        .label(ui::text("我已登录，开始同步", cx))
                         .primary()
                         .on_click(cx.listener(|this, _, _, cx| {
                             this.check_account(cx);
@@ -1216,7 +1224,7 @@ impl Render for AccountShell {
                 )
                 .child(
                     Button::new("offline-cache")
-                        .label("使用离线缓存")
+                        .label(ui::text("使用离线缓存", cx))
                         .ghost()
                         .on_click(cx.listener(|this, _, window, cx| this.offline(window, cx))),
                 );
@@ -1232,16 +1240,19 @@ impl Render for AccountShell {
                             .flex()
                             .flex_col()
                             .gap_2()
-                            .child(div().text_lg().child(if self.phase == Phase::Syncing {
-                                "正在准备你的题库"
-                            } else {
-                                "连接你的 LeetCode 账号"
-                            }))
+                            .child(div().text_lg().child(ui::text(
+                                if self.phase == Phase::Syncing {
+                                    "正在准备你的题库"
+                                } else {
+                                    "连接你的 LeetCode 账号"
+                                },
+                                cx,
+                            )))
                             .child(
                                 div()
                                     .text_sm()
                                     .text_color(theme::color(0xa9b0bb, cx))
-                                    .child(self.message.clone()),
+                                    .child(ui::text(self.message.clone(), cx)),
                             ),
                     )
                     .child(controls),
@@ -1261,10 +1272,10 @@ impl Render for AccountShell {
                         .items_center()
                         .justify_center()
                         .text_color(theme::color(0x79e6bd, cx))
-                        .child(self.message.clone()),
+                        .child(ui::text(self.message.clone(), cx)),
                 );
             }
-            root = root.child(div().px_5().py_2().text_xs().text_color(theme::color(0xa9b0bb, cx)).child("在官方页面自行完成登录。登录会话由此设备的浏览器保存，程序不读取你的密码或会话 Cookie。"));
+            root = root.child(div().px_5().py_2().text_xs().text_color(theme::color(0xa9b0bb, cx)).child(ui::text("在官方页面自行完成登录。登录会话由此设备的浏览器保存，程序不读取你的密码或会话 Cookie。", cx)));
         }
         root
     }
@@ -1297,7 +1308,7 @@ pub fn launch(store: Store, probe: bool, plan_probe: bool) -> Result<()> {
                 },
                 cx,
                 move |window, cx| {
-                    window.set_window_title("LeetDesk · LeetCode Go 工作区");
+                    window.set_window_title("LeetDesk · LeetCode");
                     cx.new(|cx| {
                         let mut shell = AccountShell::new(root, window, cx);
                         shell.probe = probe;
@@ -1337,6 +1348,53 @@ pub fn launch(store: Store, probe: bool, plan_probe: bool) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use gpui_kit::AppContext;
+    #[gpui_kit::test]
+    fn international_sign_in_installs_english_ui_and_english_catalog(
+        cx: &mut gpui_kit::TestAppContext,
+    ) {
+        use super::*;
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("data");
+        let store = Store::open(root.clone()).unwrap();
+        fs::write(
+            root.join("site.json"),
+            serde_json::to_vec(&Site::Global).unwrap(),
+        )
+        .unwrap();
+        let problems = online::parse_page(Site::Global, &serde_json::json!({"data":{"problemsetQuestionList":{"total":1,"questions":[{
+            "frontendQuestionId":"1","title":"Two Sum","titleCn":"两数之和","titleSlug":"two-sum","status":"ac"
+        }]}}})).unwrap().problems;
+        store
+            .save_online_cache(&mut OnlineCache {
+                site: Site::Global,
+                username: "alice".into(),
+                problems,
+                synced_at: 123,
+            })
+            .unwrap();
+        drop(store);
+        cx.update(|cx| {
+            gpui_kit::init(cx);
+            crate::desktop::apply_theme(cx);
+        });
+        let (handle, view) = cx.update(|cx| {
+            gpui_kit::open_window(Default::default(), cx, |_, cx| {
+                cx.new(|cx| AccountShell::blank(root, cx))
+            })
+            .unwrap()
+        });
+        cx.update_window(handle, |_, window, cx| {
+            view.update(cx, |shell, cx| {
+                assert_eq!(shell.site, Site::Global);
+                shell.response(Operation::Account, serde_json::json!({"data":{"userStatus":{"isSignedIn":true,"username":"alice"}}}), window, cx);
+                assert!(matches!(shell.phase, Phase::Ready));
+                assert!(shell.workspace.is_some());
+                assert_eq!(shell.solved, 1);
+                assert_eq!(ui::text("同步题库", cx), "Sync");
+                assert_eq!(ui::language(cx), leetdesk::i18n::UiLanguage::English);
+            });
+        }).unwrap();
+    }
     #[gpui_kit::test]
     fn signed_in_startup_uses_cached_catalogue_without_scheduling_sync(
         cx: &mut gpui_kit::TestAppContext,
