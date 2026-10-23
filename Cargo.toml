@@ -9,6 +9,7 @@ license = "MIT"
 default = ["desktop"]
 desktop = ["dep:gpui-kit", "dep:gpui-wry", "dep:wry", "dep:ratex-parser", "dep:ratex-layout", "dep:ratex-svg", "dep:ratex-types"]
 server = ["dep:tiny_http"]
+design-review = ["gpui-kit/test-support"]
 
 [[bin]]
 name = "leetdesk"

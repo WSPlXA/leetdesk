@@ -79,6 +79,36 @@ fn run() -> Result<()> {
         return Ok(());
     }
     let smoke = args.iter().any(|arg| arg == "--smoke-test");
+    if let Some(index) = args.iter().position(|arg| arg == "--design-capture") {
+        let path = PathBuf::from(
+            args.get(index + 1)
+                .context("--design-capture needs a PNG path")?,
+        );
+        let dimension = |flag: &str, fallback: f32| -> Result<f32> {
+            let value = args
+                .iter()
+                .position(|arg| arg == flag)
+                .map(|i| {
+                    args.get(i + 1)
+                        .context("missing capture dimension")?
+                        .parse::<f32>()
+                        .context("invalid dimension")
+                })
+                .transpose()?
+                .unwrap_or(fallback);
+            anyhow::ensure!(
+                value.is_finite() && (650.0..=3000.0).contains(&value),
+                "capture dimension out of range"
+            );
+            Ok(value)
+        };
+        return desktop::capture(
+            store,
+            path,
+            dimension("--width", 1488.)?,
+            dimension("--height", 1057.)?,
+        );
+    }
     if smoke || args.iter().any(|arg| arg == "--offline") {
         desktop::launch(store, smoke)
     } else {

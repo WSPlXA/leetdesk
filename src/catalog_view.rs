@@ -32,6 +32,7 @@ pub struct CatalogView {
     custom_categories: Vec<String>,
     hot_progress: (usize, usize),
     route_counts: RouteCounts,
+    route_rows: HashMap<String, Vec<usize>>,
 }
 
 impl CatalogView {
@@ -46,6 +47,7 @@ impl CatalogView {
             custom_categories: vec![],
             hot_progress: (0, 0),
             route_counts: HashMap::new(),
+            route_rows: HashMap::new(),
         };
         view.replace(problems);
         view
@@ -145,7 +147,8 @@ impl CatalogView {
             self.rows.iter().filter(|r| r.hot_rank.is_some()).count(),
         );
         self.route_counts.clear();
-        for row in &self.rows {
+        self.route_rows.clear();
+        for (index, row) in self.rows.iter().enumerate() {
             if row.patterns.is_empty() {
                 continue;
             }
@@ -166,6 +169,10 @@ impl CatalogView {
                     .map(|chapter| format!("@chapter:{}", chapter.id)),
             );
             for filter in filters {
+                self.route_rows
+                    .entry(filter.clone())
+                    .or_default()
+                    .push(index);
                 let (all, hot) = self.route_counts.entry(filter).or_default();
                 all.1 += 1;
                 all.0 += usize::from(row.status == "已通过");
@@ -179,6 +186,12 @@ impl CatalogView {
 
     pub fn topics(&self) -> &[String] {
         &self.topic_categories
+    }
+    pub fn learning_indices(&self, filter: &str) -> &[usize] {
+        self.route_rows
+            .get(filter)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
     }
     pub fn custom_tags(&self) -> &[String] {
         &self.custom_categories

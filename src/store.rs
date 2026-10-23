@@ -606,18 +606,18 @@ mod tests {
         );
     }
     #[test]
-    fn appearance_survives_restart_and_invalid_preferences_use_dark() {
+    fn appearance_survives_restart_and_invalid_preferences_use_beige() {
         use crate::appearance::Appearance;
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().join("data");
         let store = Store::open(root.clone()).unwrap();
-        assert_eq!(store.appearance(), Appearance::Dark);
+        assert_eq!(store.appearance(), Appearance::Beige);
         for appearance in Appearance::ALL {
             store.save_appearance(appearance).unwrap();
             assert_eq!(Store::open(root.clone()).unwrap().appearance(), appearance);
         }
         fs::write(root.join("appearance.json"), "broken").unwrap();
-        assert_eq!(store.appearance(), Appearance::Dark);
+        assert_eq!(store.appearance(), Appearance::Beige);
     }
     #[test]
     fn study_plan_cache_survives_restart_and_keeps_valid_snapshot_on_bad_update() {

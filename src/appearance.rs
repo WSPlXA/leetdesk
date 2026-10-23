@@ -65,7 +65,11 @@ impl Appearance {
                 }
             }
             0x81808b | 0x292929 | 0x536861 => {
-                if beige { 0xdecfb5 } else { 0xd7cfd3 }
+                if beige {
+                    0xdecfb5
+                } else {
+                    0xd7cfd3
+                }
             }
             0x68606a => {
                 if beige {

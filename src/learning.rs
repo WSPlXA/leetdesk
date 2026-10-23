@@ -231,6 +231,139 @@ fn escape_label(label: &str) -> String {
         .replace(['\r', '\n'], " ")
 }
 
+/// The reader starts with the selected problem, with the general method in the
+/// same document below it. Choosing a chapter explicitly opens its overview.
+pub fn reading_lesson(
+    overview: bool,
+    filter: &str,
+    problem: &crate::catalog::Problem,
+    language: UiLanguage,
+    site: Site,
+    problems: &[crate::catalog::Problem],
+    supplement: Option<(&str, &str)>,
+) -> String {
+    let pick = |zh: &str, en: &str| {
+        if language == UiLanguage::Chinese {
+            zh
+        } else {
+            en
+        }
+        .to_owned()
+    };
+    let member = memberships(&problem.slug);
+    let context = if matches(filter, &member) || overview {
+        filter.to_owned()
+    } else {
+        member
+            .first()
+            .map(|p| format!("@pattern:{p}"))
+            .unwrap_or_else(|| filter.to_owned())
+    };
+    if overview {
+        let guide = guide(&context, language, site, problems);
+        return guide
+            .split_once("\n\n")
+            .map_or(guide.clone(), |(_, rest)| rest.to_owned());
+    }
+    let pattern = find(&context).and_then(|(chapter, pattern)| {
+        pattern.or_else(|| chapter.patterns.iter().find(|p| member.contains(&p.id)))
+    });
+    let mut body = String::new();
+    if let Some(lesson) = LESSONS.get(&problem.slug) {
+        let lesson = pattern
+            .and_then(|p| lesson.alternatives.get(&p.id))
+            .unwrap_or(&lesson.primary);
+        if let Some(details) = detail(&problem.slug, pattern) {
+            let (mapping, steps, why) = if problem.slug == "rotting-oranges" {
+                (
+                    pick(
+                        "把每个橘子所在的格子看成状态，上下左右的感染是一次转移。所有已经腐烂的橘子同时作为起点，初始距离为 0。",
+                        "Treat each occupied cell as a state and infection in the four directions as one transition. Every initially rotten orange is a source at distance zero.",
+                    ),
+                    pick(
+                        "用队列 `q` 进行多源 BFS，在入队时就把格子改为腐烂，并减少剩余新鲜橘子的数量 `fresh`，避免同一格重复入队。",
+                        "Run multi-source BFS with queue `q`. Mark a fresh cell rotten when enqueuing it and decrement `fresh`, so two neighbors cannot enqueue the same cell.",
+                    ),
+                    pick(
+                        "BFS 按层遍历，队列中的节点按距离从近到远出队。每次转移的代价都是 1 分钟，因此第一次到达某个格子的时间，一定是从最近的腐烂橘子出发所需的最少时间。\n\n每轮先固定 `size := len(q)`，只处理本轮已有的格子；新入队的格子留到下一分钟。用 `minutes` 记录完成的层数。队列耗尽后若 `fresh > 0`，说明有橘子被空格隔开，返回 -1。",
+                        "BFS removes states in increasing distance order. Each transition takes one minute, so the first arrival at a cell is its minimum distance from any initially rotten orange.\n\nFix `size := len(q)` at the start of each round: newly enqueued cells belong to the next minute. `minutes` counts completed layers. If the queue empties while `fresh > 0`, empty cells have isolated some oranges; return -1.",
+                    ),
+                )
+            } else {
+                (
+                    details.mapping.get(language).to_owned(),
+                    lesson.solution.get(language).to_owned(),
+                    details.why.get(language).to_owned(),
+                )
+            };
+            body.push_str(&format!(
+                "## {}\n\n{}\n\n{}\n\n## {}\n\n{}\n\n## {}\n\n",
+                pick("从大类方法到本题", "Applying the general method"),
+                mapping,
+                steps,
+                pick("为什么这样做是对的", "Why this is correct"),
+                why,
+                pick("用一个例子走一遍", "Step-by-step example")
+            ));
+            if problem.slug == "rotting-oranges" {
+                body.push_str(&format!("{} `grid = [[2,1,1],[1,1,0],[0,1,1]]`\n\n| {} | {} | {} |\n| --- | --- | --- |\n| 0 | (0, 0) | 6 |\n| 1 | (0, 1), (1, 0) | 4 |\n| 2 | (0, 2), (1, 1) | 2 |\n| 3 | (2, 1) | 1 |\n| 4 | (2, 2) | 0 |\n\n**{}**\n\n",
+                    pick("输入：","Input:"),pick("分钟","Minute"),pick("本轮新感染","Newly infected"),pick("剩余新鲜","Fresh left"),pick("答案：4 分钟","Answer: 4 minutes")));
+            } else {
+                body.push_str(details.trace.get(language));
+                body.push_str("\n\n");
+            }
+            body.push_str(&format!(
+                "## {}\n\n",
+                pick("Go 参考代码", "Go reference code")
+            ));
+            let definition = match details.nodes.as_str() {
+                "list" => Some("type ListNode struct { Val int; Next *ListNode }"),
+                "tree" => Some("type TreeNode struct { Val int; Left, Right *TreeNode }"),
+                "random" => Some("type Node struct { Val int; Next, Random *Node }"),
+                "graph" => Some("type Node struct { Val int; Neighbors []*Node }"),
+                _ => None,
+            };
+            if let Some(definition) = definition {
+                body.push_str(&format!(
+                    "{}\n\n```go\n{definition}\n```\n\n",
+                    pick(
+                        "节点类型由平台提供，提交时不要重复声明。",
+                        "The platform provides the node type; omit its declaration when submitting."
+                    )
+                ));
+            }
+            body.push_str(&format!("```go\n{}\n```\n\n", details.go));
+        } else {
+            body.push_str(lesson.solution.get(language));
+        }
+        body.push_str(&format!(
+            "## {}\n\n**{}** {}\n\n**{}** {}\n\n",
+            pick("复杂度与易错点", "Complexity and pitfalls"),
+            pick("时间 / 额外空间：", "Time / auxiliary space:"),
+            lesson.cost.get(language),
+            pick("易错点：", "Pitfall:"),
+            lesson.pitfall.get(language)
+        ));
+    } else {
+        body.push_str(&pick("这道题尚未收录原创逐题解析。可阅读下方已有资料，或导入自己的 Markdown 讲解。\n\n","An original walkthrough is not available yet. Read existing material below, or import your Markdown explanation.\n\n"));
+    }
+    if let Some((name, markdown)) = supplement.filter(|(_, body)| !body.trim().is_empty()) {
+        body.push_str(&format!(
+            "## {} · {}\n\n{}\n\n",
+            pick("补充讲解", "Supplementary explanation"),
+            escape_label(name),
+            markdown
+        ));
+    }
+    body.push_str(&format!(
+        "---\n\n## {}\n\n",
+        pick("大类方法与同类练习", "General method and related practice")
+    ));
+    // Demote the guide's title so it fits inside the problem's article.
+    body.push_str(&guide(&context, language, site, problems).replacen("# ", "### ", 1));
+    body
+}
+
 pub fn validate(chapters: &[Chapter]) -> Result<(), String> {
     let mut ids = HashSet::new();
     for chapter in chapters {
@@ -447,6 +580,49 @@ pub fn guide(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn reader_keeps_problem_first_and_preserves_variants_and_imports() {
+        let problems = crate::catalog::builtin().unwrap();
+        let mut problem = problems[0].clone();
+        problem.slug = "rotting-oranges".into();
+        let body = reading_lesson(
+            false,
+            "@pattern:bfs-distance",
+            &problem,
+            UiLanguage::Chinese,
+            Site::China,
+            &problems,
+            Some(("自有笔记", "![图](./figure.png)")),
+        );
+        assert!(body.starts_with("## 从大类方法到本题"));
+        assert!(body.find("## Go 参考代码").unwrap() < body.find("## 大类方法与同类练习").unwrap());
+        assert!(body.contains("| 4 | (2, 2) | 0 |"));
+        assert!(body.contains("size := len(q)"));
+        assert!(body.contains("![图](./figure.png)"));
+        problem.slug = "trapping-rain-water".into();
+        let stack = reading_lesson(
+            false,
+            "@pattern:monotone-stack",
+            &problem,
+            UiLanguage::English,
+            Site::Global,
+            &problems,
+            None,
+        );
+        assert!(stack.contains("height[bottom]"));
+        assert!(!stack.contains("lm - height[l]"));
+        let guide = reading_lesson(
+            true,
+            "@chapter:graph",
+            &problem,
+            UiLanguage::English,
+            Site::Global,
+            &problems,
+            None,
+        );
+        assert!(guide.contains("Cost and assumptions"));
+        assert!(!guide.contains("func trap"));
+    }
     #[test]
     fn every_curated_problem_has_an_original_bilingual_walkthrough() {
         let expected: HashSet<_> = CHAPTERS
