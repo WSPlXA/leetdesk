@@ -2613,53 +2613,58 @@ impl Workspace {
             let (_, state, origin) = self.document_view.as_ref().unwrap();
             let origin = origin.clone();
             let image_origin = origin.clone();
-            content = content.child(
-                TextView::new(state)
-                    .scrollable(true)
-                    .font_family(gpui_kit::component::Theme::global(cx).font_family.clone())
-                    .line_height(px(if self.workspace_mode == WorkspaceMode::Study {
-                        27.
-                    } else {
-                        23.
-                    }))
-                    .code_block_actions(|block, _, cx| {
-                        let code = block.code();
-                        Button::new("copy-lesson-code")
-                            .icon(gpui_kit::assets::IconName::Copy)
-                            .small()
-                            .ghost()
-                            .tooltip(ui::text("复制代码", cx))
-                            .on_click(move |_, _, cx| {
-                                cx.write_to_clipboard(ClipboardItem::new_string(code.to_string()))
-                            })
-                    })
-                    .markdown_extensions(crate::markdown::extensions())
-                    .image_source(move |uri| {
-                        if let Some(path) =
-                            local_document_path(uri.as_ref(), image_origin.as_deref())
-                        {
-                            return path.into();
-                        }
-                        uri.clone().into()
-                    })
-                    .on_link_click(move |url, _, _, cx| {
-                        if let Some(path) = local_document_path(url.as_ref(), origin.as_deref()) {
-                            if let Ok(uri) = language::file_uri(&path) {
-                                cx.open_url(&uri);
-                            }
+            content = content
+                .when(self.workspace_mode == WorkspaceMode::Coding, |el| el.p_4())
+                .child(
+                    TextView::new(state)
+                        .scrollable(true)
+                        .font_family(gpui_kit::component::Theme::global(cx).font_family.clone())
+                        .line_height(px(if self.workspace_mode == WorkspaceMode::Study {
+                            27.
                         } else {
-                            cx.open_url(url.as_ref());
-                        }
-                    })
-                    .selectable(true)
-                    .style(document_style(cx))
-                    .size_full()
-                    .text_size(px(if self.workspace_mode == WorkspaceMode::Study {
-                        18.
-                    } else {
-                        15.
-                    })),
-            );
+                            23.
+                        }))
+                        .code_block_actions(|block, _, cx| {
+                            let code = block.code();
+                            Button::new("copy-lesson-code")
+                                .icon(gpui_kit::assets::IconName::Copy)
+                                .small()
+                                .ghost()
+                                .tooltip(ui::text("复制代码", cx))
+                                .on_click(move |_, _, cx| {
+                                    cx.write_to_clipboard(ClipboardItem::new_string(
+                                        code.to_string(),
+                                    ))
+                                })
+                        })
+                        .markdown_extensions(crate::markdown::extensions())
+                        .image_source(move |uri| {
+                            if let Some(path) =
+                                local_document_path(uri.as_ref(), image_origin.as_deref())
+                            {
+                                return path.into();
+                            }
+                            uri.clone().into()
+                        })
+                        .on_link_click(move |url, _, _, cx| {
+                            if let Some(path) = local_document_path(url.as_ref(), origin.as_deref())
+                            {
+                                if let Ok(uri) = language::file_uri(&path) {
+                                    cx.open_url(&uri);
+                                }
+                            } else {
+                                cx.open_url(url.as_ref());
+                            }
+                        })
+                        .selectable(true)
+                        .style(document_style(cx))
+                        .size_full()
+                        .text_size(px(if self.workspace_mode == WorkspaceMode::Study {
+                            18.
+                        } else {
+                            15.
+                        })),
+                );
         }
         div()
             .flex()

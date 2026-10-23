@@ -1,4 +1,4 @@
-param([string]$Executable='target/desktop/leetdesk.exe')
+param([string]$Executable='target/desktop/leetdesk.exe', [string]$CaseName='')
 $ErrorActionPreference='Stop'
 $taskWorkspace=(Get-Location).Path
 $taskBinary=(Resolve-Path -LiteralPath $Executable).Path
@@ -8,6 +8,7 @@ $taskCases=@(
     @{name='reading-white-english-native';theme='white';mode='study';english=$true;width=1488;height=1057},
     @{name='coding-dark-english-native';theme='dark';mode='coding';english=$true;width=1488;height=1057}
 )
+if ($CaseName) { $taskCases=@($taskCases | Where-Object { $_.name -eq $CaseName }) }
 foreach ($taskCase in $taskCases) {
     $taskRoot=Join-Path $taskWorkspace ('target/review-'+$taskCase.name+'-'+[guid]::NewGuid().ToString('N'))
     $taskArguments=@('scripts/design_fixture.py',$taskRoot)
