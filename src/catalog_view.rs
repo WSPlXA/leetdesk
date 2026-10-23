@@ -182,6 +182,19 @@ impl CatalogView {
                 }
             }
         }
+        for pattern in learning::CHAPTERS
+            .iter()
+            .flat_map(|chapter| &chapter.patterns)
+        {
+            if let Some(indices) = self.route_rows.get_mut(&format!("@pattern:{}", pattern.id)) {
+                indices.sort_by_key(|index| {
+                    pattern
+                        .questions
+                        .iter()
+                        .position(|slug| slug == &self.rows[*index].slug)
+                });
+            }
+        }
     }
 
     pub fn topics(&self) -> &[String] {
@@ -355,7 +368,7 @@ mod tests {
             {"frontendQuestionId":"547","titleSlug":"number-of-provinces","title":"省份数量","difficulty":"Medium","status":"ac","topicTags":[{"name":"Graph"}]},
             {"frontendQuestionId":"9999","titleSlug":"new-unclassified-graph","title":"未整理图题","difficulty":"Easy","topicTags":[{"name":"Graph"}]}
         ]}}})).unwrap().problems;
-        let view = CatalogView::new(&problems, HashMap::new());
+        let mut view = CatalogView::new(&problems, HashMap::new());
         assert_eq!(
             view.filter("@chapter:graph", "全部", "").as_ref(),
             &[0, 1, 2, 3]
@@ -374,6 +387,13 @@ mod tests {
         assert_eq!(view.filter("@unclassified", "全部", "").as_ref(), &[4]);
         assert_eq!(view.filter("@chapter:graph", "全部", "BFS").as_ref(), &[1]);
         assert!(view.filter("@pattern:missing", "全部", "").is_empty());
+        let mut reordered = vec![problems[1].clone(), problems[1].clone()];
+        reordered[0].id = 127;
+        reordered[0].slug = "word-ladder".into();
+        view.replace(&reordered);
+        assert_eq!(view.learning_indices("@pattern:bfs-distance"), &[1, 0]);
+        assert_eq!(view.learning_indices("@chapter:graph").len(), 2);
+        assert!(view.learning_indices("@pattern:missing").is_empty());
     }
     pub(crate) fn online_fixture() -> Vec<Problem> {
         crate::online::parse_page(crate::online::Site::China, &serde_json::json!({"data":{"problemsetQuestionList":{"total":5,"questions":[
