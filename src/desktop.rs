@@ -2613,9 +2613,15 @@ impl Workspace {
             let (_, state, origin) = self.document_view.as_ref().unwrap();
             let origin = origin.clone();
             let image_origin = origin.clone();
-            content = content.pt_3().child(
+            content = content.child(
                 TextView::new(state)
                     .scrollable(true)
+                    .font_family(gpui_kit::component::Theme::global(cx).font_family.clone())
+                    .line_height(px(if self.workspace_mode == WorkspaceMode::Study {
+                        27.
+                    } else {
+                        23.
+                    }))
                     .code_block_actions(|block, _, cx| {
                         let code = block.code();
                         Button::new("copy-lesson-code")
@@ -2649,7 +2655,7 @@ impl Workspace {
                     .style(document_style(cx))
                     .size_full()
                     .text_size(px(if self.workspace_mode == WorkspaceMode::Study {
-                        17.
+                        18.
                     } else {
                         15.
                     })),
@@ -3687,7 +3693,7 @@ fn launch_options(store: Store, smoke: bool, capture: Option<(PathBuf, f32, f32)
                     cx.background_executor()
                         .timer(Duration::from_millis(300))
                         .await;
-                    let _ = cx.update(|cx| {
+                    cx.update(|cx| {
                         if let Some(handle) = handle {
                             let _ = handle.update(cx, |_, window, cx| {
                                 let _ = window.draw(cx);
@@ -3707,7 +3713,7 @@ fn launch_options(store: Store, smoke: bool, capture: Option<(PathBuf, f32, f32)
                         eprintln!("CAPTURE failed: {error:#}");
                         smoke_ok.store(false, Ordering::Relaxed);
                     }
-                    let _ = cx.update(|cx| cx.quit());
+                    cx.update(|cx| cx.quit());
                 })
                 .detach();
             } else if smoke {
@@ -3786,6 +3792,16 @@ pub fn apply_theme(cx: &mut App) {
 
 pub fn apply_appearance(appearance: Appearance, cx: &mut App) {
     let editor_theme = theme::editor_theme(cx);
+    let interface_family = if cx
+        .text_system()
+        .all_font_names()
+        .iter()
+        .any(|name| name == "Noto Sans SC")
+    {
+        "Noto Sans SC"
+    } else {
+        UI_FONT
+    };
     theme::select(appearance, cx);
     let color = |value| rgb(appearance.color(value));
     gpui_kit::component::Theme::change(
@@ -3798,7 +3814,7 @@ pub fn apply_appearance(appearance: Appearance, cx: &mut App) {
         cx,
     );
     gpui_kit::component::Theme::update(cx, |theme| {
-        theme.font_family = UI_FONT.into();
+        theme.font_family = interface_family.into();
         theme.mono_font_family = CODE_FONT.into();
         theme.shadow = false;
         theme.colors.background = color(BG).into();
@@ -3868,17 +3884,27 @@ pub fn apply_appearance(appearance: Appearance, cx: &mut App) {
 }
 
 fn document_style(cx: &App) -> TextViewStyle {
+    let interface_family = gpui_kit::component::Theme::global(cx).font_family.clone();
     let mut code_block = gpui_kit::StyleRefinement::default();
     code_block.text.color = Some(theme::color(INK, cx).into());
+    code_block.text.font_family = Some(CODE_FONT.into());
     let mut table = gpui_kit::StyleRefinement::default()
         .rounded_md()
         .bg(theme::color(0x101715, cx));
+    if theme::current(cx) != Appearance::Dark {
+        table = table.bg(theme::color(BG, cx));
+    }
     table.overflow.x = Some(gpui_kit::Overflow::Scroll);
     let table_head = gpui_kit::StyleRefinement::default()
         .bg(theme::color(0x203c34, cx))
         .text_color(theme::color(INK, cx))
         .font_weight(FontWeight::SEMIBOLD);
-    let table_cell = gpui_kit::StyleRefinement::default().px_4().py(px(3.));
+    let table_cell = gpui_kit::StyleRefinement::default()
+        .px_4()
+        .py(px(3.))
+        .font_family(interface_family.clone())
+        .text_size(px(14.))
+        .line_height(px(20.));
     TextViewStyle::default()
         .with_dark(theme::current(cx) == leetdesk::appearance::Appearance::Dark)
         .with_foreground(theme::color(INK, cx).into())
@@ -3889,6 +3915,9 @@ fn document_style(cx: &App) -> TextViewStyle {
             move |level| {
                 let mut style = gpui_kit::StyleRefinement::default()
                     .text_color(foreground)
+                    .font_family(interface_family.clone())
+                    .pt(px(6.))
+                    .pb(px(4.))
                     .font_weight(FontWeight::BOLD);
                 if level == 2 {
                     style.text.font_size = Some(px(26.).into());

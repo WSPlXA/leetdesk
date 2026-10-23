@@ -404,6 +404,7 @@ impl Workspace {
                                 .small()
                                 .ghost()
                                 .accessibility_label(chapter.title.get(ui::language(cx)).to_owned())
+                                .tooltip(chapter.overview.get(ui::language(cx)).to_owned())
                                 .on_click(cx.listener(
                                     move |this, _, _, cx| {
                                         if !this.expanded_chapters.remove(&chapter.id) {
@@ -423,6 +424,7 @@ impl Workspace {
                                     div()
                                         .w_full()
                                         .text_size(px(16.))
+                                        .truncate()
                                         .child(chapter.title.get(ui::language(cx)).to_owned()),
                                 )
                                 .ghost()
@@ -599,6 +601,8 @@ impl Workspace {
             .map(|m| m.frontend_id.clone())
             .unwrap_or_else(|| problem.id.to_string());
         let active = index == self.current && !self.learning_overview;
+        let title = format!("{number}. {}", problem.title);
+        let tooltip = title.clone();
         div()
             .id(gpui_kit::SharedString::from(id))
             .test_support()
@@ -608,23 +612,21 @@ impl Workspace {
             .items_center()
             .border_l_4()
             .border_color(theme::color(if active { ACCENT } else { BG }, cx))
-            .px_3()
+            .pl(px(if pattern.is_some() { 36. } else { 12. }))
+            .pr_3()
             .rounded_r_md()
             .cursor_pointer()
-            .text_size(px(15.))
+            .text_size(px(16.))
+            .tooltip(move |window, cx| {
+                gpui_kit::component::tooltip::Tooltip::new(tooltip.clone()).build(window, cx)
+            })
             .when(active, |el| {
                 el.bg(theme::color(0x322630, cx))
                     .font_weight(FontWeight::SEMIBOLD)
                     .text_color(theme::color(ACCENT, cx))
             })
             .hover(|el| el.bg(theme::color(0x222027, cx)))
-            .child(
-                div()
-                    .flex_1()
-                    .min_w_0()
-                    .truncate()
-                    .child(format!("{number}. {}", problem.title)),
-            )
+            .child(div().flex_1().min_w_0().truncate().child(title))
             .on_click(cx.listener(move |this, _, window, cx| {
                 if let Some(pattern) = &pattern {
                     this.filter = format!("@pattern:{pattern}");
@@ -889,6 +891,7 @@ impl Workspace {
                             .flex_1()
                             .min_w_0()
                             .text_size(px(if self.reader_wide { 40. } else { 32. }))
+                            .line_height(px(if self.reader_wide { 48. } else { 42. }))
                             .font_weight(FontWeight::BOLD)
                             .child(title),
                     )
@@ -989,13 +992,13 @@ impl Workspace {
     }
 
     pub(super) fn reveal_section(&mut self, cx: &mut Context<Self>) {
-        if let (Some(heading), Some((_, state, _))) = (&self.pending_section, &self.document_view) {
-            if let Some(start) = state.read(cx).rendered_text().as_str().find(heading) {
-                state.update(cx, |state, cx| {
-                    let _ = state.reveal_range(start..start, cx);
-                });
-                self.pending_section = None;
-            }
+        if let (Some(heading), Some((_, state, _))) = (&self.pending_section, &self.document_view)
+            && let Some(start) = state.read(cx).rendered_text().as_str().find(heading)
+        {
+            state.update(cx, |state, cx| {
+                let _ = state.reveal_range(start..start, cx);
+            });
+            self.pending_section = None;
         }
     }
 
@@ -1099,7 +1102,7 @@ impl Workspace {
             .flex_col()
             .bg(theme::color(BG, cx))
             .text_color(theme::color(INK, cx))
-            .font_family(UI_FONT)
+            .font_family(gpui_kit::component::Theme::global(cx).font_family.clone())
             .on_action(cx.listener(Self::save_action))
             .on_action(cx.listener(Self::run_cases))
             .on_action(cx.listener(Self::submit))
