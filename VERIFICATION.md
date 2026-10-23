@@ -181,7 +181,7 @@ release 与 desktop 均已重建。标准 `target/release/leetdesk.exe` 的 SHA-
 
 使用应用自身的 GPU 渲染接口生成真实原生界面，未调用系统截图读取其他窗口。米色学习页、白色英文学习页和深色英文编码页均为 1488 × 1057、scale=1，窄窗口为 1120 × 800。已将参考图和实际页面合成为同一比较图，并检查导航、正文和工具栏局部；修正后重新捕获。详细记录和图片见 [design-qa.md](design-qa.md)。可用 `scripts/design_fixture.py`、`scripts/capture_design.ps1` 和 `scripts/compare_design.py` 复现；数据均在独立 target 目录中，不改动个人题库或草稿。
 
-release 与 desktop 已重新构建。两个版本在深色/中国站、白色/国际站、米色/国际站下共 6 次最终原生启动均退出 0，输出 `SMOKE window=ok gopls=true go_grammar=true problems=6`；记录在 `target/redesign-smoke.log`。
+release 与 desktop 已重新构建。两个版本在深色/中国站、白色/国际站、米色/国际站下共 6 次最终原生启动均退出 0，输出 `SMOKE window=ok gopls=true go_grammar=true problems=6`；记录在 `target/redesign-smoke.log`。最终 `target/release/leetdesk.exe` 的 SHA-256 为 `456CA34790F9DD773E938F09C6BAAB8B5B2164414C4B26A09AE43FA47F9F3EFE`。
 
 ## 尚未验证或实现的范围
 
