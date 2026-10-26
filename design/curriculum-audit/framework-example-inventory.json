@@ -1,0 +1,2099 @@
+{
+  "scope": "框架文章渲染出的显式例题表与正文题目链接元数据；不保存正文或代码。浏览器登录态已可用，但未逐篇确认全文全部渲染。",
+  "captured_on": "2026-10-26",
+  "pages_checked": 87,
+  "all_framework_pages_checked": false,
+  "items": [
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/binary-tree-part1/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "226",
+          "slug": "invert-binary-tree",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "116",
+          "slug": "populating-next-right-pointers-in-each-node",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "114",
+          "slug": "flatten-binary-tree-to-linked-list",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 3,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/binary-tree-part2/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "654",
+          "slug": "maximum-binary-tree",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "105",
+          "slug": "construct-binary-tree-from-preorder-and-inorder-traversal",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "106",
+          "slug": "construct-binary-tree-from-inorder-and-postorder-traversal",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "889",
+          "slug": "construct-binary-tree-from-preorder-and-postorder-traversal",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 4,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/serialize-and-deserialize-binary-tree/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "297",
+          "slug": "serialize-and-deserialize-binary-tree",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/binary-tree-part3/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "652",
+          "slug": "find-duplicate-subtrees",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/bst-part1/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "230",
+          "slug": "kth-smallest-element-in-a-bst",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "538",
+          "slug": "convert-bst-to-greater-tree",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "1038",
+          "slug": "binary-search-tree-to-greater-sum-tree",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 3,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/bst-part2/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "98",
+          "slug": "validate-binary-search-tree",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "700",
+          "slug": "search-in-a-binary-search-tree",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "701",
+          "slug": "insert-into-a-binary-search-tree",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "450",
+          "slug": "delete-node-in-a-bst",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 4,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/bst-part3/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "96",
+          "slug": "unique-binary-search-trees",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "95",
+          "slug": "unique-binary-search-trees-ii",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/bfs-framework/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "773",
+          "slug": "sliding-puzzle",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "752",
+          "slug": "open-the-lock",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/dynamic-programming-framework/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "509",
+          "slug": "fibonacci-number",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "70",
+          "slug": "climbing-stairs",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "322",
+          "slug": "coin-change",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 3,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/egg-drop/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "887",
+          "slug": "super-egg-drop",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/linked-list-skills-summary/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "21",
+          "slug": "merge-two-sorted-lists",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "86",
+          "slug": "partition-list",
+          "has_original_detailed_explanation": true,
+          "title": "分隔链表"
+        },
+        {
+          "number": "23",
+          "slug": "merge-k-sorted-lists",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "19",
+          "slug": "remove-nth-node-from-end-of-list",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "876",
+          "slug": "middle-of-the-linked-list",
+          "has_original_detailed_explanation": true,
+          "title": "链表的中间结点"
+        },
+        {
+          "number": "142",
+          "slug": "linked-list-cycle-ii",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "160",
+          "slug": "intersection-of-two-linked-lists",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "141",
+          "slug": "linked-list-cycle",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "LCR 140",
+          "slug": "lian-biao-zhong-dao-shu-di-kge-jie-dian-lcof",
+          "official_url": "https://leetcode.cn/problems/lian-biao-zhong-dao-shu-di-kge-jie-dian-lcof/",
+          "has_original_detailed_explanation": true,
+          "title": "训练计划 II"
+        }
+      ],
+      "original_detailed_count": 9,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/array-two-pointers-summary/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "26",
+          "slug": "remove-duplicates-from-sorted-array",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "83",
+          "slug": "remove-duplicates-from-sorted-list",
+          "has_original_detailed_explanation": true,
+          "title": "删除排序链表中的重复元素"
+        },
+        {
+          "number": "27",
+          "slug": "remove-element",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "283",
+          "slug": "move-zeroes",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "167",
+          "slug": "two-sum-ii-input-array-is-sorted",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "344",
+          "slug": "reverse-string",
+          "has_original_detailed_explanation": true,
+          "title": "反转字符串"
+        },
+        {
+          "number": "5",
+          "slug": "longest-palindromic-substring",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 7,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/sliding-window-framework/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "76",
+          "slug": "minimum-window-substring",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "567",
+          "slug": "permutation-in-string",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "438",
+          "slug": "find-all-anagrams-in-a-string",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "3",
+          "slug": "longest-substring-without-repeating-characters",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 4,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/backtrack-framework/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "46",
+          "slug": "permutations",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/permutation-combination-subset-all-in-one/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "78",
+          "slug": "subsets",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "77",
+          "slug": "combinations",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "46",
+          "slug": "permutations",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "90",
+          "slug": "subsets-ii",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "40",
+          "slug": "combination-sum-ii",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "47",
+          "slug": "permutations-ii",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "39",
+          "slug": "combination-sum",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "216",
+          "slug": "combination-sum-iii",
+          "has_original_detailed_explanation": true,
+          "title": "组合总和 III"
+        },
+        {
+          "number": "LCR 082",
+          "slug": "4sjJUc",
+          "official_url": "https://leetcode.cn/problems/4sjJUc/",
+          "has_original_detailed_explanation": true,
+          "title": "组合总和 II"
+        },
+        {
+          "number": "LCR 084",
+          "slug": "7p8L0Z",
+          "official_url": "https://leetcode.cn/problems/7p8L0Z/",
+          "has_original_detailed_explanation": true,
+          "title": "全排列 II"
+        }
+      ],
+      "original_detailed_count": 10,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/greedy/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "55",
+          "slug": "jump-game",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "45",
+          "slug": "jump-game-ii",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/divide-and-conquer/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "23",
+          "slug": "merge-k-sorted-lists",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "21",
+          "slug": "merge-two-sorted-lists",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/binary-search-framework/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "704",
+          "slug": "binary-search",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "34",
+          "slug": "find-first-and-last-position-of-element-in-sorted-array",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "LCR 172",
+          "slug": "zai-pai-xu-shu-zu-zhong-cha-zhao-shu-zi-lcof",
+          "official_url": "https://leetcode.cn/problems/zai-pai-xu-shu-zu-zhong-cha-zhao-shu-zi-lcof/",
+          "has_original_detailed_explanation": true,
+          "title": "统计目标成绩的出现次数"
+        }
+      ],
+      "original_detailed_count": 3,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/reverse-linked-list-recursion/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "206",
+          "slug": "reverse-linked-list",
+          "title": "反转链表",
+          "official_url": "https://leetcode.cn/problems/reverse-linked-list/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "92",
+          "slug": "reverse-linked-list-ii",
+          "title": "反转链表 II",
+          "official_url": "https://leetcode.cn/problems/reverse-linked-list-ii/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "24",
+          "slug": "swap-nodes-in-pairs",
+          "title": "两两交换链表中的节点",
+          "official_url": "https://leetcode.cn/problems/swap-nodes-in-pairs/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "25",
+          "slug": "reverse-nodes-in-k-group",
+          "title": "K 个一组翻转链表",
+          "official_url": "https://leetcode.cn/problems/reverse-nodes-in-k-group/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 4,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/palindrome-linked-list/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "234",
+          "slug": "palindrome-linked-list",
+          "title": "回文链表",
+          "official_url": "https://leetcode.cn/problems/palindrome-linked-list/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/prefix-sum/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "303",
+          "slug": "range-sum-query-immutable",
+          "title": "区域和检索 - 数组不可变",
+          "official_url": "https://leetcode.cn/problems/range-sum-query-immutable/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "304",
+          "slug": "range-sum-query-2d-immutable",
+          "title": "二维区域和检索 - 矩阵不可变",
+          "official_url": "https://leetcode.cn/problems/range-sum-query-2d-immutable/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/diff-array/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "370",
+          "slug": "range-addition",
+          "title": "区间加法",
+          "official_url": "https://leetcode.cn/problems/range-addition/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "1109",
+          "slug": "corporate-flight-bookings",
+          "title": "航班预订统计",
+          "official_url": "https://leetcode.cn/problems/corporate-flight-bookings/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "1094",
+          "slug": "car-pooling",
+          "title": "拼车",
+          "official_url": "https://leetcode.cn/problems/car-pooling/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 3,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/stack-queue/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "232",
+          "slug": "implement-queue-using-stacks",
+          "title": "用栈实现队列",
+          "official_url": "https://leetcode.cn/problems/implement-queue-using-stacks/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "225",
+          "slug": "implement-stack-using-queues",
+          "title": "用队列实现栈",
+          "official_url": "https://leetcode.cn/problems/implement-stack-using-queues/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/monotonic-stack/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "496",
+          "slug": "next-greater-element-i",
+          "title": "下一个更大元素 I",
+          "official_url": "https://leetcode.cn/problems/next-greater-element-i/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "739",
+          "slug": "daily-temperatures",
+          "title": "每日温度",
+          "official_url": "https://leetcode.cn/problems/daily-temperatures/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "503",
+          "slug": "next-greater-element-ii",
+          "title": "下一个更大元素 II",
+          "official_url": "https://leetcode.cn/problems/next-greater-element-ii/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "LCR 038",
+          "slug": "iIQa4I",
+          "title": "每日温度",
+          "official_url": "https://leetcode.cn/problems/iIQa4I/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 4,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/monotonic-queue/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "239",
+          "slug": "sliding-window-maximum",
+          "title": "滑动窗口最大值",
+          "official_url": "https://leetcode.cn/problems/sliding-window-maximum/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "LCR 184",
+          "slug": "dui-lie-de-zui-da-zhi-lcof",
+          "title": "设计自助结算系统",
+          "official_url": "https://leetcode.cn/problems/dui-lie-de-zui-da-zhi-lcof/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/lru-cache/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "146",
+          "slug": "lru-cache",
+          "title": "LRU 缓存",
+          "official_url": "https://leetcode.cn/problems/lru-cache/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/segment-tree-implement/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "307",
+          "slug": "range-sum-query-mutable",
+          "title": "区域和检索 - 数组可修改",
+          "official_url": "https://leetcode.cn/problems/range-sum-query-mutable/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/segment-tree-dynamic/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "307",
+          "slug": "range-sum-query-mutable",
+          "title": "区域和检索 - 数组可修改",
+          "official_url": "https://leetcode.cn/problems/range-sum-query-mutable/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/segment-tree-lazy-update/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "307",
+          "slug": "range-sum-query-mutable",
+          "title": "区域和检索 - 数组可修改",
+          "official_url": "https://leetcode.cn/problems/range-sum-query-mutable/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/implement-calculator/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "224",
+          "slug": "basic-calculator",
+          "title": "基本计算器",
+          "official_url": "https://leetcode.cn/problems/basic-calculator/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "227",
+          "slug": "basic-calculator-ii",
+          "title": "基本计算器 II",
+          "official_url": "https://leetcode.cn/problems/basic-calculator-ii/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "772",
+          "slug": "basic-calculator-iii",
+          "title": "基本计算器 III",
+          "official_url": "https://leetcode.cn/problems/basic-calculator-iii/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 3,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/bipartite-graph/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "785",
+          "slug": "is-graph-bipartite",
+          "title": "判断二分图",
+          "official_url": "https://leetcode.cn/problems/is-graph-bipartite/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "886",
+          "slug": "possible-bipartition",
+          "title": "可能的二分法",
+          "official_url": "https://leetcode.cn/problems/possible-bipartition/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "LCR 106",
+          "slug": "vEAB3K",
+          "title": "判断二分图",
+          "official_url": "https://leetcode.cn/problems/vEAB3K/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 3,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/cycle-detection/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "207",
+          "slug": "course-schedule",
+          "title": "课程表",
+          "official_url": "https://leetcode.cn/problems/course-schedule/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/topological-sort/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "210",
+          "slug": "course-schedule-ii",
+          "title": "课程表 II",
+          "official_url": "https://leetcode.cn/problems/course-schedule-ii/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/a-star/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "1091",
+          "slug": "shortest-path-in-binary-matrix",
+          "title": "二进制矩阵中的最短路径",
+          "official_url": "https://leetcode.cn/problems/shortest-path-in-binary-matrix/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/kruskal/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "261",
+          "slug": "graph-valid-tree",
+          "title": "以图判树",
+          "official_url": "https://leetcode.cn/problems/graph-valid-tree/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "1135",
+          "slug": "connecting-cities-with-minimum-cost",
+          "title": "最低成本连通所有城市",
+          "official_url": "https://leetcode.cn/problems/connecting-cities-with-minimum-cost/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "1584",
+          "slug": "min-cost-to-connect-all-points",
+          "title": "连接所有点的最小费用",
+          "official_url": "https://leetcode.cn/problems/min-cost-to-connect-all-points/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 3,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/prim/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "1135",
+          "slug": "connecting-cities-with-minimum-cost",
+          "title": "最低成本连通所有城市",
+          "official_url": "https://leetcode.cn/problems/connecting-cities-with-minimum-cost/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "1584",
+          "slug": "min-cost-to-connect-all-points",
+          "title": "连接所有点的最小费用",
+          "official_url": "https://leetcode.cn/problems/min-cost-to-connect-all-points/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/longest-increasing-subsequence/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "300",
+          "slug": "longest-increasing-subsequence",
+          "title": "最长递增子序列",
+          "official_url": "https://leetcode.cn/problems/longest-increasing-subsequence/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "354",
+          "slug": "russian-doll-envelopes",
+          "title": "俄罗斯套娃信封问题",
+          "official_url": "https://leetcode.cn/problems/russian-doll-envelopes/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/memo-fundamental/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "931",
+          "slug": "minimum-falling-path-sum",
+          "title": "下降路径最小和",
+          "official_url": "https://leetcode.cn/problems/minimum-falling-path-sum/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/two-views-of-dp/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "115",
+          "slug": "distinct-subsequences",
+          "title": "不同的子序列",
+          "official_url": "https://leetcode.cn/problems/distinct-subsequences/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/word-break/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "139",
+          "slug": "word-break",
+          "title": "单词拆分",
+          "official_url": "https://leetcode.cn/problems/word-break/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "140",
+          "slug": "word-break-ii",
+          "title": "单词拆分 II",
+          "official_url": "https://leetcode.cn/problems/word-break-ii/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/edit-distance/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "72",
+          "slug": "edit-distance",
+          "title": "编辑距离",
+          "official_url": "https://leetcode.cn/problems/edit-distance/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/maximum-subarray/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "53",
+          "slug": "maximum-subarray",
+          "title": "最大子数组和",
+          "official_url": "https://leetcode.cn/problems/maximum-subarray/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/longest-common-subsequence/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "1143",
+          "slug": "longest-common-subsequence",
+          "title": "最长公共子序列",
+          "official_url": "https://leetcode.cn/problems/longest-common-subsequence/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "583",
+          "slug": "delete-operation-for-two-strings",
+          "title": "两个字符串的删除操作",
+          "official_url": "https://leetcode.cn/problems/delete-operation-for-two-strings/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "712",
+          "slug": "minimum-ascii-delete-sum-for-two-strings",
+          "title": "两个字符串的最小ASCII删除和",
+          "official_url": "https://leetcode.cn/problems/minimum-ascii-delete-sum-for-two-strings/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 3,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/subsequence-problem/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "516",
+          "slug": "longest-palindromic-subsequence",
+          "title": "最长回文子序列",
+          "official_url": "https://leetcode.cn/problems/longest-palindromic-subsequence/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "1312",
+          "slug": "minimum-insertion-steps-to-make-a-string-palindrome",
+          "title": "让字符串成为回文串的最少插入次数",
+          "official_url": "https://leetcode.cn/problems/minimum-insertion-steps-to-make-a-string-palindrome/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/knapsack2/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "416",
+          "slug": "partition-equal-subset-sum",
+          "title": "分割等和子集",
+          "official_url": "https://leetcode.cn/problems/partition-equal-subset-sum/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/knapsack3/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "518",
+          "slug": "coin-change-ii",
+          "title": "零钱兑换 II",
+          "official_url": "https://leetcode.cn/problems/coin-change-ii/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/target-sum/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "494",
+          "slug": "target-sum",
+          "title": "目标和",
+          "official_url": "https://leetcode.cn/problems/target-sum/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/regular-expression-matching/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "10",
+          "slug": "regular-expression-matching",
+          "title": "正则表达式匹配",
+          "official_url": "https://leetcode.cn/problems/regular-expression-matching/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/burst-balloons/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "312",
+          "slug": "burst-balloons",
+          "title": "戳气球",
+          "official_url": "https://leetcode.cn/problems/burst-balloons/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/game-theory/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "877",
+          "slug": "stone-game",
+          "title": "石子游戏",
+          "official_url": "https://leetcode.cn/problems/stone-game/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "486",
+          "slug": "predict-the-winner",
+          "title": "预测赢家",
+          "official_url": "https://leetcode.cn/problems/predict-the-winner/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/house-robber/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "198",
+          "slug": "house-robber",
+          "title": "打家劫舍",
+          "official_url": "https://leetcode.cn/problems/house-robber/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "213",
+          "slug": "house-robber-ii",
+          "title": "打家劫舍 II",
+          "official_url": "https://leetcode.cn/problems/house-robber-ii/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "337",
+          "slug": "house-robber-iii",
+          "title": "打家劫舍 III",
+          "official_url": "https://leetcode.cn/problems/house-robber-iii/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 3,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/stock-problem-summary/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "714",
+          "slug": "best-time-to-buy-and-sell-stock-with-transaction-fee",
+          "title": "买卖股票的最佳时机含手续费",
+          "official_url": "https://leetcode.cn/problems/best-time-to-buy-and-sell-stock-with-transaction-fee/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "188",
+          "slug": "best-time-to-buy-and-sell-stock-iv",
+          "title": "买卖股票的最佳时机 IV",
+          "official_url": "https://leetcode.cn/problems/best-time-to-buy-and-sell-stock-iv/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "121",
+          "slug": "best-time-to-buy-and-sell-stock",
+          "title": "买卖股票的最佳时机",
+          "official_url": "https://leetcode.cn/problems/best-time-to-buy-and-sell-stock/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "122",
+          "slug": "best-time-to-buy-and-sell-stock-ii",
+          "title": "买卖股票的最佳时机 II",
+          "official_url": "https://leetcode.cn/problems/best-time-to-buy-and-sell-stock-ii/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "309",
+          "slug": "best-time-to-buy-and-sell-stock-with-cooldown",
+          "title": "买卖股票的最佳时机含冷冻期",
+          "official_url": "https://leetcode.cn/problems/best-time-to-buy-and-sell-stock-with-cooldown/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "123",
+          "slug": "best-time-to-buy-and-sell-stock-iii",
+          "title": "买卖股票的最佳时机 III",
+          "official_url": "https://leetcode.cn/problems/best-time-to-buy-and-sell-stock-iii/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 6,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/binary-tree-summary/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "104",
+          "slug": "maximum-depth-of-binary-tree",
+          "title": "二叉树的最大深度",
+          "official_url": "https://leetcode.cn/problems/maximum-depth-of-binary-tree/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "144",
+          "slug": "binary-tree-preorder-traversal",
+          "title": "二叉树的前序遍历",
+          "official_url": "https://leetcode.cn/problems/binary-tree-preorder-traversal/",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "543",
+          "slug": "diameter-of-binary-tree",
+          "title": "二叉树的直径",
+          "official_url": "https://leetcode.cn/problems/diameter-of-binary-tree/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 3,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/understand-recursion/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "104",
+          "slug": "maximum-depth-of-binary-tree",
+          "title": "二叉树的最大深度",
+          "official_url": "https://leetcode.cn/problems/maximum-depth-of-binary-tree/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/floyd/",
+      "metadata_only": true,
+      "questions": [
+        {
+          "number": "1334",
+          "slug": "find-the-city-with-the-smallest-number-of-neighbors-at-a-threshold-distance",
+          "title": "阈值距离内邻居最少的城市",
+          "official_url": "https://leetcode.cn/problems/find-the-city-with-the-smallest-number-of-neighbors-at-a-threshold-distance/",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/linked-list-skills-summary-2/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "21",
+          "slug": "merge-two-sorted-lists",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "86",
+          "slug": "partition-list",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "23",
+          "slug": "merge-k-sorted-lists",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "19",
+          "slug": "remove-nth-node-from-end-of-list",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "876",
+          "slug": "middle-of-the-linked-list",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "142",
+          "slug": "linked-list-cycle-ii",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "160",
+          "slug": "intersection-of-two-linked-lists",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "141",
+          "slug": "linked-list-cycle",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "LCR 140",
+          "slug": "lian-biao-zhong-dao-shu-di-kge-jie-dian-lcof",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 9,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/array-two-pointers-summary-2/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "26",
+          "slug": "remove-duplicates-from-sorted-array",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "83",
+          "slug": "remove-duplicates-from-sorted-list",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "27",
+          "slug": "remove-element",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "283",
+          "slug": "move-zeroes",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "167",
+          "slug": "two-sum-ii-input-array-is-sorted",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "344",
+          "slug": "reverse-string",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "5",
+          "slug": "longest-palindromic-substring",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 7,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/practice-in-action/2d-array-traversal-summary/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "48",
+          "slug": "rotate-image",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "151",
+          "slug": "reverse-words-in-a-string",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "61",
+          "slug": "rotate-list",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "54",
+          "slug": "spiral-matrix",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "59",
+          "slug": "spiral-matrix-ii",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "LCR 146",
+          "slug": "shun-shi-zhen-da-yin-ju-zhen-lcof",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 6,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/practice-in-action/nsum/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "1",
+          "slug": "two-sum",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "167",
+          "slug": "two-sum-ii-input-array-is-sorted",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "15",
+          "slug": "3sum",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "18",
+          "slug": "4sum",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 4,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/frequency-interview/trapping-rain-water/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "42",
+          "slug": "trapping-rain-water",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "11",
+          "slug": "container-with-most-water",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/sliding-window-framework-2/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "76",
+          "slug": "minimum-window-substring",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "567",
+          "slug": "permutation-in-string",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "438",
+          "slug": "find-all-anagrams-in-a-string",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "3",
+          "slug": "longest-substring-without-repeating-characters",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 4,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/practice-in-action/rabinkarp/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "187",
+          "slug": "repeated-dna-sequences",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "28",
+          "slug": "find-the-index-of-the-first-occurrence-in-a-string",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/frequency-interview/binary-search-in-action/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "875",
+          "slug": "koko-eating-bananas",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "1011",
+          "slug": "capacity-to-ship-packages-within-d-days",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "410",
+          "slug": "split-array-largest-sum",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 3,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/frequency-interview/random-pick-with-weight/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "528",
+          "slug": "random-pick-with-weight",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "LCR 071",
+          "slug": "cuyjEf",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/binary-tree-summary-2/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "104",
+          "slug": "maximum-depth-of-binary-tree",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "144",
+          "slug": "binary-tree-preorder-traversal",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "543",
+          "slug": "diameter-of-binary-tree",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 3,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/practice-in-action/lowest-common-ancestor-summary/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "236",
+          "slug": "lowest-common-ancestor-of-a-binary-tree",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "235",
+          "slug": "lowest-common-ancestor-of-a-binary-search-tree",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/count-complete-tree-nodes/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "222",
+          "slug": "count-complete-tree-nodes",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/practice-in-action/merge-sort/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "912",
+          "slug": "sort-an-array",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "315",
+          "slug": "count-of-smaller-numbers-after-self",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "493",
+          "slug": "reverse-pairs",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "327",
+          "slug": "count-of-range-sum",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 4,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/practice-in-action/quick-sort/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "75",
+          "slug": "sort-colors",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "912",
+          "slug": "sort-an-array",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "215",
+          "slug": "kth-largest-element-in-an-array",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 3,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/frequency-interview/lfu/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "460",
+          "slug": "lfu-cache",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/backtrack-framework-2/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "46",
+          "slug": "permutations",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/practice-in-action/sudoku-nqueue/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "37",
+          "slug": "sudoku-solver",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "51",
+          "slug": "n-queens",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "52",
+          "slug": "n-queens-ii",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 3,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/permutation-combination-subset-all-in-one-2/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "78",
+          "slug": "subsets",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "77",
+          "slug": "combinations",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "46",
+          "slug": "permutations",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "90",
+          "slug": "subsets-ii",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "40",
+          "slug": "combination-sum-ii",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "47",
+          "slug": "permutations-ii",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "39",
+          "slug": "combination-sum",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "216",
+          "slug": "combination-sum-iii",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "LCR 082",
+          "slug": "4sjJUc",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "LCR 084",
+          "slug": "7p8L0Z",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 10,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/frequency-interview/island-dfs-summary/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "200",
+          "slug": "number-of-islands",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "1254",
+          "slug": "number-of-closed-islands",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "1020",
+          "slug": "number-of-enclaves",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "695",
+          "slug": "max-area-of-island",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "1905",
+          "slug": "count-sub-islands",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 5,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/practice-in-action/two-views-of-backtrack/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "78",
+          "slug": "subsets",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "46",
+          "slug": "permutations",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/practice-in-action/partition-to-k-equal-sum-subsets/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "698",
+          "slug": "partition-to-k-equal-sum-subsets",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/bfs-framework-2/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "773",
+          "slug": "sliding-puzzle",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "752",
+          "slug": "open-the-lock",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/dynamic-programming-framework-2/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "509",
+          "slug": "fibonacci-number",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "70",
+          "slug": "climbing-stairs",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "322",
+          "slug": "coin-change",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 3,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/greedy-2/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "55",
+          "slug": "jump-game",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "45",
+          "slug": "jump-game-ii",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/frequency-interview/interval-scheduling/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "435",
+          "slug": "non-overlapping-intervals",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "452",
+          "slug": "minimum-number-of-arrows-to-burst-balloons",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 2,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/practice-in-action/interval-problem-summary/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "1288",
+          "slug": "remove-covered-intervals",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "56",
+          "slug": "merge-intervals",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "986",
+          "slug": "interval-list-intersections",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 3,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/frequency-interview/scan-line-technique/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "1235",
+          "slug": "maximum-profit-in-job-scheduling",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/frequency-interview/one-line-solutions/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "292",
+          "slug": "nim-game",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "877",
+          "slug": "stone-game",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "319",
+          "slug": "bulb-switcher",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 3,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/frequency-interview/bitwise-operation/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "191",
+          "slug": "number-of-1-bits",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "231",
+          "slug": "power-of-two",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "136",
+          "slug": "single-number",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "268",
+          "slug": "missing-number",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 4,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/frequency-interview/random-algorithm/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "384",
+          "slug": "shuffle-an-array",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "382",
+          "slug": "linked-list-random-node",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "398",
+          "slug": "random-pick-index",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 3,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/frequency-interview/print-prime-number/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "204",
+          "slug": "count-primes",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 1,
+      "missing_numbers": []
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/frequency-interview/ugly-number-summary/",
+      "metadata_only": true,
+      "capture_method": "authenticated_browser_rendered_dom",
+      "captured_on": "2026-10-26",
+      "questions": [
+        {
+          "number": "263",
+          "slug": "ugly-number",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "264",
+          "slug": "ugly-number-ii",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "313",
+          "slug": "super-ugly-number",
+          "has_original_detailed_explanation": true
+        },
+        {
+          "number": "1201",
+          "slug": "ugly-number-iii",
+          "has_original_detailed_explanation": true
+        }
+      ],
+      "original_detailed_count": 4,
+      "missing_numbers": []
+    }
+  ],
+  "missing_original_details": [],
+  "completion_claim": false,
+  "unresolved_metadata_rows": []
+}

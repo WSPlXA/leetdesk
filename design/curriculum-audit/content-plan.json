@@ -1,0 +1,175 @@
+{
+  "scope": "在现有原创课程和逐题解析之外，按参考栏目标题核对的剩余知识点。仅记录知识主题与来源定位，不复制原文。",
+  "source": "https://labuladong.online/zh/algo/home/",
+  "completion_claim": false,
+  "remaining_lessons": [],
+  "completed_planned_lessons": [
+    {
+      "id": "red-black",
+      "topic": "红黑树的颜色约束与黑高",
+      "reference": "https://labuladong.online/zh/algo/data-structure-basic/rbtree-basic/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "tree-lca",
+      "topic": "最近公共祖先的状态合成",
+      "reference": "https://labuladong.online/zh/algo/practice-in-action/lowest-common-ancestor-summary/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "segment-dynamic",
+      "topic": "动态开点线段树",
+      "reference": "https://labuladong.online/zh/algo/data-structure/segment-tree-dynamic/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "segment-lazy",
+      "topic": "懒标记区间更新",
+      "reference": "https://labuladong.online/zh/algo/data-structure/segment-tree-lazy-update/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "huffman-codec",
+      "topic": "前缀编码的生成、编码与解码",
+      "reference": "https://labuladong.online/zh/algo/data-structure/huffman-tree-implementation/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "consistent-hash",
+      "topic": "一致性哈希与虚拟节点",
+      "reference": "https://labuladong.online/zh/algo/data-structure/consistent-hashing/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "calculator",
+      "topic": "表达式求值与运算符优先级",
+      "reference": "https://labuladong.online/zh/algo/data-structure/implement-calculator/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "graph-cycle",
+      "topic": "有向图递归路径与环检测",
+      "reference": "https://labuladong.online/zh/algo/data-structure/cycle-detection/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "a-star",
+      "topic": "启发式搜索的估价与最优性",
+      "reference": "https://labuladong.online/zh/algo/data-structure/a-star/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "constrained-paths",
+      "topic": "带限制最短路的状态扩展",
+      "reference": "https://labuladong.online/zh/algo/data-structure/dijkstra-follow-up/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "lfu-buckets",
+      "topic": "频次分桶的 LFU 操作",
+      "reference": "https://labuladong.online/zh/algo/frequency-interview/lfu/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "sudoku",
+      "topic": "数独约束与回溯",
+      "reference": "https://labuladong.online/zh/algo/practice-in-action/sudoku-nqueue/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "partition-k",
+      "topic": "分组对称性与集合划分剪枝",
+      "reference": "https://labuladong.online/zh/algo/practice-in-action/partition-to-k-equal-sum-subsets/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "dp-memo",
+      "topic": "自顶向下备忘录与不可达状态",
+      "reference": "https://labuladong.online/zh/algo/dynamic-programming/memo-fundamental/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "dp-compress",
+      "topic": "空间压缩与旧状态保留",
+      "reference": "https://labuladong.online/zh/algo/dynamic-programming/space-optimization/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "dp-lis",
+      "topic": "最长递增子序列与最小尾值",
+      "reference": "https://labuladong.online/zh/algo/dynamic-programming/longest-increasing-subsequence/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "dp-state-machine",
+      "topic": "持有状态与受限交易",
+      "reference": "https://labuladong.online/zh/algo/dynamic-programming/stock-problem-summary/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "dp-regex",
+      "topic": "正则匹配与重复字符状态",
+      "reference": "https://labuladong.online/zh/algo/dynamic-programming/regular-expression-matching/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "dp-egg",
+      "topic": "从楼层到可覆盖范围的状态反转",
+      "reference": "https://labuladong.online/zh/algo/dynamic-programming/egg-drop/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "dp-game",
+      "topic": "双方最优选择与分差状态",
+      "reference": "https://labuladong.online/zh/algo/dynamic-programming/game-theory/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "sweep-line",
+      "topic": "扫描线与事件平局规则",
+      "reference": "https://labuladong.online/zh/algo/frequency-interview/scan-line-technique/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "nsum",
+      "topic": "固定前缀与递归降维",
+      "reference": "https://labuladong.online/zh/algo/practice-in-action/nsum/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "ugly-number",
+      "topic": "多路合并与重复结果",
+      "reference": "https://labuladong.online/zh/algo/frequency-interview/ugly-number-summary/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    },
+    {
+      "id": "probability",
+      "topic": "条件概率与随机模型",
+      "reference": "https://labuladong.online/zh/algo/frequency-interview/probability-problem/",
+      "status": "original_lesson_implemented_and_experiment_verified"
+    }
+  ],
+  "audit_follow_up_lessons": [
+    "dynamic-array",
+    "linear-probing-rehash",
+    "sort-metrics",
+    "divide-conquer",
+    "math-arithmetic",
+    "bitmask",
+    "math-games",
+    "probability-collision",
+    "dp-subsequence-count",
+    "dp-target-sum",
+    "dp-word-break",
+    "dp-house-family",
+    "dp-stock-limits",
+    "backtrack-subset",
+    "tree-map",
+    "interval-ops"
+  ],
+  "remaining_scope": [
+    "题集只对应本地样题，未逐题核对或导入原站全部题目。",
+    "原站账号、会员文章、视频和交互可视化继续通过原站提供；离线正文为独立原创。",
+    "先修顺序通过本地依赖验证，尚未逐页核对原站所有先修链接。"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "architecture": "arm64",
+  "package": "target/dist/leetdesk-macos-aarch64.zip",
+  "bytes": 17113497,
+  "sha256": "7118049d136905018d2f757017636bb9acd1f733a268e2aacb6ed45cd19ff832",
+  "signing_verified": true,
+  "bundled_content_matches": true,
+  "minimal_path_go_tools": true,
+  "system_control_clicks_visually_verified": false
+}

@@ -293,6 +293,7 @@ pub enum WorkspaceEvent {
 impl EventEmitter<WorkspaceEvent> for Workspace {}
 
 pub struct Workspace {
+    pub(crate) owns_window_chrome: bool,
     store: Store,
     problems: Vec<Problem>,
     catalog_view: CatalogView,
@@ -363,6 +364,24 @@ pub struct Workspace {
 }
 
 impl Workspace {
+    fn confirm_close(&mut self, cx: &mut Context<Self>) -> bool {
+        match self.flush(cx) {
+            Ok(()) => true,
+            Err(error) => {
+                self.notice = format!("保存失败，窗口保持打开：{error}");
+                cx.notify();
+                false
+            }
+        }
+    }
+
+    fn install_close_handler(view: &Entity<Self>, window: &mut Window, cx: &mut App) {
+        let closing = view.downgrade();
+        window.on_window_should_close(cx, move |_, cx| {
+            closing.update(cx, Self::confirm_close).unwrap_or(true)
+        });
+    }
+
     pub fn new(store: Store, window: &mut Window, cx: &mut Context<Self>) -> Result<Self> {
         let preferences = store.editor_preferences();
         ui::configure(store.site(), preferences.interface_language, cx);
@@ -596,6 +615,7 @@ impl Workspace {
             settings_preview,
             settings_open: false,
             settings_focus: cx.focus_handle(),
+            owns_window_chrome: true,
             window_handle: window.window_handle(),
             progress,
             output,
@@ -1248,6 +1268,13 @@ impl Workspace {
 
     pub fn set_online_enabled(&mut self, enabled: bool) {
         self.online_enabled = enabled;
+    }
+
+    pub(crate) fn read_offline_library(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.set_workspace_mode(WorkspaceMode::Study, window, cx);
+        self.learning_navigation = true;
+        self.show_categories = true;
+        self.select_learning("@library".into(), cx);
     }
     pub fn update_study_plan(&mut self, plan: online::StudyPlan, cx: &mut Context<Self>) {
         self.catalog_view.set_plan(plan);
@@ -2234,6 +2261,33 @@ impl Workspace {
         cx.notify();
     }
 
+    fn open_learning_link(
+        &mut self,
+        value: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        if let Some(route) = leetdesk::curriculum::route_for_link(value)
+            .or_else(|| leetdesk::learning::route_for_link(value))
+        {
+            self.select_learning(route, cx);
+            return true;
+        }
+        if let Some(slug) = leetdesk::learning::practice_slug_for_link(value) {
+            if let Some(index) = self.problems.iter().position(|p| p.slug == slug) {
+                self.filter = "全部题目".into();
+                self.document_tab = DocumentTab::Description;
+                self.select_problem(index, window, cx);
+                self.set_workspace_mode(WorkspaceMode::Coding, window, cx);
+            } else {
+                self.notice = "请先同步题库以开始此题练习。".into();
+                cx.notify();
+            }
+            return true;
+        }
+        false
+    }
+
     fn search_problems(&mut self, _: &SearchProblems, window: &mut Window, cx: &mut Context<Self>) {
         self.show_categories = true;
         self.focus_mode = false;
@@ -2611,6 +2665,7 @@ impl Workspace {
                 self.document_view = Some((key, state, origin));
             }
             let (_, state, origin) = self.document_view.as_ref().unwrap();
+            let course_owner = cx.entity().downgrade();
             let origin = origin.clone();
             let image_origin = origin.clone();
             content = content
@@ -2646,7 +2701,15 @@ impl Workspace {
                             }
                             uri.clone().into()
                         })
-                        .on_link_click(move |url, _, _, cx| {
+                        .on_link_click(move |url, _, window, cx| {
+                            if course_owner
+                                .update(cx, |this, cx| {
+                                    this.open_learning_link(url.as_ref(), window, cx)
+                                })
+                                .unwrap_or(false)
+                            {
+                                return;
+                            }
                             if let Some(path) = local_document_path(url.as_ref(), origin.as_deref())
                             {
                                 if let Ok(uri) = language::file_uri(&path) {
@@ -2683,32 +2746,43 @@ impl Workspace {
                     .gap_1()
                     .border_b_1()
                     .border_color(theme::color(LINE, cx))
-                    .children(tabs.into_iter().enumerate().map(|(index, (tab, label))| {
-                        Button::new(("document-tab", index))
-                            .accessibility_label(ui::text(label, cx))
-                            .child(div().text_size(px(16.)).child(ui::text(label, cx)))
-                            .small()
-                            .ghost()
-                            .h_full()
-                            .rounded_none()
-                            .border_b_3()
-                            .border_color(theme::color(
-                                if self.document_tab == tab { ACCENT } else { BG },
-                                cx,
-                            ))
-                            .when(self.document_tab == tab, |button| {
-                                button
-                                    .text_color(theme::color(ACCENT, cx))
-                                    .font_weight(FontWeight::BOLD)
+                    .children(
+                        tabs.into_iter()
+                            .enumerate()
+                            .filter(|(_, (tab, _))| {
+                                (leetdesk::curriculum::selected(&self.filter).is_none()
+                                    && !leetdesk::learning::is_offline_view(&self.filter))
+                                    || *tab == DocumentTab::Explanation
                             })
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                this.document_tab = tab;
-                                cx.notify();
-                            }))
-                    })),
+                            .map(|(index, (tab, label))| {
+                                Button::new(("document-tab", index))
+                                    .accessibility_label(ui::text(label, cx))
+                                    .child(div().text_size(px(16.)).child(ui::text(label, cx)))
+                                    .small()
+                                    .ghost()
+                                    .h_full()
+                                    .rounded_none()
+                                    .border_b_3()
+                                    .border_color(theme::color(
+                                        if self.document_tab == tab { ACCENT } else { BG },
+                                        cx,
+                                    ))
+                                    .when(self.document_tab == tab, |button| {
+                                        button
+                                            .text_color(theme::color(ACCENT, cx))
+                                            .font_weight(FontWeight::BOLD)
+                                    })
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.document_tab = tab;
+                                        cx.notify();
+                                    }))
+                            }),
+                    ),
             )
             .when(
-                self.document_tab == DocumentTab::Explanation
+                leetdesk::curriculum::selected(&self.filter).is_none()
+                    && !leetdesk::learning::is_offline_view(&self.filter)
+                    && self.document_tab == DocumentTab::Explanation
                     && self
                         .explanations
                         .iter()
@@ -3623,15 +3697,41 @@ impl Drop for Workspace {
 }
 
 pub fn launch(store: Store, smoke: bool) -> Result<()> {
-    launch_options(store, smoke, None)
+    launch_options(store, smoke, None, None)
 }
 
 /// Capture this application's actual GPU-rendered window for design review.
 pub fn capture(store: Store, path: PathBuf, width: f32, height: f32) -> Result<()> {
-    launch_options(store, false, Some((path, width, height)))
+    launch_options(store, false, Some((path, width, height)), None)
 }
 
-fn launch_options(store: Store, smoke: bool, capture: Option<(PathBuf, f32, f32)>) -> Result<()> {
+pub fn launch_course(store: Store, id: String, capture: Option<(PathBuf, f32, f32)>) -> Result<()> {
+    anyhow::ensure!(
+        leetdesk::curriculum::selected(&format!("@course:{id}")).is_some(),
+        "未知课程：{id}"
+    );
+    launch_options(store, false, capture, Some(format!("@course:{id}")))
+}
+
+pub fn launch_library(
+    store: Store,
+    article: Option<String>,
+    capture: Option<(PathBuf, f32, f32)>,
+) -> Result<()> {
+    let route = article.map_or_else(|| "@library".into(), |id| format!("@lesson:{id}"));
+    anyhow::ensure!(
+        leetdesk::learning::is_offline_view(&route),
+        "未知题解：{route}"
+    );
+    launch_options(store, false, capture, Some(route))
+}
+
+fn launch_options(
+    store: Store,
+    smoke: bool,
+    capture: Option<(PathBuf, f32, f32)>,
+    initial_route: Option<String>,
+) -> Result<()> {
     let appearance = store.appearance();
     let smoke_ok = Arc::new(AtomicBool::new(!smoke));
     let result = smoke_ok.clone();
@@ -3643,7 +3743,6 @@ fn launch_options(store: Store, smoke: bool, capture: Option<(PathBuf, f32, f32)
             cx.on_action(|_: &Quit, cx| cx.quit());
             bind_keys(cx);
             let options = WindowOptions {
-                titlebar: None,
                 window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
                     None,
                     size(
@@ -3655,7 +3754,7 @@ fn launch_options(store: Store, smoke: bool, capture: Option<(PathBuf, f32, f32)
                 window_min_size: Some(size(px(1120.), px(650.))),
                 app_id: Some("leetdesk".into()),
                 show: !smoke && capture.is_none(),
-                ..Default::default()
+                ..crate::window_chrome::options()
             };
             let (_, view) = gpui_kit::open_window(options, cx, move |window, cx| {
                 window.set_window_title("LeetDesk · Go / Java");
@@ -3669,22 +3768,15 @@ fn launch_options(store: Store, smoke: bool, capture: Option<(PathBuf, f32, f32)
                         window.resize(size(px(*width), px(*height)));
                     }
                     view.update(cx, |view, cx| {
+                        if let Some(route) = &initial_route {
+                            view.set_workspace_mode(WorkspaceMode::Study, window, cx);
+                            view.learning_navigation = true;
+                            view.select_learning(route.clone(), cx);
+                        }
                         view.connect_language(window, cx);
                         view.editor.update(cx, |state, cx| state.focus(window, cx));
                     });
-                    let closing = view.downgrade();
-                    window.on_window_should_close(cx, move |_, cx| {
-                        closing
-                            .update(cx, |this, cx| match this.save(cx) {
-                                Ok(_) => true,
-                                Err(error) => {
-                                    this.notice = format!("保存失败，窗口保持打开：{error}");
-                                    cx.notify();
-                                    false
-                                }
-                            })
-                            .unwrap_or(true)
-                    });
+                    Workspace::install_close_handler(&view, window, cx);
                 });
             }
             cx.on_window_closed(|cx, _| {
@@ -5220,7 +5312,7 @@ mod ui_tests {
     }
 
     #[gpui_kit::test]
-    fn close_button_saves_current_solution(cx: &mut TestAppContext) {
+    fn native_close_saves_current_solution(cx: &mut TestAppContext) {
         let (handle, view, temp) = practice_window(cx);
         let source = "package solution\n\nfunc answer() int { return 42 }\n";
         let id = cx.update(|cx| view.read(cx).problem().id);
@@ -5229,9 +5321,10 @@ mod ui_tests {
                 state.set_value(source, window, cx);
             });
             window.render_frame(cx);
-            window.click("close-window", cx);
         })
         .unwrap();
+        let mut visual = gpui_kit::VisualTestContext::from_window(handle, cx);
+        assert!(visual.simulate_close());
         let saved = temp
             .path()
             .join("data")
@@ -5239,6 +5332,32 @@ mod ui_tests {
             .join(id.to_string())
             .join("solution.go");
         assert_eq!(std::fs::read_to_string(saved).unwrap(), source);
+    }
+
+    #[gpui_kit::test]
+    fn native_close_keeps_window_and_draft_when_saving_fails(cx: &mut TestAppContext) {
+        let (handle, view, temp) = practice_window(cx);
+        let source = "package solution\n// preserve this unsaved draft";
+        let id = cx.update(|cx| view.read(cx).problem().id);
+        let saved = temp
+            .path()
+            .join("data/workspaces")
+            .join(id.to_string())
+            .join("solution.go");
+        std::fs::remove_file(&saved).unwrap();
+        std::fs::create_dir_all(&saved).unwrap();
+        cx.update_window(handle, |_, window, cx| {
+            view.read(cx).editor.clone().update(cx, |state, cx| {
+                state.set_value(source, window, cx);
+            });
+        })
+        .unwrap();
+        let mut visual = gpui_kit::VisualTestContext::from_window(handle, cx);
+        assert!(!visual.simulate_close());
+        cx.update(|cx| {
+            assert_eq!(view.read(cx).editor.read(cx).value().as_ref(), source);
+            assert!(view.read(cx).notice.contains("保存失败"));
+        });
     }
 
     #[gpui_kit::test]
@@ -5646,6 +5765,10 @@ mod ui_tests {
             )
             .unwrap()
         });
+        cx.update_window(handle, |_, window, cx| {
+            Workspace::install_close_handler(&view, window, cx);
+        })
+        .unwrap();
         cx.update(|cx| {
             view.update(cx, |workspace, _| {
                 workspace.workspace_mode = WorkspaceMode::Coding;
@@ -5655,6 +5778,119 @@ mod ui_tests {
             })
         });
         (handle, view, temp)
+    }
+
+    #[gpui_kit::test]
+    fn offline_article_entry_renders_unloaded_problem_and_preserves_draft(cx: &mut TestAppContext) {
+        let (handle, view, _temp) = practice_window(cx);
+        let draft = "package solution\n// do not replace my draft";
+        let original_id = view.read_with(cx, |view, _| view.problem().id);
+        cx.update_window(handle, |_, window, cx| {
+            view.update(cx, |workspace, cx| {
+                assert!(
+                    !workspace
+                        .problems
+                        .iter()
+                        .any(|p| p.slug == "super-egg-drop")
+                );
+                workspace
+                    .editor
+                    .update(cx, |editor, cx| editor.set_value(draft, window, cx));
+            });
+            window.render_frame(cx);
+            window.click("offline-library", cx);
+            window.render_frame(cx);
+            assert_eq!(view.read(cx).filter, "@library");
+            view.update(cx, |workspace, cx| {
+                assert!(workspace.open_learning_link(
+                    "leetdesk://lesson/super-egg-drop?pattern=coverage-dp",
+                    window,
+                    cx
+                ));
+            });
+            window.render_frame(cx);
+        })
+        .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            let workspace = view.read(cx);
+            let text = workspace
+                .document_view
+                .as_ref()
+                .unwrap()
+                .1
+                .read(cx)
+                .rendered_text();
+            assert!(text.as_str().contains("cover[e]"));
+            assert!(text.as_str().contains("三次时"));
+            assert_eq!(workspace.problem().id, original_id);
+            assert_eq!(workspace.editor.read(cx).value().as_ref(), draft);
+            view.update(cx, |workspace, cx| {
+                workspace.set_workspace_mode(WorkspaceMode::Coding, window, cx);
+                assert_eq!(workspace.filter, "全部题目");
+                assert_eq!(workspace.editor.read(cx).value().as_ref(), draft);
+            });
+        })
+        .unwrap();
+    }
+
+    #[gpui_kit::test]
+    fn offline_course_entry_renders_content_and_preserves_problem_draft(cx: &mut TestAppContext) {
+        let (handle, view, _temp) = practice_window(cx);
+        let draft = "package solution\n// keep this draft";
+        cx.update_window(handle, |_, window, cx| {
+            view.update(cx, |workspace, cx| {
+                workspace
+                    .editor
+                    .update(cx, |editor, cx| editor.set_value(draft, window, cx));
+            });
+            window.render_frame(cx);
+            window.click("curriculum-home", cx);
+            window.render_frame(cx);
+            assert_eq!(view.read(cx).filter, "@course:start");
+            assert_eq!(view.read(cx).workspace_mode, WorkspaceMode::Study);
+        })
+        .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            let text = view
+                .read(cx)
+                .document_view
+                .as_ref()
+                .unwrap()
+                .1
+                .read(cx)
+                .rendered_text();
+            assert!(text.as_str().contains("学习目标"));
+            assert!(text.as_str().contains("循环不变量"));
+            assert!(!text.as_str().contains("计数器等于已处理部分"));
+            view.update(cx, |workspace, cx| {
+                workspace.select_learning(
+                    leetdesk::curriculum::route_for_link("leetdesk://course-answer/start").unwrap(),
+                    cx,
+                );
+            });
+            window.render_frame(cx);
+        })
+        .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            let workspace = view.read(cx);
+            let text = workspace
+                .document_view
+                .as_ref()
+                .unwrap()
+                .1
+                .read(cx)
+                .rendered_text();
+            assert!(text.as_str().contains("核对思路"));
+            assert!(text.as_str().contains("计数器等于已处理部分"));
+            assert_eq!(workspace.editor.read(cx).value().as_ref(), draft);
+        })
+        .unwrap();
     }
 
     #[gpui_kit::test]

@@ -1,0 +1,95 @@
+{
+  "verified_on": "2026-10-26",
+  "verification": "官方免费题目的 Go 编辑器模板；只记录接口事实，不复制实现。",
+  "interfaces": [
+    {
+      "problem": 284,
+      "url": "https://leetcode.com/problems/peeking-iterator/",
+      "provided_type": "Iterator",
+      "provided_methods": [
+        "hasNext() bool",
+        "next() int"
+      ],
+      "solution_type": "PeekingIterator",
+      "solution_methods": [
+        "hasNext() bool",
+        "next() int",
+        "peek() int"
+      ]
+    },
+    {
+      "problem": 341,
+      "url": "https://leetcode.com/problems/flatten-nested-list-iterator/",
+      "provided_type": "NestedInteger",
+      "provided_methods": [
+        "IsInteger() bool",
+        "GetInteger() int",
+        "GetList() []*NestedInteger"
+      ],
+      "solution_type": "NestedIterator",
+      "solution_methods": [
+        "Next() int",
+        "HasNext() bool"
+      ]
+    },
+    {
+      "problem": "LCR 184",
+      "url": "https://leetcode.cn/problems/dui-lie-de-zui-da-zhi-lcof/",
+      "solution_signatures": [
+        "Constructor() Checkout",
+        "(*Checkout) Get_max() int",
+        "(*Checkout) Add(value int)",
+        "(*Checkout) Remove() int"
+      ],
+      "verified_on": "2026-10-26",
+      "evidence": "官方匿名 Go 编辑器显示的空模板，浏览器界面核对；未运行或提交。"
+    },
+    {
+      "problem": "LCR 140",
+      "url": "https://leetcode.cn/problems/lian-biao-zhong-dao-shu-di-kge-jie-dian-lcof/",
+      "solution_signatures": [
+        "trainingPlan(head *ListNode, cnt int) *ListNode"
+      ],
+      "verified_on": "2026-10-26",
+      "evidence": "官方匿名 Go 编辑器显示的空模板，浏览器界面核对；未运行或提交。"
+    },
+    {
+      "problem": "LCR 172",
+      "url": "https://leetcode.cn/problems/zai-pai-xu-shu-zu-zhong-cha-zhao-shu-zi-lcof/",
+      "solution_signatures": [
+        "countTarget(scores []int, target int) int"
+      ],
+      "verified_on": "2026-10-26",
+      "evidence": "官方匿名 Go 编辑器显示的空模板，浏览器界面核对；未运行或提交。"
+    },
+    {
+      "problem": 191,
+      "url": "https://leetcode.cn/problems/number-of-1-bits/",
+      "solution_signatures": [
+        "hammingWeight(n int) int"
+      ],
+      "verified_on": "2026-10-26",
+      "evidence": "官方匿名 Go 编辑器空模板截图核对。"
+    },
+    {
+      "problem": "LCR 146",
+      "url": "https://leetcode.cn/problems/shun-shi-zhen-da-yin-ju-zhen-lcof/",
+      "solution_signatures": [
+        "spiralArray(array [][]int) []int"
+      ],
+      "verified_on": "2026-10-26",
+      "evidence": "官方匿名 Go 编辑器空模板可访问性文本核对。"
+    },
+    {
+      "problem": "LCR 071",
+      "url": "https://leetcode.cn/problems/cuyjEf/",
+      "solution_signatures": [
+        "Constructor(w []int) Solution",
+        "(*Solution) PickIndex() int"
+      ],
+      "verified_on": "2026-10-26",
+      "evidence": "官方匿名 Go 编辑器空模板可访问性文本核对。"
+    }
+  ],
+  "local_coverage": "页面显示平台辅助类型与方法；Go 样例检查使用本地最小测试替身。"
+}

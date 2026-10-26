@@ -79,10 +79,228 @@ pub static DETAILS: LazyLock<HashMap<String, LessonDetails>> = LazyLock::new(|| 
         .expect("valid detailed Go walkthroughs")
 });
 
+#[derive(Deserialize)]
+pub struct ArticleTitle {
+    pub number: String,
+    pub title: Text,
+}
+
+pub static ARTICLE_TITLES: LazyLock<HashMap<String, ArticleTitle>> = LazyLock::new(|| {
+    serde_json::from_str(include_str!("../assets/lesson-index.json"))
+        .expect("valid offline article titles")
+});
+
+pub struct SelectedArticle {
+    pub slug: &'static str,
+    pub pattern: Option<&'static Pattern>,
+}
+
+pub fn selected_article(route: &str) -> Option<SelectedArticle> {
+    let value = route.strip_prefix("@lesson:")?;
+    let (slug, pattern) = value
+        .split_once(':')
+        .map_or((value, None), |(s, p)| (s, Some(p)));
+    let (slug, _) = LESSONS.get_key_value(slug)?;
+    let pattern = match pattern {
+        Some(id) => Some(
+            CHAPTERS
+                .iter()
+                .flat_map(|c| &c.patterns)
+                .find(|p| p.id == id && p.questions.contains(slug))?,
+        ),
+        None => None,
+    };
+    Some(SelectedArticle { slug, pattern })
+}
+
+pub fn is_offline_view(route: &str) -> bool {
+    route == "@library" || selected_article(route).is_some()
+}
+
+pub fn article_title(slug: &str, language: UiLanguage) -> String {
+    ARTICLE_TITLES.get(slug).map_or_else(
+        || slug.replace('-', " "),
+        |m| format!("{}. {}", m.number, m.title.get(language)),
+    )
+}
+
+pub fn route_for_link(value: &str) -> Option<String> {
+    let url = url::Url::parse(value).ok()?;
+    if url.scheme() != "leetdesk" {
+        return None;
+    }
+    let id = url.path().trim_start_matches('/');
+    match url.host_str()? {
+        "library" if id.is_empty() => Some("@library".into()),
+        "chapter" | "pattern" => {
+            let route = format!("@{}:{id}", url.host_str()?);
+            find(&route).map(|_| route)
+        }
+        "lesson" => {
+            let pattern = url
+                .query_pairs()
+                .find(|(k, _)| k == "pattern")
+                .map(|(_, v)| v.into_owned());
+            let route =
+                pattern.map_or_else(|| format!("@lesson:{id}"), |p| format!("@lesson:{id}:{p}"));
+            selected_article(&route).map(|_| route)
+        }
+        _ => None,
+    }
+}
+
+pub fn practice_slug_for_link(value: &str) -> Option<String> {
+    let url = url::Url::parse(value).ok()?;
+    if url.scheme() != "leetdesk" || url.host_str()? != "practice" {
+        return None;
+    }
+    let slug = url.path().trim_start_matches('/');
+    LESSONS.contains_key(slug).then(|| slug.to_owned())
+}
+
+/// These documents use the bundled authored content and public titles only.
+/// Reading never requires a loaded LeetCode statement or a runnable problem.
+pub fn offline_document(
+    route: &str,
+    language: UiLanguage,
+    site: Site,
+    problems: &[crate::catalog::Problem],
+) -> Option<String> {
+    let pick = |zh: &str, en: &str| {
+        if language == UiLanguage::Chinese {
+            zh
+        } else {
+            en
+        }
+        .to_owned()
+    };
+    if route == "@library" {
+        let mut body = format!(
+            "**{} {} · {} {}**\n\n{}\n\n",
+            LESSONS.len(),
+            pick("篇原创题解", "original walkthroughs"),
+            CHAPTERS.iter().map(|c| c.patterns.len()).sum::<usize>(),
+            pick("种做法", "techniques"),
+            pick(
+                "先选一个方法，再打开具体题解。所有正文、推演与 Go 代码都可直接阅读；开始练习时再选择题库中的题目。",
+                "Choose a method, then open a walkthrough. Every explanation, trace and Go solution is available here; choose a catalog problem when you want to practice."
+            )
+        );
+        for chapter in CHAPTERS.iter() {
+            body.push_str(&format!(
+                "## [{}](leetdesk://chapter/{})\n\n{}\n\n",
+                chapter.title.get(language),
+                chapter.id,
+                chapter.overview.get(language)
+            ));
+            for pattern in &chapter.patterns {
+                body.push_str(&format!(
+                    "- [{}](leetdesk://pattern/{}) · {} {}\n",
+                    pattern.title.get(language),
+                    pattern.id,
+                    pattern.questions.len(),
+                    pick("篇题解", "walkthroughs")
+                ));
+            }
+            body.push('\n');
+        }
+        return Some(body);
+    }
+    let article = selected_article(route)?;
+    let lesson = &LESSONS[article.slug];
+    let pattern = article.pattern.or_else(|| {
+        CHAPTERS.iter().flat_map(|c| &c.patterns).find(|p| {
+            p.questions.iter().any(|s| s == article.slug)
+                && !lesson.alternatives.contains_key(&p.id)
+        })
+    });
+    let walkthrough = pattern
+        .and_then(|p| lesson.alternatives.get(&p.id))
+        .unwrap_or(&lesson.primary);
+    let details = detail(article.slug, pattern)?;
+    let mut body = format!(
+        "[{}](leetdesk://library/)\n\n",
+        pick("返回离线题解目录", "Back to offline walkthroughs")
+    );
+    body.push_str(&format!(
+        "## {}\n\n{}\n\n{}\n\n## {}\n\n{}\n\n## {}\n\n{}\n\n## {}\n\n",
+        pick("从大类方法到本题", "Applying the general method"),
+        details.mapping.get(language),
+        walkthrough.solution.get(language),
+        pick("为什么这样做是对的", "Why this is correct"),
+        details.why.get(language),
+        pick("用一个例子走一遍", "Step-by-step example"),
+        details.trace.get(language),
+        pick("Go 参考代码", "Go reference code")
+    ));
+    if let Some(definition) = node_definition(&details.nodes) {
+        body.push_str(&format!(
+            "{}\n\n```go\n{definition}\n```\n\n",
+            pick(
+                "辅助类型与方法由平台提供，提交时不要重复声明。",
+                "The platform provides these helper types and methods; omit them when submitting."
+            )
+        ));
+    }
+    body.push_str(&format!(
+        "```go\n{}\n```\n\n## {}\n\n**{}** {}\n\n**{}** {}\n\n",
+        details.go,
+        pick("复杂度与易错点", "Complexity and pitfalls"),
+        pick("时间 / 额外空间：", "Time / auxiliary space:"),
+        walkthrough.cost.get(language),
+        pick("易错点：", "Pitfall:"),
+        walkthrough.pitfall.get(language)
+    ));
+    if problems.iter().any(|p| p.slug == article.slug) {
+        body.push_str(&format!(
+            "[{}](leetdesk://practice/{})\n\n",
+            pick("在题库中练习本题", "Practice this catalog problem"),
+            article.slug
+        ));
+    }
+    body.push_str(&format!(
+        "## {}\n\n",
+        pick("大类方法与同类练习", "General method and related practice")
+    ));
+    if let Some(pattern) = pattern {
+        body.push_str(
+            &guide(
+                &format!("@pattern:{}", pattern.id),
+                language,
+                site,
+                problems,
+            )
+            .replacen("# ", "### ", 1),
+        );
+    }
+    Some(body)
+}
+
 fn detail(slug: &str, pattern: Option<&Pattern>) -> Option<&'static LessonDetails> {
     pattern
         .and_then(|p| DETAILS.get(&format!("{slug}@{}", p.id)))
         .or_else(|| DETAILS.get(slug))
+}
+
+fn node_definition(kind: &str) -> Option<&'static str> {
+    match kind {
+        "list" => Some("type ListNode struct { Val int; Next *ListNode }"),
+        "tree" => Some("type TreeNode struct { Val int; Left, Right *TreeNode }"),
+        "random" => Some("type Node struct { Val int; Next, Random *Node }"),
+        "graph" => Some("type Node struct { Val int; Neighbors []*Node }"),
+        "nary" => Some("type Node struct { Val int; Children []*Node }"),
+        "tree-next" => Some("type Node struct { Val int; Left, Right, Next *Node }"),
+        "iterator" => Some(
+            "type Iterator struct { /* platform implementation */ }\n// func (it *Iterator) hasNext() bool\n// func (it *Iterator) next() int",
+        ),
+        "nested-integer" => Some(
+            "type NestedInteger struct { /* platform implementation */ }\n// func (n NestedInteger) IsInteger() bool\n// func (n NestedInteger) GetInteger() int\n// func (n NestedInteger) GetList() []*NestedInteger",
+        ),
+        "tree-list" => Some(
+            "type TreeNode struct { Val int; Left, Right *TreeNode }\ntype ListNode struct { Val int; Next *ListNode }",
+        ),
+        _ => None,
+    }
 }
 
 fn append_details(body: &mut String, details: &LessonDetails, steps: &str, language: UiLanguage) {
@@ -102,19 +320,13 @@ fn append_details(body: &mut String, details: &LessonDetails, steps: &str, langu
             "The code uses Go 1.21+ and includes required standard-library imports."
         )
     ));
-    let definition = match details.nodes.as_str() {
-        "list" => Some("type ListNode struct { Val int; Next *ListNode }"),
-        "tree" => Some("type TreeNode struct { Val int; Left, Right *TreeNode }"),
-        "random" => Some("type Node struct { Val int; Next, Random *Node }"),
-        "graph" => Some("type Node struct { Val int; Neighbors []*Node }"),
-        _ => None,
-    };
+    let definition = node_definition(&details.nodes);
     if let Some(definition) = definition {
         body.push_str(&format!(
             "{}\n\n```go\n{definition}\n```\n\n",
             pick(
-                "节点类型由题目平台提供，结构如下，提交时不要重复声明：",
-                "The platform supplies this node type; do not redeclare it when submitting:"
+                "辅助类型与方法由题目平台提供，下列说明其结构或接口，提交时不要重复声明：",
+                "The platform supplies these helper types and methods; do not redeclare them when submitting:"
             )
         ));
     }
@@ -136,6 +348,13 @@ pub fn lesson(
     problems: &[crate::catalog::Problem],
     supplement: Option<(&str, &str)>,
 ) -> String {
+    if let Some(body) = offline_document(filter, language, site, problems) {
+        return body;
+    }
+    if let Some(body) = crate::curriculum::document(filter) {
+        return body;
+    }
+
     let chinese = language == UiLanguage::Chinese;
     let pick = |zh: &str, en: &str| if chinese { zh } else { en }.to_owned();
     let member = memberships(&problem.slug);
@@ -242,6 +461,13 @@ pub fn reading_lesson(
     problems: &[crate::catalog::Problem],
     supplement: Option<(&str, &str)>,
 ) -> String {
+    if let Some(body) = offline_document(filter, language, site, problems) {
+        return body;
+    }
+    if let Some(body) = crate::curriculum::document(filter) {
+        return body;
+    }
+
     let pick = |zh: &str, en: &str| {
         if language == UiLanguage::Chinese {
             zh
@@ -316,19 +542,13 @@ pub fn reading_lesson(
                 "## {}\n\n",
                 pick("Go 参考代码", "Go reference code")
             ));
-            let definition = match details.nodes.as_str() {
-                "list" => Some("type ListNode struct { Val int; Next *ListNode }"),
-                "tree" => Some("type TreeNode struct { Val int; Left, Right *TreeNode }"),
-                "random" => Some("type Node struct { Val int; Next, Random *Node }"),
-                "graph" => Some("type Node struct { Val int; Neighbors []*Node }"),
-                _ => None,
-            };
+            let definition = node_definition(&details.nodes);
             if let Some(definition) = definition {
                 body.push_str(&format!(
                     "{}\n\n```go\n{definition}\n```\n\n",
                     pick(
-                        "节点类型由平台提供，提交时不要重复声明。",
-                        "The platform provides the node type; omit its declaration when submitting."
+                        "辅助类型与方法由平台提供，提交时不要重复声明。",
+                        "The platform provides these helper types and methods; omit them when submitting."
                     )
                 ));
             }
@@ -466,6 +686,10 @@ pub fn matches(filter: &str, patterns: &[String]) -> bool {
 }
 
 pub fn title(filter: &str, language: UiLanguage) -> Option<&'static str> {
+    if let Some(course) = crate::curriculum::selected(filter) {
+        return Some(&course.title);
+    }
+
     find(filter).map(|(chapter, pattern)| {
         pattern
             .map_or(&chapter.title, |pattern| &pattern.title)
@@ -476,9 +700,13 @@ pub fn title(filter: &str, language: UiLanguage) -> Option<&'static str> {
 pub fn guide(
     filter: &str,
     language: UiLanguage,
-    site: Site,
+    _site: Site,
     problems: &[crate::catalog::Problem],
 ) -> String {
+    if let Some(body) = crate::curriculum::document(filter) {
+        return body;
+    }
+
     let Some((chapter, pattern)) = find(filter) else {
         return match language {
             UiLanguage::Chinese => "# 按解法学习\n\n从左侧选择一个大类，先阅读适用条件与易错点，再选择具体做法练习。题目按解法清单编排，可归入多个分组；题数只统计当前题库已载入的题目。\n\n编排为应用内原创整理，供复习与迁移使用，并非对题目唯一解法的判定。".into(),
@@ -517,7 +745,7 @@ pub fn guide(
         .iter()
         .filter(|problem| planned.contains(problem.slug.as_str()))
         .count();
-    body.push_str(&format!("> {}\n\n", if language == UiLanguage::Chinese {format!("本组已载入 {loaded} / {} 道编排题目。左侧题目列表仍受题单、难度、状态和搜索条件筛选。", planned.len())} else {format!("Loaded {loaded} / {} curated problems. The problem list still respects plan, difficulty, status, and search filters.", planned.len())}));
+    body.push_str(&format!("> {}\n\n", if language == UiLanguage::Chinese {format!("本组 {} 篇题解均可直接阅读；题库已载入 {loaded} 道，可用于开始练习。", planned.len())} else {format!("All {} walkthroughs are available to read; {loaded} catalog problems are loaded for practice.", planned.len())}));
     for (heading, text) in [
         (
             pick("如何判断与推进", "Decision process"),
@@ -546,26 +774,14 @@ pub fn guide(
             pattern.summary.get(language)
         ));
         for (index, slug) in pattern.questions.iter().enumerate() {
-            let label = problems
-                .iter()
-                .find(|problem| &problem.slug == slug)
-                .map_or_else(
-                    || slug.replace('-', " "),
-                    |problem| {
-                        let id = problem.online.as_ref().map_or_else(
-                            || problem.id.to_string(),
-                            |remote| remote.frontend_id.clone(),
-                        );
-                        format!("{id}. {}", problem.title)
-                    },
-                )
+            let label = article_title(slug, language)
                 .replace('\\', "\\\\")
                 .replace('[', "\\[")
                 .replace(']', "\\]");
             body.push_str(&format!(
-                "{}. [{label}]({}/problems/{slug}/)\n",
+                "{}. [{label}](leetdesk://lesson/{slug}?pattern={})\n",
                 index + 1,
-                site.origin()
+                pattern.id
             ));
         }
         body.push('\n');
@@ -573,13 +789,64 @@ pub fn guide(
     if chapter.id == "graph" {
         body.push_str(&format!("## {}\n\n[{}](https://labuladong.online/zh/algo/data-structure-basic/graph-traverse-basic/)\n\n", pick("参考阅读", "Further reading"), pick("labuladong：图结构的 DFS/BFS 遍历", "labuladong: graph DFS/BFS traversal")));
     }
-    body.push_str(&pick("---\n说明与解法分组为应用内原创整理。练习链接指向官方站点；尚未载入的题目需先同步题库。", "---\nOriginal explanations and curated practice groups. Links open the official site; sync the catalog to practice problems not loaded locally."));
+    body.push_str(&pick(
+        "---\n以上题解均为应用内原创内容，点击即可阅读。",
+        "---\nThese original walkthroughs open directly in the app.",
+    ));
     body
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn all_offline_walkthroughs_open_without_catalog_and_preserve_variants() {
+        assert_eq!(
+            LESSONS.keys().collect::<HashSet<_>>(),
+            ARTICLE_TITLES.keys().collect()
+        );
+        for (slug, lesson) in LESSONS.iter() {
+            assert!(!ARTICLE_TITLES[slug].number.is_empty());
+            for language in [UiLanguage::Chinese, UiLanguage::English] {
+                let body = offline_document(&format!("@lesson:{slug}"), language, Site::China, &[])
+                    .unwrap();
+                assert!(body.contains(&DETAILS[slug].go), "{slug}");
+                assert!(body.contains(DETAILS[slug].trace.get(language)), "{slug}");
+                assert!(!body.contains("leetdesk://practice/"));
+                for pattern in lesson.alternatives.keys() {
+                    let link = format!("leetdesk://lesson/{slug}?pattern={pattern}");
+                    let route = route_for_link(&link).unwrap();
+                    let body = offline_document(&route, language, Site::Global, &[]).unwrap();
+                    assert!(body.contains(&DETAILS[&format!("{slug}@{pattern}")].go));
+                }
+            }
+        }
+        assert!(selected_article("@lesson:two-sum:monotone-stack").is_none());
+        assert!(route_for_link("https://example.com/lesson/two-sum").is_none());
+        assert!(route_for_link("leetdesk://lesson/does-not-exist").is_none());
+        assert!(route_for_link("leetdesk://chapter/dp").is_some());
+        assert!(route_for_link("leetdesk://pattern/does-not-exist").is_none());
+        let library = offline_document("@library", UiLanguage::Chinese, Site::China, &[]).unwrap();
+        for chapter in CHAPTERS.iter() {
+            assert!(library.contains(&format!("leetdesk://chapter/{}", chapter.id)));
+            for pattern in &chapter.patterns {
+                let guide = guide(
+                    &format!("@pattern:{}", pattern.id),
+                    UiLanguage::Chinese,
+                    Site::China,
+                    &[],
+                );
+                for slug in &pattern.questions {
+                    assert!(
+                        guide.contains(&format!("leetdesk://lesson/{slug}?pattern={}", pattern.id))
+                    );
+                    assert!(guide.contains(&ARTICLE_TITLES[slug].title.zh));
+                }
+            }
+        }
+        assert_eq!(ARTICLE_TITLES["4sum-ii"].number, "454");
+    }
+
     #[test]
     fn reader_keeps_problem_first_and_preserves_variants_and_imports() {
         let problems = crate::catalog::builtin().unwrap();
@@ -622,6 +889,71 @@ mod tests {
         );
         assert!(guide.contains("Cost and assumptions"));
         assert!(!guide.contains("func trap"));
+        problem.slug = "maximum-binary-tree".into();
+        for language in [UiLanguage::Chinese, UiLanguage::English] {
+            let recursive = reading_lesson(
+                false,
+                "@pattern:tree-build",
+                &problem,
+                language,
+                Site::China,
+                &problems,
+                None,
+            );
+            let stack = reading_lesson(
+                false,
+                "@pattern:monotone-stack",
+                &problem,
+                language,
+                Site::China,
+                &problems,
+                None,
+            );
+            assert!(recursive.contains("nums[:at]"));
+            assert!(!recursive.contains("p.Left = stack"));
+            assert!(stack.contains("p.Left = stack"));
+            assert!(!stack.contains("nums[:at]"));
+        }
+        for (slug, definitions) in [
+            (
+                "linked-list-in-binary-tree",
+                vec!["type TreeNode struct", "type ListNode struct"],
+            ),
+            (
+                "maximum-depth-of-n-ary-tree",
+                vec!["type Node struct { Val int; Children []*Node }"],
+            ),
+            (
+                "populating-next-right-pointers-in-each-node-ii",
+                vec!["type Node struct { Val int; Left, Right, Next *Node }"],
+            ),
+            (
+                "peeking-iterator",
+                vec!["type Iterator struct", "func (it *Iterator) hasNext() bool"],
+            ),
+            (
+                "flatten-nested-list-iterator",
+                vec!["type NestedInteger struct", "GetList() []*NestedInteger"],
+            ),
+        ] {
+            problem.slug = slug.into();
+            for language in [UiLanguage::Chinese, UiLanguage::English] {
+                let reader = reading_lesson(
+                    false,
+                    "全部题目",
+                    &problem,
+                    language,
+                    Site::China,
+                    &problems,
+                    None,
+                );
+                let combined = lesson("全部题目", &problem, language, Site::China, &problems, None);
+                for definition in &definitions {
+                    assert!(reader.contains(definition), "{slug}: {definition}");
+                    assert!(combined.contains(definition), "{slug}: {definition}");
+                }
+            }
+        }
     }
     #[test]
     fn every_curated_problem_has_an_original_bilingual_walkthrough() {
@@ -630,9 +962,19 @@ mod tests {
             .flat_map(|c| &c.patterns)
             .flat_map(|p| &p.questions)
             .collect();
-        assert_eq!(expected.len(), 166);
-        assert_eq!(LESSONS.len(), expected.len());
-        assert_eq!(DETAILS.len(), 170);
+        assert_eq!(expected, LESSONS.keys().collect());
+        let expected_details: HashSet<_> = LESSONS
+            .iter()
+            .flat_map(|(slug, lesson)| {
+                std::iter::once(slug.clone()).chain(
+                    lesson
+                        .alternatives
+                        .keys()
+                        .map(move |p| format!("{slug}@{p}")),
+                )
+            })
+            .collect();
+        assert_eq!(expected_details, DETAILS.keys().cloned().collect());
         for slug in expected {
             let lesson = &LESSONS[slug];
             let keys = std::iter::once(slug.clone())
@@ -642,10 +984,23 @@ mod tests {
                 for text in [&details.mapping, &details.why, &details.trace] {
                     assert!(!text.zh.trim().is_empty(), "{key}");
                     assert!(!text.en.trim().is_empty(), "{key}");
+                    assert!(
+                        text.zh
+                            .chars()
+                            .filter(|c| ('\u{4e00}'..='\u{9fff}').contains(c))
+                            .count()
+                            >= 5,
+                        "Chinese explanation must contain Chinese prose, not an English placeholder: {key}"
+                    );
                 }
                 assert!(details.go.contains("func "), "{key}");
                 assert!(!details.go.contains("TODO"), "{key}");
                 assert!(!details.checks.is_empty(), "{key}");
+                assert!(
+                    details.nodes.is_empty() || node_definition(&details.nodes).is_some(),
+                    "missing displayed node definition for {key}: {}",
+                    details.nodes
+                );
                 assert!(
                     details.trace.zh.contains("1.") && details.trace.zh.contains("3."),
                     "{key}"
@@ -689,7 +1044,7 @@ mod tests {
         assert!(cn.contains("为什么这样做是对的"));
         assert!(cn.contains("```go\nfunc trap"));
         assert!(cn.contains("height[bottom]"));
-        assert!(cn.contains("water2"));
+        assert!(cn.contains("宽 1、高 2"));
         assert!(!cn.contains("lm-height[l]"));
         assert!(cn.find("当前题目").unwrap() < cn.find("做法拆分与练习顺序").unwrap());
         let en = lesson(
@@ -756,7 +1111,7 @@ mod tests {
     }
 
     #[test]
-    fn guides_are_bilingual_offline_and_link_to_the_selected_official_site() {
+    fn guides_are_bilingual_and_open_bundled_walkthroughs() {
         let problems = crate::catalog::builtin().unwrap();
         for chapter in CHAPTERS.iter() {
             for language in [UiLanguage::Chinese, UiLanguage::English] {
@@ -768,8 +1123,8 @@ mod tests {
                 );
                 assert!(body.contains(chapter.title.get(language)));
                 assert!(body.contains(chapter.overview.get(language)));
-                assert!(body.contains("https://leetcode.com/problems/"));
-                assert!(!body.contains("https://leetcode.cn/problems/"));
+                assert!(body.contains("leetdesk://lesson/"));
+                assert!(!body.contains("https://leetcode.com/problems/"));
             }
         }
         let body = guide(
@@ -779,7 +1134,7 @@ mod tests {
             &problems,
         );
         assert!(body.contains("1. 两数之和"));
-        assert!(body.contains("https://leetcode.cn/problems/two-sum/"));
+        assert!(body.contains("leetdesk://lesson/two-sum?pattern=hash-complement"));
         let graph = guide(
             "@chapter:graph",
             UiLanguage::Chinese,

@@ -1,0 +1,37 @@
+{
+  "scope": "网站的课程编排、先修衔接与当前 LeetDesk 数据结构对照；不是全站内容审计",
+  "steps": [
+    {
+      "step": 1,
+      "screen": "01-foundations.png",
+      "url": "https://labuladong.online/zh/algo/home/",
+      "finding": "基础课程位于算法框架之前，形成独立入口。",
+      "health": "基础入口清楚"
+    },
+    {
+      "step": 2,
+      "screen": "02-foundation-intro.png",
+      "url": "https://labuladong.online/zh/algo/intro/data-structure-basic/",
+      "finding": "基础章区分结构原理、实现、适用场景和高级实现；系统学习与速成路线分开。",
+      "health": "学习目标清楚"
+    },
+    {
+      "step": 3,
+      "screen": "03-framework.png",
+      "url": "https://labuladong.online/zh/algo/essential-technique/backtrack-framework/",
+      "finding": "回溯框架明确链接二叉树结构、二叉树遍历、多叉树遍历等先修知识。",
+      "health": "先修衔接明确"
+    }
+  ],
+  "local_evidence": [
+    "assets/learning-path.json 第一章为双指针与窗口，全部章节按解法组织",
+    "src/learning.rs Chapter/Pattern 缺少独立基础课、先修关系和教学阶段字段",
+    "src/learning.rs reading_lesson 优先生成逐题解法，最后追加通用方法"
+  ],
+  "recommendation": "基础课程 → 框架理解 → 引导例题 → 分层独立练习 → 复习迁移；知识课独立于题目存在。",
+  "limits": [
+    "未登录会员内容，未审阅全站所有正文",
+    "未做键盘、屏幕阅读器和完整无障碍测试",
+    "LeetDesk 对照基于源码和课程数据，不是本轮原生界面截图"
+  ]
+}

@@ -54,6 +54,10 @@ impl Workspace {
         self.active_section = 0;
         self.pending_section = None;
         self.focus_mode = false;
+        if mode == WorkspaceMode::Coding && leetdesk::learning::is_offline_view(&self.filter) {
+            self.filter = "全部题目".into();
+            self.learning_overview = false;
+        }
         if let Err(error) = leetdesk::store::atomic_write(
             &self.store.root.join("workspace-layout.json"),
             &serde_json::to_vec(&mode).unwrap(),
@@ -77,6 +81,7 @@ impl Workspace {
             ))
         });
         let coding = self.workspace_mode == WorkspaceMode::Coding;
+        let return_to_code = leetdesk::learning::is_offline_view(&self.filter);
         let running = self.cancellation.is_some();
         div()
             .h(px(56.))
@@ -151,6 +156,31 @@ impl Workspace {
                 ),
             )
             .child(
+                Button::new("curriculum-home")
+                    .label("基础课程")
+                    .ghost()
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.set_workspace_mode(WorkspaceMode::Study, window, cx);
+                        this.show_categories = true;
+                        this.learning_navigation = true;
+                        this.query.clear();
+                        this.search
+                            .update(cx, |state, cx| state.set_value("", window, cx));
+                        this.select_learning("@course:start".into(), cx);
+                    })),
+            )
+            .child(
+                Button::new("offline-library")
+                    .label(label("离线题解", "Walkthroughs", cx))
+                    .ghost()
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.set_workspace_mode(WorkspaceMode::Study, window, cx);
+                        this.show_categories = true;
+                        this.learning_navigation = true;
+                        this.select_learning("@library".into(), cx);
+                    })),
+            )
+            .child(
                 div()
                     .flex_1()
                     .h_full()
@@ -222,7 +252,19 @@ impl Workspace {
             .when(!coding, |el| {
                 el.child(
                     Button::new("start-coding")
-                        .accessibility_label(label("开始编码", "Start coding", cx))
+                        .accessibility_label(label(
+                            if return_to_code {
+                                "返回编码"
+                            } else {
+                                "开始编码"
+                            },
+                            if return_to_code {
+                                "Back to code"
+                            } else {
+                                "Start coding"
+                            },
+                            cx,
+                        ))
                         .child(
                             div()
                                 .flex()
@@ -230,7 +272,19 @@ impl Workspace {
                                 .gap_3()
                                 .text_size(px(16.))
                                 .font_weight(FontWeight::SEMIBOLD)
-                                .child(label("开始编码", "Start coding", cx))
+                                .child(label(
+                                    if return_to_code {
+                                        "返回编码"
+                                    } else {
+                                        "开始编码"
+                                    },
+                                    if return_to_code {
+                                        "Back to code"
+                                    } else {
+                                        "Start coding"
+                                    },
+                                    cx,
+                                ))
                                 .child(icon(IconName::ArrowRight)),
                         )
                         .primary()
@@ -242,6 +296,18 @@ impl Workspace {
                 )
             })
             .child(
+                Button::new("labuladong-course")
+                    .label("labuladong")
+                    .ghost()
+                    .tooltip("labuladong 全站在线课程")
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        if let Err(error) = crate::course_browser::open(&this.store.root, cx) {
+                            this.notice = format!("打开课程失败：{error:#}");
+                            cx.notify();
+                        }
+                    })),
+            )
+            .child(
                 Button::new("settings")
                     .icon(IconName::Settings)
                     .ghost()
@@ -251,21 +317,6 @@ impl Workspace {
                     .on_click(
                         cx.listener(|this, _, window, cx| this.settings(&Settings, window, cx)),
                     ),
-            )
-            .child(
-                Button::new("close-window")
-                    .icon(IconName::X)
-                    .ghost()
-                    .small()
-                    .mr_2()
-                    .tooltip(label("保存并关闭", "Save and close", cx))
-                    .on_click(cx.listener(|this, _, window, cx| match this.save(cx) {
-                        Ok(_) => window.remove_window(),
-                        Err(error) => {
-                            this.notice = format!("保存失败，窗口保持打开：{error}");
-                            cx.notify();
-                        }
-                    })),
             )
             .into_any_element()
     }
@@ -362,6 +413,76 @@ impl Workspace {
             .into_any_element()
     }
 
+    fn curriculum_tree(&self, cx: &mut Context<Self>) -> AnyElement {
+        let mut units: Vec<&str> = Vec::new();
+        for course in leetdesk::curriculum::COURSES.iter() {
+            if !units.contains(&course.unit.as_str()) {
+                units.push(&course.unit);
+            }
+        }
+        div()
+            .mb_4()
+            .child(
+                div()
+                    .px_2()
+                    .py_2()
+                    .font_weight(FontWeight::BOLD)
+                    .child("从基础开始 · 原创课程"),
+            )
+            .children(units.into_iter().map(|unit| {
+                let key = format!("course-unit:{unit}");
+                let selected = leetdesk::curriculum::selected(&self.filter);
+                let open = self.expanded_chapters.contains(&key)
+                    || selected.is_some_and(|c| c.unit == unit);
+                let toggle_key = key.clone();
+                div()
+                    .child(
+                        Button::new(gpui_kit::SharedString::from(key))
+                            .label(unit.to_owned())
+                            .ghost()
+                            .w_full()
+                            .justify_start()
+                            .icon(if open {
+                                IconName::ChevronDown
+                            } else {
+                                IconName::ChevronRight
+                            })
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                if !this.expanded_chapters.remove(&toggle_key) {
+                                    this.expanded_chapters.insert(toggle_key.clone());
+                                }
+                                cx.notify();
+                            })),
+                    )
+                    .when(open, |el| {
+                        el.children(
+                            leetdesk::curriculum::COURSES
+                                .iter()
+                                .filter(|c| c.unit == unit)
+                                .map(|course| {
+                                    let route = format!("@course:{}", course.id);
+                                    Button::new(gpui_kit::SharedString::from(route.clone()))
+                                        .child(
+                                            div().w_full().truncate().child(course.title.clone()),
+                                        )
+                                        .ghost()
+                                        .w_full()
+                                        .justify_start()
+                                        .pl_5()
+                                        .tooltip(course.goal.clone())
+                                        .when(selected.is_some_and(|c| c.id == course.id), |b| {
+                                            b.text_color(theme::color(ACCENT, cx))
+                                        })
+                                        .on_click(cx.listener(move |this, _, _, cx| {
+                                            this.select_learning(route.clone(), cx)
+                                        }))
+                                }),
+                        )
+                    })
+            }))
+            .into_any_element()
+    }
+
     fn reading_tree(&self, cx: &mut Context<Self>) -> AnyElement {
         let visible = self.catalog_view.filter_in(
             "全部题目",
@@ -382,6 +503,14 @@ impl Workspace {
         let mut chapters: Vec<_> = leetdesk::learning::CHAPTERS.iter().collect();
         chapters.sort_by_key(|chapter| Some(chapter.id.as_str()) != active_chapter);
         div()
+            .child(self.curriculum_tree(cx))
+            .child(
+                div()
+                    .px_2()
+                    .py_2()
+                    .font_weight(FontWeight::BOLD)
+                    .child("掌握基础后 · 按解法练习"),
+            )
             .children(chapters.into_iter().map(|chapter| {
                 let expanded = self.expanded_chapters.contains(&chapter.id);
                 div()
@@ -668,7 +797,15 @@ impl Workspace {
                                 div()
                                     .text_size(px(18.))
                                     .font_weight(FontWeight::BOLD)
-                                    .child(label("题单", "Problems", cx)),
+                                    .child(
+                                        if leetdesk::curriculum::selected(&self.filter).is_some()
+                                            || leetdesk::learning::is_offline_view(&self.filter)
+                                        {
+                                            label("课程与题解", "Lessons and walkthroughs", cx)
+                                        } else {
+                                            label("题单", "Problems", cx)
+                                        },
+                                    ),
                             )
                             .child(
                                 Button::new("show-filters")
@@ -834,6 +971,43 @@ impl Workspace {
     }
 
     pub(super) fn reader_heading(&self, cx: &mut Context<Self>) -> AnyElement {
+        if let Some(course) = leetdesk::curriculum::selected(&self.filter) {
+            return div()
+                .pt_4()
+                .text_size(px(13.))
+                .text_color(theme::color(MUTED, cx))
+                .child(format!("{} · 先理解，再练习", course.unit))
+                .into_any_element();
+        }
+        if leetdesk::learning::is_offline_view(&self.filter) {
+            let title = leetdesk::learning::selected_article(&self.filter).map_or_else(
+                || label("离线题解", "Offline walkthroughs", cx),
+                |article| leetdesk::learning::article_title(article.slug, ui::language(cx)),
+            );
+            return div()
+                .flex_shrink_0()
+                .pt_4()
+                .pb_1()
+                .child(
+                    div()
+                        .text_size(px(13.))
+                        .text_color(theme::color(MUTED, cx))
+                        .child(label(
+                            "方法 · 推演 · Go 代码",
+                            "Method · Trace · Go code",
+                            cx,
+                        )),
+                )
+                .child(
+                    div()
+                        .mt_1()
+                        .text_size(px(if self.reader_wide { 40. } else { 32. }))
+                        .line_height(px(if self.reader_wide { 48. } else { 42. }))
+                        .font_weight(FontWeight::BOLD)
+                        .child(title),
+                )
+                .into_any_element();
+        }
         let membership = leetdesk::learning::memberships(&self.problem().slug);
         let context = leetdesk::learning::find(&self.filter).or_else(|| {
             membership
@@ -926,7 +1100,28 @@ impl Workspace {
     }
 
     fn reading_outline(&self, cx: &mut Context<Self>) -> AnyElement {
-        let show = self.document_tab == DocumentTab::Explanation && !self.learning_overview;
+        let course = leetdesk::curriculum::selected(&self.filter).is_some();
+        let show = self.document_tab == DocumentTab::Explanation
+            && (course
+                || !self.learning_overview
+                || leetdesk::learning::selected_article(&self.filter).is_some());
+        let sections: Vec<_> = if course {
+            [
+                "学习目标",
+                "先修知识",
+                "核心概念",
+                "过程推演",
+                "Go 实验",
+                "复杂度与边界",
+                "自己试一试",
+                "继续学习",
+            ]
+            .into_iter()
+            .map(|s| (s, s))
+            .collect()
+        } else {
+            SECTIONS.to_vec()
+        };
         div()
             .id("lesson-outline")
             .test_support()
@@ -937,12 +1132,16 @@ impl Workspace {
             .pt(px(44.))
             .text_size(px(14.))
             .child(div().font_weight(FontWeight::BOLD).mb_3().child(label(
-                "本题讲解",
+                if course {
+                    "本课目录"
+                } else {
+                    "本题讲解"
+                },
                 "On this page",
                 cx,
             )))
             .when(show, |el| {
-                el.children(SECTIONS.into_iter().enumerate().map(|(index, (zh, en))| {
+                el.children(sections.into_iter().enumerate().map(|(index, (zh, en))| {
                     let heading = label(zh, en, cx);
                     div()
                         .id(("lesson-section", index))
@@ -1118,6 +1317,17 @@ impl Workspace {
                 this.set_workspace_mode(WorkspaceMode::Coding, window, cx)
             }))
             .on_action(cx.listener(Self::search_problems))
+            .when(self.owns_window_chrome, |el| {
+                el.child(crate::window_chrome::title_bar(
+                    window,
+                    cx,
+                    cx.listener(|this, _, window, cx| {
+                        if this.confirm_close(cx) {
+                            window.remove_window();
+                        }
+                    }),
+                ))
+            })
             .child(self.reading_toolbar(cx))
             .child(div().flex_1().min_h_0().child(body))
             .child(

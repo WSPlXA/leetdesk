@@ -33,7 +33,9 @@
           "3sum",
           "container-with-most-water",
           "trapping-rain-water",
-          "valid-palindrome"
+          "valid-palindrome",
+          "reverse-string",
+          "4sum"
         ],
         "summary": {
           "zh": "有序数组找配对时，根据当前和与目标的大小移动一端；盛水问题依据短板排除候选。枚举锚点后再夹逼可处理三数之和，同值锚点和端点要分别去重。",
@@ -49,7 +51,10 @@
         "questions": [
           "move-zeroes",
           "remove-duplicates-from-sorted-array",
-          "remove-element"
+          "remove-element",
+          "remove-duplicates-from-sorted-array-ii",
+          "is-subsequence",
+          "reverse-words-in-a-string"
         ],
         "summary": {
           "zh": "读指针扫描输入，写指针后的前缀保存已筛选的结果。只有保留元素时才推进写指针；覆盖之前先确认被覆盖位置不再需要，最后处理剩余后缀。",
@@ -65,7 +70,14 @@
         "questions": [
           "longest-substring-without-repeating-characters",
           "minimum-window-substring",
-          "minimum-size-subarray-sum"
+          "minimum-size-subarray-sum",
+          "minimum-operations-to-reduce-x-to-zero",
+          "subarray-product-less-than-k",
+          "max-consecutive-ones-iii",
+          "longest-repeating-character-replacement",
+          "contains-duplicate-ii",
+          "contains-duplicate-iii",
+          "longest-substring-with-at-least-k-repeating-characters"
         ],
         "summary": {
           "zh": "扩张右端更新计数，再按目标选择“非法时收缩”或“满足时尝试收缩”。最短覆盖与最长合法区间的答案更新位置不同；区间和版本通常要求元素非负或为正。",
@@ -87,6 +99,49 @@
           "zh": "窗口长度固定为 k：加入右侧元素，移除超过长度的左侧元素，长度达到 k 后检查统计量。字母异位词比较频次或维护差值，不要对每个窗口重新排序。",
           "en": "Keep exactly k elements by adding on the right and removing on the left. Inspect only complete windows. Anagram checks use counts or a count difference rather than sorting every window."
         }
+      },
+      {
+        "id": "backward-fill",
+        "title": {
+          "zh": "从尾部合并与填充",
+          "en": "Merge and fill from the end"
+        },
+        "summary": {
+          "zh": "当最大候选在两端或两个有序尾部，先确定结果尾部，再缩小剩余范围，避免覆盖未读取输入。",
+          "en": "When the largest candidate lies at an endpoint, settle the output tail first and shrink the remaining range without overwriting unread input."
+        },
+        "questions": [
+          "merge-sorted-array",
+          "squares-of-a-sorted-array"
+        ]
+      },
+      {
+        "id": "prefix-scan",
+        "title": {
+          "zh": "共享前缀与同步比较",
+          "en": "Shared prefix scanning"
+        },
+        "summary": {
+          "zh": "先规定每轮已经确认相同的前缀，再在第一个不一致或越界位置停止。",
+          "en": "Maintain the prefix already proved equal and stop at the first mismatch or exhausted input."
+        },
+        "questions": [
+          "longest-common-prefix"
+        ]
+      },
+      {
+        "id": "time-window",
+        "title": {
+          "zh": "按时间过期的先进先出窗口",
+          "en": "FIFO time-expiration windows"
+        },
+        "summary": {
+          "zh": "时间戳递增时，过期事件总在队首。维护时间闭区间时明确边界是否包含，不必每次重新统计全部历史。",
+          "en": "Increasing timestamps put expired events at the queue front. Specify inclusive boundaries and evict old events instead of recounting history."
+        },
+        "questions": [
+          "number-of-recent-calls"
+        ]
       }
     ]
   },
@@ -121,7 +176,7 @@
         },
         "questions": [
           "two-sum",
-          "four-sum-ii"
+          "4sum-ii"
         ],
         "summary": {
           "zh": "先查目标需要的另一半，再把当前值加入索引，避免同一元素被重复使用。四数组计数把两侧配对和汇总为频次，不需要保存每个原始组合。",
@@ -167,7 +222,9 @@
           "subarray-sum-equals-k",
           "continuous-subarray-sum",
           "contiguous-array",
-          "path-sum-iii"
+          "path-sum-iii",
+          "find-pivot-index",
+          "subarray-sums-divisible-by-k"
         ],
         "summary": {
           "zh": "由两个前缀的关系推导查询键：区间和计数保存频次，最长区间保存最早位置，整除条件比较余数。k=0 时不能取模；树路径中的前缀状态必须在退出节点时撤销。",
@@ -183,12 +240,114 @@
         "questions": [
           "product-of-array-except-self",
           "range-sum-query-immutable",
-          "range-sum-query-2d-immutable"
+          "range-sum-query-2d-immutable",
+          "matrix-block-sum"
         ],
         "summary": {
           "zh": "预处理一侧累积量，再结合另一侧结果。除自身乘积用左右乘积自然处理零；二维前缀查询通过容斥减去重叠区域。边界外的空前缀应有统一定义。",
           "en": "Precompute a cumulative summary and combine it with the opposite side. Left/right products handle zeros without division. Two-dimensional prefix queries use inclusion-exclusion with well-defined empty borders."
         }
+      },
+      {
+        "id": "prefix-product-stream",
+        "title": {
+          "zh": "带零的在线前缀积",
+          "en": "Streaming prefix products with zeros"
+        },
+        "summary": {
+          "zh": "记录最近一个零之后的前缀积；查询区间跨过零时直接为零，其余通过整除取得后缀积。",
+          "en": "Store prefix products since the most recent zero; a query crossing that zero is zero, while other suffix products use exact division."
+        },
+        "questions": [
+          "product-of-the-last-k-numbers"
+        ]
+      },
+      {
+        "id": "positive-prefix-interval",
+        "title": {
+          "zh": "正权前缀与最早位置",
+          "en": "Positive-score prefixes and earliest positions"
+        },
+        "summary": {
+          "zh": "将两类事件转成 +1/-1，最长正和区间由前缀差确定。单位步长允许把严格大小比较缩成相邻前缀值查询。",
+          "en": "Map two event types to +1/-1 and seek a positive prefix difference. Unit steps let an adjacent prefix score query recover the longest interval."
+        },
+        "questions": [
+          "longest-well-performing-interval"
+        ]
+      },
+      {
+        "id": "hash-bijection",
+        "title": {
+          "zh": "双向映射与一一对应",
+          "en": "Bidirectional mappings and bijections"
+        },
+        "summary": {
+          "zh": "一侧到另一侧的映射只能防止一对多；两侧分别建索引，才能同时阻止多对一并验证一一对应。",
+          "en": "A forward map prevents one-to-many conflicts; a reverse map also prevents many-to-one conflicts and establishes a bijection."
+        },
+        "questions": [
+          "word-pattern"
+        ]
+      },
+      {
+        "id": "frequency-order",
+        "title": {
+          "zh": "字符频次与输出次序",
+          "en": "Character frequencies and output order"
+        },
+        "summary": {
+          "zh": "先统计全局频次，再按原次序查找或按频次排序。区分统计顺序、位置顺序和最终输出顺序。",
+          "en": "Count global occurrences first, then inspect original positions or sort by frequency. Distinguish counting order, positional order, and output order."
+        },
+        "questions": [
+          "first-unique-character-in-a-string",
+          "sort-characters-by-frequency"
+        ]
+      },
+      {
+        "id": "difference-events",
+        "title": {
+          "zh": "差分边界与累计还原",
+          "en": "Difference boundaries and prefix reconstruction"
+        },
+        "summary": {
+          "zh": "连续区间统一增减时，只记录开始与结束后的变化量；最后沿位置累计还原每项，注意闭区间与半开区间的结束位置不同。",
+          "en": "For uniform interval updates, record changes at the start and just after the end, then prefix-sum once. Distinguish inclusive and half-open endpoints."
+        },
+        "questions": [
+          "range-addition",
+          "corporate-flight-bookings",
+          "car-pooling"
+        ]
+      },
+      {
+        "id": "rolling-encoding",
+        "title": {
+          "zh": "定长编码与重复检测",
+          "en": "Fixed-width encodings"
+        },
+        "summary": {
+          "zh": "字符种类少、窗口固定时，可把字符映射到低位编码并滚动更新，用集合记录出现与已输出状态。",
+          "en": "Encode a fixed window over a small alphabet and track seen and emitted keys."
+        },
+        "questions": [
+          "repeated-dna-sequences"
+        ]
+      },
+      {
+        "id": "prefix-failure-links",
+        "title": {
+          "zh": "前后缀复用与失配回退",
+          "en": "Prefix reuse and failure links"
+        },
+        "summary": {
+          "zh": "为模式前缀记录最长相等前后缀；失配时沿回退链复用已经匹配的后缀，文本指针保持单向前进。",
+          "en": "Record reusable prefix-suffix lengths and follow failure links on a mismatch without rewinding the text."
+        },
+        "questions": [
+          "find-the-index-of-the-first-occurrence-in-a-string"
+        ]
       }
     ]
   },
@@ -225,7 +384,8 @@
           "reverse-linked-list",
           "reverse-linked-list-ii",
           "reverse-nodes-in-k-group",
-          "swap-nodes-in-pairs"
+          "swap-nodes-in-pairs",
+          "reorder-list"
         ],
         "summary": {
           "zh": "先掌握 prev / current / next 的单步反转，再增加区间边界。k 个一组时先确认剩余节点足够；不足一组时保留原连接。",
@@ -259,7 +419,11 @@
           "linked-list-cycle-ii",
           "intersection-of-two-linked-lists",
           "remove-nth-node-from-end-of-list",
-          "palindrome-linked-list"
+          "palindrome-linked-list",
+          "remove-duplicates-from-sorted-list-ii",
+          "middle-of-the-linked-list",
+          "lian-biao-zhong-dao-shu-di-kge-jie-dian-lcof",
+          "rotate-list"
         ],
         "summary": {
           "zh": "用快慢指针寻找相遇或中点；定位环入口需再做一次相对距离推导。删除倒数第 n 个节点用固定间距；相交判断比较节点本身而不是值。",
@@ -294,6 +458,21 @@
           "zh": "先建立每个旧节点到新节点的对应，再连接 next 与 random。映射按身份而非数值建键；新链表中的引用不能仍指向旧节点。",
           "en": "Create an identity mapping from each original node to its copy, then connect next and random references. Equal values do not identify nodes; copied references must not point back into the original list."
         }
+      },
+      {
+        "id": "list-stable-filter",
+        "title": {
+          "zh": "保序分流与相邻去重",
+          "en": "Stable partitioning and adjacent deduplication"
+        },
+        "summary": {
+          "zh": "按原链表顺序扫描，用尾指针连接保留节点；分流时维护两条独立链，去重时借助有序性只跳过相邻同值节点。",
+          "en": "Scan in original order and link retained nodes through tail pointers. Partition into separate chains or exploit sorted adjacency to skip duplicate nodes."
+        },
+        "questions": [
+          "partition-list",
+          "remove-duplicates-from-sorted-list"
+        ]
       }
     ]
   },
@@ -330,7 +509,9 @@
           "search-insert-position",
           "find-first-and-last-position-of-element-in-sorted-array",
           "search-a-2d-matrix",
-          "binary-search"
+          "binary-search",
+          "find-k-closest-elements",
+          "zai-pai-xu-shu-zu-zhong-cha-zhao-shu-zi-lcof"
         ],
         "summary": {
           "zh": "用同一套 lower_bound 求第一个不小于 target 和第一个大于 target 的位置，再决定是否存在目标。二维映射只适用于行间也整体有序的矩阵。",
@@ -362,7 +543,8 @@
         "questions": [
           "koko-eating-bananas",
           "capacity-to-ship-packages-within-d-days",
-          "split-array-largest-sum"
+          "split-array-largest-sum",
+          "ugly-number-iii"
         ],
         "summary": {
           "zh": "把速度或容量作为答案，check 统计所需时间或分组数。必须证明容量增加不会让方案更差，并选一个一定覆盖最优答案的上下界。",
@@ -382,6 +564,36 @@
           "zh": "在较短数组中二分分割位置，使两侧元素数量正确且左半最大值不大于右半最小值。空半段需要哨兵处理，偶数长度结果要注意求平均的类型。",
           "en": "Binary-search a partition in the shorter array. Balance side sizes and ensure the largest left value does not exceed the smallest right value. Handle empty sides and numeric averaging carefully."
         }
+      },
+      {
+        "id": "successor-position",
+        "title": {
+          "zh": "固定主串的位置后继查询",
+          "en": "Successor positions in a fixed text"
+        },
+        "summary": {
+          "zh": "先用双指针理解子序列，再为重复查询建立字符位置表。每次二分寻找严格位于已匹配位置之后的最早出现。",
+          "en": "Start with a two-pointer subsequence scan, then index occurrence positions for repeated queries. Find the earliest occurrence strictly after the last match."
+        },
+        "questions": [
+          "is-subsequence",
+          "number-of-matching-subsequences"
+        ]
+      },
+      {
+        "id": "peak-search",
+        "title": {
+          "zh": "沿斜率保留一个峰值",
+          "en": "Keep a peak by following a slope"
+        },
+        "summary": {
+          "zh": "相邻比较给出一侧仍存在峰值的理由。一般数组可有多个峰；山脉数组则额外保证唯一峰与两侧严格单调。",
+          "en": "Adjacent comparisons prove a peak remains on one side. General arrays may have several peaks; a mountain additionally guarantees a unique peak and strict slopes."
+        },
+        "questions": [
+          "find-peak-element",
+          "peak-index-in-a-mountain-array"
+        ]
       }
     ]
   },
@@ -416,7 +628,18 @@
         },
         "questions": [
           "binary-tree-inorder-traversal",
-          "maximum-depth-of-binary-tree"
+          "maximum-depth-of-binary-tree",
+          "sum-of-left-leaves",
+          "flip-binary-tree-to-match-preorder-traversal",
+          "vertical-order-traversal-of-a-binary-tree",
+          "find-elements-in-a-contaminated-binary-tree",
+          "subtree-of-another-tree",
+          "same-tree",
+          "merge-two-binary-trees",
+          "find-a-corresponding-node-of-a-binary-tree-in-a-clone-of-that-tree",
+          "construct-string-from-binary-tree",
+          "leaf-similar-trees",
+          "binary-tree-preorder-traversal"
         ],
         "summary": {
           "zh": "递归或显式栈保存尚未处理的节点。区分进入节点、左右子树之间、离开节点三个时机；显式栈的中序遍历必须先沿左边下降。",
@@ -431,7 +654,21 @@
         },
         "questions": [
           "binary-tree-level-order-traversal",
-          "binary-tree-right-side-view"
+          "binary-tree-right-side-view",
+          "cousins-in-binary-tree",
+          "find-bottom-left-tree-value",
+          "binary-tree-level-order-traversal-ii",
+          "binary-tree-zigzag-level-order-traversal",
+          "populating-next-right-pointers-in-each-node-ii",
+          "maximum-width-of-binary-tree",
+          "find-largest-value-in-each-tree-row",
+          "average-of-levels-in-binary-tree",
+          "check-completeness-of-a-binary-tree",
+          "maximum-level-sum-of-a-binary-tree",
+          "deepest-leaves-sum",
+          "even-odd-tree",
+          "complete-binary-tree-inserter",
+          "populating-next-right-pointers-in-each-node"
         ],
         "summary": {
           "zh": "每轮固定队列中当前层的节点数，只汇总这一层，再处理新增的下一层。右视图取每层最右节点，不能在不断增长的队列上混淆层边界。",
@@ -445,7 +682,8 @@
           "en": "Mirror-pair recursion"
         },
         "questions": [
-          "symmetric-tree"
+          "symmetric-tree",
+          "flip-equivalent-binary-trees"
         ],
         "summary": {
           "zh": "同时处理左右两个对应节点，值相等后交叉比较它们的孩子。单边为空时应立即判定；仅比较某一层的值集合不能证明结构对称。",
@@ -462,7 +700,28 @@
           "diameter-of-binary-tree",
           "binary-tree-maximum-path-sum",
           "balanced-binary-tree",
-          "lowest-common-ancestor-of-a-binary-tree"
+          "lowest-common-ancestor-of-a-binary-tree",
+          "binary-tree-coloring-game",
+          "delete-nodes-and-return-forest",
+          "maximum-depth-of-n-ary-tree",
+          "most-frequent-subtree-sum",
+          "binary-tree-tilt",
+          "binary-tree-pruning",
+          "delete-leaves-with-a-given-value",
+          "longest-univalue-path",
+          "smallest-subtree-with-all-the-deepest-nodes",
+          "maximum-product-of-splitted-binary-tree",
+          "longest-zigzag-path-in-a-binary-tree",
+          "minimum-time-to-collect-all-apples-in-a-tree",
+          "binary-tree-cameras",
+          "distribute-coins-in-binary-tree",
+          "insufficient-nodes-in-root-to-leaf-paths",
+          "count-nodes-with-the-highest-score",
+          "maximum-sum-bst-in-binary-tree",
+          "second-minimum-node-in-a-binary-tree",
+          "find-duplicate-subtrees",
+          "house-robber-iii",
+          "count-complete-tree-nodes"
         ],
         "summary": {
           "zh": "让子树返回父节点真正需要的信息，例如高度或单边贡献；另用全局变量记录可以连接左右子树的答案。公共祖先问题返回当前子树发现的目标信息。",
@@ -479,7 +738,21 @@
           "validate-binary-search-tree",
           "kth-smallest-element-in-a-bst",
           "convert-sorted-array-to-binary-search-tree",
-          "delete-node-in-a-bst"
+          "delete-node-in-a-bst",
+          "increasing-order-search-tree",
+          "range-sum-of-bst",
+          "recover-binary-search-tree",
+          "trim-a-binary-search-tree",
+          "find-mode-in-binary-search-tree",
+          "minimum-absolute-difference-in-bst",
+          "two-sum-iv-input-is-a-bst",
+          "binary-search-tree-iterator",
+          "all-elements-in-two-binary-search-trees",
+          "convert-bst-to-greater-tree",
+          "binary-search-tree-to-greater-sum-tree",
+          "search-in-a-binary-search-tree",
+          "insert-into-a-binary-search-tree",
+          "lowest-common-ancestor-of-a-binary-search-tree"
         ],
         "summary": {
           "zh": "用上下界验证整棵子树，或利用严格递增中序序列。第 k 小可在中序计数；删除要分清无孩子、单孩子和双孩子的重连情况。",
@@ -495,7 +768,17 @@
         "questions": [
           "path-sum-iii",
           "path-sum-ii",
-          "sum-root-to-leaf-numbers"
+          "sum-root-to-leaf-numbers",
+          "binary-tree-paths",
+          "smallest-string-starting-from-leaf",
+          "sum-of-root-to-leaf-binary-numbers",
+          "pseudo-palindromic-paths-in-a-binary-tree",
+          "sum-of-nodes-with-even-valued-grandparent",
+          "count-good-nodes-in-binary-tree",
+          "step-by-step-directions-from-a-binary-tree-node-to-another",
+          "linked-list-in-binary-tree",
+          "path-sum",
+          "maximum-difference-between-node-and-ancestor"
         ],
         "summary": {
           "zh": "维护当前路径、前缀和或数值，进入孩子前更新，返回后撤销。全局前缀频次会把兄弟分支混在一起，必须限定到当前递归路径。",
@@ -511,12 +794,41 @@
         "questions": [
           "construct-binary-tree-from-preorder-and-inorder-traversal",
           "flatten-binary-tree-to-linked-list",
-          "invert-binary-tree"
+          "invert-binary-tree",
+          "add-one-row-to-tree",
+          "construct-binary-tree-from-inorder-and-postorder-traversal",
+          "construct-binary-tree-from-preorder-and-postorder-traversal",
+          "verify-preorder-serialization-of-a-binary-tree",
+          "all-possible-full-binary-trees",
+          "maximum-binary-tree-ii",
+          "construct-binary-search-tree-from-preorder-traversal",
+          "balance-a-binary-search-tree",
+          "serialize-and-deserialize-bst",
+          "convert-sorted-list-to-binary-search-tree",
+          "maximum-binary-tree",
+          "serialize-and-deserialize-binary-tree",
+          "unique-binary-search-trees",
+          "unique-binary-search-trees-ii"
         ],
         "summary": {
           "zh": "通过根节点位置把遍历区间拆成左右子问题；可预建值到位置的索引。原地展开或翻转时，先保存会被覆盖的孩子引用。",
           "en": "Split traversal ranges around the root, using a value-to-index map when valid. For in-place transforms, preserve child references before overwriting links."
         }
+      },
+      {
+        "id": "implicit-tree",
+        "title": {
+          "zh": "不显式建节点的树形编号",
+          "en": "Implicit trees and numeric labels"
+        },
+        "summary": {
+          "zh": "把前缀、编号或层区间看作树的状态。只沿生成规则遍历或向父层跳转，不建立无用的节点对象。",
+          "en": "Treat prefixes, labels, and level ranges as tree states. Traverse generation rules or jump to parents without allocating unnecessary node objects."
+        },
+        "questions": [
+          "lexicographical-numbers",
+          "path-in-zigzag-labelled-binary-tree"
+        ]
       }
     ]
   },
@@ -552,11 +864,16 @@
         "questions": [
           "number-of-provinces",
           "keys-and-rooms",
-          "clone-graph"
+          "clone-graph",
+          "validate-binary-tree-nodes",
+          "jump-game-iii",
+          "minimize-malware-spread",
+          "detonate-the-maximum-bombs",
+          "water-and-jug-problem"
         ],
         "summary": {
-        "zh": "遍历允许的起点及其邻居；统计全部连通块时才从每个未访问节点重新启动，钥匙和房间则只能从房间 0 出发。克隆图以原节点身份映射新节点，创建后立刻登记再复制邻居，避免环中无限递归。",
-        "en": "Traverse from the allowed roots. Restart at every unvisited vertex when counting all components, but keys-and-rooms must start only at room zero. Graph cloning maps original identities to copies and registers each copy before recursing through neighbors."
+          "zh": "遍历允许的起点及其邻居；统计全部连通块时才从每个未访问节点重新启动，钥匙和房间则只能从房间 0 出发。克隆图以原节点身份映射新节点，创建后立刻登记再复制邻居，避免环中无限递归。",
+          "en": "Traverse from the allowed roots. Restart at every unvisited vertex when counting all components, but keys-and-rooms must start only at room zero. Graph cloning maps original identities to copies and registers each copy before recursing through neighbors."
         }
       },
       {
@@ -569,7 +886,11 @@
           "number-of-islands",
           "max-area-of-island",
           "surrounded-regions",
-          "flood-fill"
+          "flood-fill",
+          "pacific-atlantic-water-flow",
+          "number-of-closed-islands",
+          "number-of-enclaves",
+          "count-sub-islands"
         ],
         "summary": {
           "zh": "将格子视为节点，明确四连通或八连通。访问后立刻标记；从边界反向标记可识别不应被包围的区域。原地改值会改变输入，要确认题目允许。",
@@ -586,7 +907,12 @@
           "rotting-oranges",
           "word-ladder",
           "open-the-lock",
-          "shortest-path-in-binary-matrix"
+          "shortest-path-in-binary-matrix",
+          "all-nodes-distance-k-in-binary-tree",
+          "minimum-genetic-mutation",
+          "nearest-exit-from-entrance-in-maze",
+          "01-matrix",
+          "sliding-puzzle"
         ],
         "summary": {
           "zh": "无权边上按距离逐层扩展；多源问题把所有起点一起放入队列。入队时标记状态，层数与时间的初始化要和起点距离 0 对齐。",
@@ -632,7 +958,11 @@
         "questions": [
           "redundant-connection",
           "accounts-merge",
-          "number-of-provinces"
+          "number-of-provinces",
+          "number-of-connected-components-in-an-undirected-graph",
+          "satisfiability-of-equality-equations",
+          "most-stones-removed-with-same-row-or-column",
+          "graph-valid-tree"
         ],
         "summary": {
           "zh": "用根节点代表集合，以路径压缩和按大小合并降低成本。它适合连通性而非还原具体路径；删除连接通常不能用普通并查集直接处理。",
@@ -647,7 +977,8 @@
         },
         "questions": [
           "network-delay-time",
-          "path-with-minimum-effort"
+          "path-with-minimum-effort",
+          "path-with-maximum-probability"
         ],
         "summary": {
           "zh": "优先处理当前代价最小的候选，只有松弛成功才入队。累积路径和与路径最大边权是不同的状态转移；跳过已经过期的队列记录。",
@@ -662,12 +993,114 @@
         },
         "questions": [
           "reconstruct-itinerary",
-          "valid-arrangement-of-pairs"
+          "valid-arrangement-of-pairs",
+          "cracking-the-safe"
         ],
         "summary": {
           "zh": "目标是每条边恰好使用一次，而不是每个点只访问一次。先确认度数和连通性条件，再用 Hierholzer 的回退顺序构造路径；有重复边时不能只按点对去重。",
           "en": "The goal is using each edge once, not visiting each vertex once. Check degree and connectivity conditions, then construct an Euler trail through Hierholzer backtracking. Preserve duplicate edge instances."
         }
+      },
+      {
+        "id": "bounded-relaxation",
+        "title": {
+          "zh": "分层松弛与边数限制",
+          "en": "Layered relaxation with edge budgets"
+        },
+        "summary": {
+          "zh": "把允许使用的边数作为状态层。每层只读取上一层距离，写入新副本，避免一次扫描串起多条边而超出预算。",
+          "en": "Treat the permitted edge count as a state layer. Read only previous-layer distances and write a fresh copy so one scan cannot chain multiple edges beyond the budget."
+        },
+        "questions": [
+          "cheapest-flights-within-k-stops"
+        ]
+      },
+      {
+        "id": "zero-one-bfs",
+        "title": {
+          "zh": "零一边权与双端队列",
+          "en": "Zero-one edges and deque search"
+        },
+        "summary": {
+          "zh": "边权只有 0 或 1 时，把零代价改进放队首、一代价改进放队尾，保持距离优先的扩展顺序；过滤过期状态。",
+          "en": "For weights zero or one, push zero-cost improvements to the front and unit-cost improvements to the back, preserving distance order and skipping stale states."
+        },
+        "questions": [
+          "minimum-cost-to-make-at-least-one-valid-path-in-a-grid"
+        ]
+      },
+      {
+        "id": "leaf-peeling",
+        "title": {
+          "zh": "逐层剥叶与树中心",
+          "en": "Leaf peeling and tree centers"
+        },
+        "summary": {
+          "zh": "在无向树上同时删除当前叶层，让最长路径两端一起缩短；最后的一点或相邻两点就是树的中心。",
+          "en": "Remove each complete leaf layer from an undirected tree, shortening longest paths from both ends. The final one or two vertices are its centers."
+        },
+        "questions": [
+          "minimum-height-trees"
+        ]
+      },
+      {
+        "id": "ratio-relations",
+        "title": {
+          "zh": "乘法关系与变量连通性",
+          "en": "Multiplicative relations and connected variables"
+        },
+        "summary": {
+          "zh": "将比值关系变成互为倒数的有向边，沿路径乘积约去中间变量，并区分未知变量与不连通变量。",
+          "en": "Represent ratios as reciprocal directed edges, cancel intermediate variables through path products, and distinguish unknown variables from disconnected ones."
+        },
+        "questions": [
+          "evaluate-division"
+        ]
+      },
+      {
+        "id": "two-coloring",
+        "title": {
+          "zh": "二分图与冲突着色",
+          "en": "Bipartite graphs and coloring conflicts"
+        },
+        "summary": {
+          "zh": "沿每条边分配相反颜色，对每个未访问连通分量重新开始；同色边是矛盾，奇环与自环都不能两色染色。",
+          "en": "Assign opposite colors across each edge and restart in every unvisited component. Same-color edges reveal contradictions, including odd cycles and self-loops."
+        },
+        "questions": [
+          "is-graph-bipartite",
+          "possible-bipartition",
+          "vEAB3K"
+        ]
+      },
+      {
+        "id": "minimum-spanning",
+        "title": {
+          "zh": "割边选择与最小生成树",
+          "en": "Cut edges and minimum spanning trees"
+        },
+        "summary": {
+          "zh": "先区分全局连接费用与单源最短路。Kruskal 按边权连分量，Prim 从已连接集合选最便宜割边，最终必须覆盖所有节点。",
+          "en": "Distinguish total connection cost from shortest paths. Kruskal merges components in edge order; Prim repeatedly chooses the cheapest edge across the visited cut."
+        },
+        "questions": [
+          "connecting-cities-with-minimum-cost",
+          "min-cost-to-connect-all-points"
+        ]
+      },
+      {
+        "id": "all-pairs",
+        "title": {
+          "zh": "中转点递推与全源最短路",
+          "en": "Intermediate-vertex DP for all-pairs paths"
+        },
+        "summary": {
+          "zh": "固定允许使用的中转点集合，逐个加入新中转点，比较原路径与经过该点的两段路径；中转维度必须在最外层。",
+          "en": "Grow the allowed intermediate-vertex set, comparing existing paths with paths through the new vertex. Keep the intermediate vertex loop outermost."
+        },
+        "questions": [
+          "find-the-city-with-the-smallest-number-of-neighbors-at-a-threshold-distance"
+        ]
       }
     ]
   },
@@ -705,7 +1138,10 @@
           "subsets-ii",
           "combination-sum",
           "combination-sum-ii",
-          "combinations"
+          "combinations",
+          "non-decreasing-subsequences",
+          "combination-sum-iii",
+          "4sjJUc"
         ],
         "summary": {
           "zh": "用 start 限定下一次可选位置，避免不同顺序产生同一个组合。允许重复使用当前元素时递归传 i，否则传 i+1；含重复值时先排序再做同层去重。",
@@ -721,7 +1157,11 @@
         "questions": [
           "permutations",
           "permutations-ii",
-          "letter-combinations-of-a-phone-number"
+          "letter-combinations-of-a-phone-number",
+          "letter-tile-possibilities",
+          "number-of-squareful-arrays",
+          "letter-case-permutation",
+          "7p8L0Z"
         ],
         "summary": {
           "zh": "每一层填一个位置，从尚未使用的候选中选择。手机号问题的候选来自当前位置的字符表；值相等的排列需额外防止同层交换造成重复。",
@@ -738,7 +1178,12 @@
           "n-queens",
           "word-search",
           "sudoku-solver",
-          "generate-parentheses"
+          "generate-parentheses",
+          "numbers-with-same-consecutive-differences",
+          "unique-paths-iii",
+          "beautiful-arrangement",
+          "path-with-maximum-gold",
+          "n-queens-ii"
         ],
         "summary": {
           "zh": "选择前检查行列、对角线、格子占用或括号余额。只维护当前分支约束并在返回时恢复；单词搜索中的一个格子不能在同一条路径里重复使用。",
@@ -753,7 +1198,19 @@
         },
         "questions": [
           "palindrome-partitioning",
-          "restore-ip-addresses"
+          "restore-ip-addresses",
+          "matchsticks-to-square",
+          "splitting-a-string-into-descending-consecutive-values",
+          "split-a-string-into-the-max-number-of-unique-substrings",
+          "shopping-offers",
+          "remove-invalid-parentheses",
+          "minimum-moves-to-spread-stones-over-grid",
+          "find-minimum-time-to-finish-all-jobs",
+          "fair-distribution-of-cookies",
+          "additive-number",
+          "split-array-into-fibonacci-sequence",
+          "word-break-ii",
+          "partition-to-k-equal-sum-subsets"
         ],
         "summary": {
           "zh": "把未处理的后缀作为子问题，枚举下一段的结束位置，并在递归前验证这段是否合法。预计算回文表可以降低重复判断成本；剩余长度也可以用于安全剪枝。",
@@ -796,7 +1253,15 @@
           "house-robber",
           "pascals-triangle",
           "maximum-subarray",
-          "maximum-product-subarray"
+          "maximum-product-subarray",
+          "maximum-sum-circular-subarray",
+          "solving-questions-with-brainpower",
+          "count-number-of-ways-to-place-houses",
+          "minimum-cost-for-tickets",
+          "delete-and-earn",
+          "integer-break",
+          "fibonacci-number",
+          "house-robber-ii"
         ],
         "summary": {
           "zh": "定义处理到当前位置后的最优值或计数。是否选择当前元素决定需要的历史状态；最大子数组比较“接上前缀”与“从当前开始”，乘积题还需保留最小负积。",
@@ -813,7 +1278,11 @@
           "coin-change",
           "perfect-squares",
           "partition-equal-subset-sum",
-          "coin-change-ii"
+          "coin-change-ii",
+          "last-stone-weight-ii",
+          "ones-and-zeroes",
+          "maximum-total-reward-using-operations-i",
+          "target-sum"
         ],
         "summary": {
           "zh": "把金额或容量作为状态。0/1 物品压缩后通常倒序容量，避免同一物品被反复使用；完全背包正序允许复用。最少数量与方案计数的初值和转移不同。",
@@ -830,7 +1299,14 @@
           "longest-increasing-subsequence",
           "longest-common-subsequence",
           "edit-distance",
-          "word-break"
+          "word-break",
+          "largest-divisible-subset",
+          "maximum-length-of-repeated-subarray",
+          "interleaving-string",
+          "russian-doll-envelopes",
+          "distinct-subsequences",
+          "delete-operation-for-two-strings",
+          "minimum-ascii-delete-sum-for-two-strings"
         ],
         "summary": {
           "zh": "LIS 按结尾元素组织状态；双串问题用两个前缀长度表示进度，考虑匹配或删除等动作。单词拆分按可达前缀切分，不能只选择当前最长可匹配单词。",
@@ -846,7 +1322,11 @@
         "questions": [
           "unique-paths",
           "minimum-path-sum",
-          "unique-paths-ii"
+          "unique-paths-ii",
+          "triangle",
+          "maximal-square",
+          "longest-increasing-path-in-a-matrix",
+          "minimum-falling-path-sum"
         ],
         "summary": {
           "zh": "格子的答案来自允许方向的前驱。先处理边界与障碍，再按行列顺序计算；障碍格应清空到达状态，不能保留压缩数组中的上一行数值。",
@@ -862,7 +1342,8 @@
         "questions": [
           "longest-palindromic-substring",
           "longest-palindromic-subsequence",
-          "burst-balloons"
+          "burst-balloons",
+          "minimum-insertion-steps-to-make-a-string-palindrome"
         ],
         "summary": {
           "zh": "用区间端点表示子问题，通常按区间长度递增计算。回文子串也可按中心扩展；戳气球选择区间内最后一个处理的元素，使左右两侧可以独立合并。",
@@ -878,7 +1359,10 @@
         "questions": [
           "best-time-to-buy-and-sell-stock",
           "best-time-to-buy-and-sell-stock-ii",
-          "best-time-to-buy-and-sell-stock-with-cooldown"
+          "best-time-to-buy-and-sell-stock-with-cooldown",
+          "best-time-to-buy-and-sell-stock-with-transaction-fee",
+          "best-time-to-buy-and-sell-stock-iv",
+          "best-time-to-buy-and-sell-stock-iii"
         ],
         "summary": {
           "zh": "把持有、未持有、交易次数和冷冻期等限制写入状态。每天的动作只从合法历史状态转移；压缩状态时保存旧值，避免把当天刚更新的状态当成前一天。",
@@ -898,6 +1382,92 @@
           "zh": "dp[i] 表示以 i 结尾的最长有效括号长度。遇到右括号时，越过前一段有效后缀检查匹配左括号，再连接更早的有效段；所有回跳下标必须检查边界。",
           "en": "Let dp[i] be the longest valid bracket suffix ending at i. On a closing bracket, jump over the preceding valid suffix to find its matching opener and connect an earlier segment, checking every index."
         }
+      },
+      {
+        "id": "window-dp",
+        "title": {
+          "zh": "窗口最值加速状态转移",
+          "en": "Window maxima for DP transitions"
+        },
+        "summary": {
+          "zh": "转移若只取前 k 个状态的最大值，可用单调队列减少重复扫描。先明确能否重新开始、答案是否必须停在最后一项。",
+          "en": "Use a monotone queue when a transition needs the maximum of the previous k states. Specify whether restarting is allowed and whether the result must end at the last item."
+        },
+        "questions": [
+          "jump-game-vi",
+          "constrained-subsequence-sum"
+        ]
+      },
+      {
+        "id": "modular-dp",
+        "title": {
+          "zh": "余数状态与不可达标记",
+          "en": "Remainder states and unreachable markers"
+        },
+        "summary": {
+          "zh": "按模数压缩和的状态，保存每个余数下最优可达值。每轮从旧副本转移，明确区分空集合与不可达状态。",
+          "en": "Compress sums by remainder and retain the best reachable value per remainder. Transition from a previous copy, distinguishing the empty set from unreachable states."
+        },
+        "questions": [
+          "greatest-sum-divisible-by-three"
+        ]
+      },
+      {
+        "id": "coverage-dp",
+        "title": {
+          "zh": "反向定义：次数能覆盖多少",
+          "en": "Reverse states: coverage within a move budget"
+        },
+        "summary": {
+          "zh": "当直接求最少次数需要枚举决策时，尝试固定次数，计算可处理的最大规模；单调覆盖量首次达到目标即为最少次数。",
+          "en": "When minimizing moves requires enumerating decisions, fix the move budget and maximize the solvable size. The first sufficient budget is optimal."
+        },
+        "questions": [
+          "super-egg-drop"
+        ]
+      },
+      {
+        "id": "weighted-interval-dp",
+        "title": {
+          "zh": "带权区间选择与二分前驱",
+          "en": "Weighted intervals and binary-searched predecessors"
+        },
+        "summary": {
+          "zh": "无权区间可按结束时间贪心；有收益时取舍需要 DP。按结束时间排序，用二分找到与当前区间兼容的前缀。",
+          "en": "Unweighted intervals admit finish-time greedy selection. With rewards, use DP over finish-time order and binary-search the compatible prefix."
+        },
+        "questions": [
+          "maximum-profit-in-job-scheduling"
+        ]
+      },
+      {
+        "id": "regex-prefix",
+        "title": {
+          "zh": "正则前缀与星号复用",
+          "en": "Regex prefixes and star repetition"
+        },
+        "summary": {
+          "zh": "dp[i][j] 表示两个前缀完整匹配；星号分为删除前一项的零次分支与消费一个字符后保留模式的多次分支。",
+          "en": "dp[i][j] means complete matching of two prefixes. A star either removes its preceding atom or consumes one character while keeping the same pattern prefix."
+        },
+        "questions": [
+          "regular-expression-matching"
+        ]
+      },
+      {
+        "id": "interval-game",
+        "title": {
+          "zh": "轮流决策与区间分差",
+          "en": "Alternating interval games and score differences"
+        },
+        "summary": {
+          "zh": "把状态定义为当前行动者相对对手最多能领先多少，选一端后减去对手在剩余区间的最优分差，自动表达双方都最优。",
+          "en": "Define a state as the current player’s best lead over the opponent. Taking an end subtracts the opponent’s optimal remaining lead, encoding optimal play on both sides."
+        },
+        "questions": [
+          "stone-game",
+          "predict-the-winner"
+        ]
       }
     ]
   },
@@ -931,10 +1501,19 @@
           "en": "Monotone stack"
         },
         "questions": [
+          "next-greater-element-i",
+          "next-greater-node-in-linked-list",
           "daily-temperatures",
+          "final-prices-with-a-special-discount-in-a-shop",
+          "online-stock-span",
+          "number-of-visible-people-in-a-queue",
+          "remove-k-digits",
+          "remove-duplicate-letters",
           "largest-rectangle-in-histogram",
           "trapping-rain-water",
-          "next-greater-element-i"
+          "maximum-binary-tree",
+          "next-greater-element-ii",
+          "iIQa4I"
         ],
         "summary": {
           "zh": "栈保存尚未找到右侧边界的下标，新值打破单调性时逐个结算。直方图面积还要确定左边界；结尾加哨兵或额外清栈才能处理剩余候选。",
@@ -950,7 +1529,10 @@
         "questions": [
           "valid-parentheses",
           "decode-string",
-          "longest-valid-parentheses"
+          "longest-valid-parentheses",
+          "simplify-path",
+          "evaluate-reverse-polish-notation",
+          "longest-absolute-file-path"
         ],
         "summary": {
           "zh": "括号用栈保存未匹配位置；嵌套字符串解析保存进入子表达式前的字符串和重复次数。计数可能有多位，非法或空栈分支要明确处理。",
@@ -965,7 +1547,8 @@
         },
         "questions": [
           "sliding-window-maximum",
-          "longest-continuous-subarray-with-absolute-diff-less-than-or-equal-to-limit"
+          "longest-continuous-subarray-with-absolute-diff-less-than-or-equal-to-limit",
+          "dui-lie-de-zui-da-zhi-lcof"
         ],
         "summary": {
           "zh": "队首给出有效窗口极值，新值加入时淘汰更差的队尾候选，再删除过期队首。双端队列必须保存索引，避免相同值无法区分寿命。",
@@ -982,7 +1565,12 @@
           "kth-largest-element-in-an-array",
           "top-k-frequent-elements",
           "merge-k-sorted-lists",
-          "kth-smallest-element-in-a-sorted-matrix"
+          "kth-smallest-element-in-a-sorted-matrix",
+          "find-k-pairs-with-smallest-sums",
+          "kth-largest-element-in-a-stream",
+          "top-k-frequent-words",
+          "seat-reservation-manager",
+          "single-threaded-cpu"
         ],
         "summary": {
           "zh": "保留前 k 大时，用最小堆保存候选门槛；多路合并用最小堆保存每一路当前头部。先按需求定义比较键，频次与原数值的排序含义不同。",
@@ -1003,6 +1591,81 @@
           "zh": "最大堆保存较小一半，最小堆保存较大一半，保持大小差不超过 1。滑动窗口还要删除过期项，惰性删除时区分逻辑大小与数组中实际元素数。",
           "en": "A max-heap stores the lower half and a min-heap the upper half. Keep their logical sizes balanced. Sliding medians require expiration, often through lazy deletion with separate logical counts."
         }
+      },
+      {
+        "id": "monotone-prefix",
+        "title": {
+          "zh": "前缀和上的单调队列",
+          "en": "Monotone queues over prefix sums"
+        },
+        "summary": {
+          "zh": "含负数时先转前缀差，不直接按区间和缩窗；队列同时淘汰已结算候选与被新候选支配的左端点。",
+          "en": "With signed values, use prefix differences rather than sum-based shrinking. Remove both settled starts and starts dominated by newer prefixes."
+        },
+        "questions": [
+          "shortest-subarray-with-sum-at-least-k"
+        ]
+      },
+      {
+        "id": "frequency-stack",
+        "title": {
+          "zh": "频次与最近压入的双重优先级",
+          "en": "Frequency then most recent push"
+        },
+        "summary": {
+          "zh": "按频次分组保存压入事件，最高频次桶内按栈顺序出栈。与 LFU 淘汰不同，弹出会降低当前剩余出现次数。",
+          "en": "Group push events by attained frequency and pop the latest event in the highest group. Unlike LFU eviction, a pop reduces remaining multiplicity."
+        },
+        "questions": [
+          "maximum-frequency-stack"
+        ]
+      },
+      {
+        "id": "parenthesis-balance",
+        "title": {
+          "zh": "括号缺口与最少补全",
+          "en": "Parenthesis deficits and minimum completion"
+        },
+        "summary": {
+          "zh": "先固定一对括号的规则，再维护尚未匹配的需求。普通一对一匹配与一个左括号对应连续两个右括号需要不同状态。",
+          "en": "Fix the pairing rule before tracking unmatched demand. Ordinary one-to-one matching differs from requiring two consecutive right parentheses per left one."
+        },
+        "questions": [
+          "minimum-add-to-make-parentheses-valid",
+          "minimum-insertions-to-balance-a-parentheses-string"
+        ]
+      },
+      {
+        "id": "multiway-merge",
+        "title": {
+          "zh": "多路有序流合并",
+          "en": "Merging multiple sorted streams"
+        },
+        "summary": {
+          "zh": "每路只暴露尚未消费的最小或最大候选，用多指针或堆选下一项。重复候选需要同步推进或按问题保留。",
+          "en": "Expose only the next pending candidate from each sorted stream and select among them with pointers or a heap. Advance ties together or preserve duplicates according to the problem."
+        },
+        "questions": [
+          "super-ugly-number",
+          "design-twitter",
+          "ugly-number-ii"
+        ]
+      },
+      {
+        "id": "expression-parser",
+        "title": {
+          "zh": "表达式上下文与优先级",
+          "en": "Expression contexts and precedence"
+        },
+        "summary": {
+          "zh": "先分清数字、运算符和括号，再用上下文栈或表达式/项/因子三层语法保持优先级与左结合；不能用字符串替换代替语法分析。",
+          "en": "Separate numbers, operators and parentheses, then preserve precedence and left associativity with context stacks or expression/term/factor grammar."
+        },
+        "questions": [
+          "basic-calculator",
+          "basic-calculator-ii",
+          "basic-calculator-iii"
+        ]
       }
     ]
   },
@@ -1038,7 +1701,9 @@
         "questions": [
           "merge-intervals",
           "non-overlapping-intervals",
-          "minimum-number-of-arrows-to-burst-balloons"
+          "minimum-number-of-arrows-to-burst-balloons",
+          "remove-covered-intervals",
+          "interval-list-intersections"
         ],
         "summary": {
           "zh": "合并区间按起点排序并扩展当前终点；最多互不相交区间通常按终点排序优先保留早结束的区间。两种排序目标不同，不应混用。",
@@ -1067,7 +1732,8 @@
           "en": "Last-occurrence coverage"
         },
         "questions": [
-          "partition-labels"
+          "partition-labels",
+          "video-stitching"
         ],
         "summary": {
           "zh": "扫描时把当前段终点扩展到已见字符的最后出现位置。只有走到这个终点才能切分，保证同一个字符不会出现在不同结果段中。",
@@ -1101,6 +1767,76 @@
           "zh": "每轮先用历史最低买价计算今天卖出的收益，再更新最低价。这里仅允许一次交易；多次交易或冷冻期需要不同的贪心证明或状态机。",
           "en": "Evaluate a sale against the lowest earlier buy price, then update that minimum. This solves one transaction; multiple trades or cooldowns need a different argument or state machine."
         }
+      },
+      {
+        "id": "no-passing-fleets",
+        "title": {
+          "zh": "不能超越的到达时间合并",
+          "en": "Arrival-time merging without passing"
+        },
+        "summary": {
+          "zh": "先按空间位置排列，再比较相邻前车队的有效到达时间；能追上则并入，否则形成新队。",
+          "en": "Sort by position and compare against the effective arrival time of the next fleet. Catching it merges; otherwise a new fleet forms."
+        },
+        "questions": [
+          "car-fleet"
+        ]
+      },
+      {
+        "id": "rank-exchange",
+        "title": {
+          "zh": "排序配对与交换论证",
+          "en": "Sorted pairing and exchange arguments"
+        },
+        "summary": {
+          "zh": "把最大或最难匹配的目标先固定；证明可通过交换把一个最优方案调整成当前选择，再处理剩余配对。",
+          "en": "Fix the largest or hardest target first. Prove an optimum can be exchanged into that choice, then recurse on the remaining pairing."
+        },
+        "questions": [
+          "advantage-shuffle"
+        ]
+      },
+      {
+        "id": "quota-gain",
+        "title": {
+          "zh": "固定名额与收益差排序",
+          "en": "Fixed quotas and sorted marginal gains"
+        },
+        "summary": {
+          "zh": "先建立统一基线，改变恰好 k 个选择时，只比较各项相对基线的收益差；即使收益差为负，也必须满足固定名额。",
+          "en": "Build a common baseline and rank marginal gains when exactly k choices must change; negative gains still count when the quota requires them."
+        },
+        "questions": [
+          "mice-and-cheese"
+        ]
+      },
+      {
+        "id": "right-absorption",
+        "title": {
+          "zh": "可吸收后缀与反向合并",
+          "en": "Absorbable suffixes and reverse merging"
+        },
+        "summary": {
+          "zh": "从右向左维护紧邻右侧能形成的最大块；正数合并只会提高后续吸收能力，不能吸收时用更大的当前值重新开始。",
+          "en": "Scan right-to-left, maintaining the greatest block beginning immediately to the right. Positive merges improve future absorption; an unmergeable larger value starts a new block."
+        },
+        "questions": [
+          "largest-element-in-an-array-after-merge-operations"
+        ]
+      },
+      {
+        "id": "consecutive-tails",
+        "title": {
+          "zh": "连续子序列尾部需求",
+          "en": "Tail demand in consecutive subsequences"
+        },
+        "summary": {
+          "zh": "频次记录未分配值，尾部需求记录可被当前值延长的序列。优先续接，无法续接时必须立即凑出最低合法长度。",
+          "en": "Track unused frequencies and sequences waiting for each value. Extend an existing sequence first; otherwise immediately construct the minimum valid length."
+        },
+        "questions": [
+          "split-array-into-consecutive-subsequences"
+        ]
       }
     ]
   },
@@ -1150,7 +1886,9 @@
           "en": "Spiral boundaries"
         },
         "questions": [
-          "spiral-matrix"
+          "spiral-matrix",
+          "spiral-matrix-ii",
+          "shun-shi-zhen-da-yin-ju-zhen-lcof"
         ],
         "summary": {
           "zh": "依次扫描上、右、下、左四条边，每扫描一条就收缩对应边界。再次扫描下边或左边前检查是否还剩行列，避免单行、单列重复输出。",
@@ -1164,7 +1902,10 @@
           "en": "Matrix coordinate transforms"
         },
         "questions": [
-          "rotate-image"
+          "rotate-image",
+          "shift-2d-grid",
+          "transpose-matrix",
+          "reshape-the-matrix"
         ],
         "summary": {
           "zh": "方阵顺时针旋转可先转置再反转每一行。转置时只交换对角线一侧，避免交换两次回到原位；非方阵不能直接使用同样的原地算法。",
@@ -1248,7 +1989,9 @@
           "en": "XOR cancellation"
         },
         "questions": [
-          "single-number"
+          "single-number",
+          "find-the-difference",
+          "missing-number"
         ],
         "summary": {
           "zh": "其余值恰好出现两次时，异或的结合律和 x^x=0 让成对元素抵消。频次条件改变时不能直接复用这一算法。",
@@ -1282,6 +2025,131 @@
           "zh": "在值域满足 1..n 的 n+1 元素数组中，将下标到值视为边，重复值对应可达环入口。先求相遇点，再按距离关系找入口；不要修改只读输入。",
           "en": "Under the n+1 values in 1..n guarantee, index-to-value edges form a reachable cycle. Find a meeting point and then its entry using relative distances, without modifying the input."
         }
+      },
+      {
+        "id": "matrix-diagonal",
+        "title": {
+          "zh": "按对角线分组",
+          "en": "Diagonal groups"
+        },
+        "summary": {
+          "zh": "同一条左上到右下对角线满足行号减列号不变。逐条提取、排序、写回，明确各条起点。",
+          "en": "A top-left to bottom-right diagonal has constant row minus column. Enumerate its starts, collect, sort, and write back."
+        },
+        "questions": [
+          "sort-the-matrix-diagonally"
+        ]
+      },
+      {
+        "id": "cyclic-rounds",
+        "title": {
+          "zh": "循环服务的轮次数量",
+          "en": "Counting cyclic service rounds"
+        },
+        "summary": {
+          "zh": "按目标完成前每个位置能获得的轮次数计数，用截断和替代逐步模拟。",
+          "en": "Count how many service rounds each position receives before the target finishes, replacing step-by-step simulation with capped contributions."
+        },
+        "questions": [
+          "time-needed-to-buy-tickets"
+        ]
+      },
+      {
+        "id": "inversion-boundaries",
+        "title": {
+          "zh": "前后最值界定失序区间",
+          "en": "Disorder boundaries from prefix and suffix extrema"
+        },
+        "summary": {
+          "zh": "左侧最大值暴露过小的右端元素，右侧最小值暴露过大的左端元素；两端覆盖全部逆序关系。",
+          "en": "A prefix maximum exposes too-small right endpoints and a suffix minimum exposes too-large left endpoints. Their extremes cover every inversion."
+        },
+        "questions": [
+          "shortest-unsorted-continuous-subarray"
+        ]
+      },
+      {
+        "id": "reflected-bits",
+        "title": {
+          "zh": "反射构造与可逆位变换",
+          "en": "Reflection and invertible bit transforms"
+        },
+        "summary": {
+          "zh": "利用整体反射或可逆位变换直接构造数值序列，分别证明不重复、完整覆盖与相邻约束，避免无目的枚举。",
+          "en": "Construct sequences through reflection or invertible bit transforms, proving uniqueness, full coverage, and adjacency separately."
+        },
+        "questions": [
+          "gray-code"
+        ]
+      },
+      {
+        "id": "decimal-digits",
+        "title": {
+          "zh": "十进制与字符串数值状态",
+          "en": "Decimal digits and numeric string states"
+        },
+        "summary": {
+          "zh": "按位处理输入，明确符号、位权、进位与溢出边界；超长数保留字符串表示，不先转成机器整数。",
+          "en": "Process digits with explicit sign, place value, carry and overflow limits. Keep large numbers as strings instead of converting them to machine integers."
+        },
+        "questions": [
+          "string-to-integer-atoi",
+          "palindrome-number",
+          "add-binary",
+          "nth-digit",
+          "count-numbers-with-unique-digits"
+        ]
+      },
+      {
+        "id": "fast-power",
+        "title": {
+          "zh": "二进制幂与十进制指数",
+          "en": "Binary powers and decimal exponents"
+        },
+        "summary": {
+          "zh": "把指数拆成倍增或十进制前缀；用幂的乘法法则累积结果，并在模运算中及时缩小中间值。",
+          "en": "Decompose exponents by doubling or decimal prefixes. Accumulate with exponent laws and reduce intermediate values during modular arithmetic."
+        },
+        "questions": [
+          "powx-n",
+          "super-pow"
+        ]
+      },
+      {
+        "id": "merge-counting",
+        "title": {
+          "zh": "归并排序与跨段计数",
+          "en": "Merge sorting and cross-range counting"
+        },
+        "summary": {
+          "zh": "先递归使左右段各自有序，再利用单调指针统计跨段关系，最后归并；计数与移动顺序由目标不等式决定。",
+          "en": "Sort each half recursively, count cross-half relations with monotone pointers, then merge."
+        },
+        "questions": [
+          "sort-an-array",
+          "count-of-smaller-numbers-after-self",
+          "reverse-pairs",
+          "count-of-range-sum"
+        ]
+      },
+      {
+        "id": "number-theory",
+        "title": {
+          "zh": "因子、位运算与整数计数",
+          "en": "Factors, bits and integer counts"
+        },
+        "summary": {
+          "zh": "先找出能决定答案的数学结构，再用整数不变量实现，区分存在性、计数和随机性。",
+          "en": "Identify the mathematical structure and implement it with integer invariants, distinguishing decisions, counts and randomness."
+        },
+        "questions": [
+          "nim-game",
+          "bulb-switcher",
+          "number-of-1-bits",
+          "power-of-two",
+          "count-primes",
+          "ugly-number"
+        ]
       }
     ]
   },
@@ -1317,7 +2185,10 @@
         "questions": [
           "implement-trie-prefix-tree",
           "design-add-and-search-words-data-structure",
-          "word-search-ii"
+          "word-search-ii",
+          "replace-words",
+          "implement-trie-ii-prefix-tree",
+          "map-sum-pairs"
         ],
         "summary": {
           "zh": "按字符创建和查找节点，终止标记表示完整单词。通配符查询需要枚举分支；结合棋盘搜索时，Trie 可提前剪去没有任何词匹配的前缀。",
@@ -1365,6 +2236,183 @@
           "zh": "输入栈接收新元素，仅在输出栈为空时批量转移，出队和查看队首都从输出栈取。每个元素最多转移一次，因此摊还 O(1)。",
           "en": "Push into an input stack; transfer only when the output stack is empty. Both peek and pop use the output stack. Each item transfers once, giving amortized O(1) operations."
         }
+      },
+      {
+        "id": "calendar-overlap",
+        "title": {
+          "zh": "时间区间与重叠层数",
+          "en": "Time intervals and overlap counts"
+        },
+        "summary": {
+          "zh": "把日程看作半开区间覆盖次数。先查询新范围的最大重叠，再决定能否更新；全局最大值与局部接纳条件不同。",
+          "en": "Represent bookings as half-open coverage counts. Query a proposed range before accepting it; distinguish local admission limits from the global maximum."
+        },
+        "questions": [
+          "my-calendar-i",
+          "my-calendar-ii",
+          "my-calendar-iii"
+        ]
+      },
+      {
+        "id": "height-envelope",
+        "title": {
+          "zh": "坐标压缩与高度包络",
+          "en": "Coordinate compression and height envelopes"
+        },
+        "summary": {
+          "zh": "保留所有区间端点，将连续位置压成基本线段；区间最大值确定支撑高度，区间赋值记录新的表面。",
+          "en": "Compress interval endpoints into elementary spans; a range maximum gives support height and range assignment stores the new surface."
+        },
+        "questions": [
+          "falling-squares"
+        ]
+      },
+      {
+        "id": "circular-buffer",
+        "title": {
+          "zh": "有界循环容器接口",
+          "en": "Bounded circular-container APIs"
+        },
+        "summary": {
+          "zh": "用头下标与有效长度区分空满，所有实际槽位可用。首尾操作通过取模绕回，并保持容量不变。",
+          "en": "Use a head index and length to distinguish empty and full while using every slot. Modulo arithmetic wraps endpoint operations without changing capacity."
+        },
+        "questions": [
+          "design-circular-queue",
+          "design-circular-deque"
+        ]
+      },
+      {
+        "id": "balanced-halves",
+        "title": {
+          "zh": "两半平衡维护中间位置",
+          "en": "Balanced halves for middle access"
+        },
+        "summary": {
+          "zh": "让左半长度等于右半或多一，前侧中间即左半尾部。每次操作最多搬一个边界元素恢复平衡。",
+          "en": "Keep the left half equally long or one longer; the frontmost middle is its tail. At most one boundary transfer restores balance after each operation."
+        },
+        "questions": [
+          "design-front-middle-back-queue"
+        ]
+      },
+      {
+        "id": "queue-backed-stack",
+        "title": {
+          "zh": "轮转队列实现栈",
+          "en": "Stack from a rotating queue"
+        },
+        "summary": {
+          "zh": "用队尾加入与队首移出实现栈。把旋转代价放到压入时，令最新值始终排在队首；它与双栈实现队列的均摊转移规则不同。",
+          "en": "Use enqueue and front removal to implement a stack. Pay for rotation on push so the newest value stays at the front; this differs from amortized transfers in a two-stack queue."
+        },
+        "questions": [
+          "implement-stack-using-queues"
+        ]
+      },
+      {
+        "id": "sparse-shuffle",
+        "title": {
+          "zh": "稀疏洗牌与无放回采样",
+          "en": "Sparse shuffling and sampling without replacement"
+        },
+        "summary": {
+          "zh": "把大范围对象编号为虚拟数组，只记录被交换的位置；每次从剩余前缀等概率选取并用末项补位，不分配完整数组。",
+          "en": "Number objects in a virtual array and record only swapped positions. Sample the remaining prefix uniformly and fill its chosen slot from the end without allocating the full domain."
+        },
+        "questions": [
+          "random-flip-matrix"
+        ]
+      },
+      {
+        "id": "queue-order",
+        "title": {
+          "zh": "队列轮转与顺序约束",
+          "en": "Queue rotation and order constraints"
+        },
+        "summary": {
+          "zh": "先把出队、回队和停止条件写清楚，再判断需要模拟位置，还是可用计数消去不影响结果的轮转。",
+          "en": "Specify removal, rotation, and stopping rules, then decide whether to simulate positions or eliminate irrelevant rotations through counts."
+        },
+        "questions": [
+          "reveal-cards-in-increasing-order",
+          "number-of-students-unable-to-eat-lunch"
+        ]
+      },
+      {
+        "id": "gap-priority",
+        "title": {
+          "zh": "空区间优先级与动态拆合",
+          "en": "Gap priorities and dynamic splitting"
+        },
+        "summary": {
+          "zh": "把可用位置压缩成相邻占用点之间的区间，以区间最佳候选排序。插入拆区间、删除合区间，延迟清理堆中的过期记录。",
+          "en": "Compress available positions into gaps between occupied boundaries and rank each gap best candidate. Insertion splits gaps, removal merges them, and stale heap entries are discarded lazily."
+        },
+        "questions": [
+          "exam-room"
+        ]
+      },
+      {
+        "id": "lazy-iterator",
+        "title": {
+          "zh": "迭代状态与惰性展开",
+          "en": "Iterator state and lazy expansion"
+        },
+        "summary": {
+          "zh": "用缓存或显式调用栈表示尚未消费的序列；查询可以准备下一项，但不能丢掉逻辑首项，重复查询也必须保持结果不变。",
+          "en": "Use a cache or explicit traversal frames for the remaining sequence. Queries may prepare the next item but must preserve the logical front and remain repeatable."
+        },
+        "questions": [
+          "peeking-iterator",
+          "flatten-nested-list-iterator"
+        ]
+      },
+      {
+        "id": "mutable-range",
+        "title": {
+          "zh": "可修改区间与树形聚合",
+          "en": "Mutable ranges and tree aggregates"
+        },
+        "summary": {
+          "zh": "把数组相邻区间的和逐层合并，单点修改只重算祖先；查询把目标区间拆成不交叠的树节点，避免每次扫描全部元素。",
+          "en": "Aggregate neighboring ranges into a tree. Point updates recompute only ancestors, while queries combine disjoint covering nodes."
+        },
+        "questions": [
+          "range-sum-query-mutable"
+        ]
+      },
+      {
+        "id": "random-sampling",
+        "title": {
+          "zh": "均匀抽样与权重映射",
+          "en": "Uniform and weighted sampling"
+        },
+        "summary": {
+          "zh": "先定义每个随机事件的概率，再用前缀区间、蓄水池或逐步交换实现；用确定性不变量解释分布。",
+          "en": "Define event probabilities first, then implement them with prefix intervals, reservoirs or incremental swaps."
+        },
+        "questions": [
+          "random-pick-with-weight",
+          "cuyjEf",
+          "shuffle-an-array",
+          "linked-list-random-node",
+          "random-pick-index"
+        ]
+      },
+      {
+        "id": "lfu-frequency",
+        "title": {
+          "zh": "频次桶与桶内时间顺序",
+          "en": "Frequency buckets and recency"
+        },
+        "summary": {
+          "zh": "用哈希定位记录，以频次划分双向链表，桶内按最近使用顺序排列；维护最小非空频次来确定淘汰位置。",
+          "en": "Index records by hash, maintain a recency list per frequency and track the lowest nonempty frequency."
+        },
+        "questions": [
+          "lfu-cache"
+        ]
       }
     ]
   }

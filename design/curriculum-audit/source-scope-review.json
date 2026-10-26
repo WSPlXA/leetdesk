@@ -1,0 +1,30 @@
+{
+  "reviewed_on": "2026-10-26",
+  "source": "https://labuladong.online/zh/algo/home/",
+  "source_reported_update": "2026/10/24 14:57（浏览器显示）",
+  "evidence": "公开首页将内容分为数据结构原理、结合例题的框架文章、强化习题三类。",
+  "required_inventory_categories": [
+    "基础结构与排序原理",
+    "框架文章及其全部例题",
+    "强化题集中的全部习题"
+  ],
+  "current_inventory_limitation": "当前 210 项实时侧栏与既有目录的链接及标题集合一致；42 个题集含 281 道题，87 个框架页面的渲染显式例题/正文题目链接均已进入清单。合并去重共 451 道观察题，均有本地原创解析。部分页面只核对了渲染片段，不能据此证明全文没有额外题目或知识细节。",
+  "remaining_scope_audit": [
+    "逐页核查会员全文的例题与正文题目链接，区分已渲染片段和完整文章。",
+    "核查 154 个算法主题的原理、实现、边界和先修衔接，不能用题数代替知识覆盖。",
+    "侧栏当前仍为 210 项，实时链接和标题集合已核对；目标页面存在性、全文及站外配套内容不由这一检查证明。"
+  ],
+  "sitemap_observation": "本次 web 工具无法访问 sitemap.xml，未获得可用于证明全站全集的站点地图。",
+  "source_article_reproduction": false,
+  "completion_claim": false,
+  "framework_audit_progress": {
+    "pages_with_explicit_tables_checked": 87,
+    "distinct_examples_observed": 181,
+    "missing_original_bodies": 0,
+    "public_page_snapshots_checked_in_expansion": 52,
+    "full_articles_reviewed_in_expansion": false,
+    "all_framework_pages_checked": false,
+    "browser_pages_checked_in_expansion": 34
+  },
+  "live_navigation_review": "live-navigation-review.json"
+}

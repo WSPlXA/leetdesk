@@ -1,6 +1,6 @@
 use crate::{
     catalog::{Case, Kind, Problem, validate_cases},
-    language::{gofmt_executable, gopls_executable, hide_console},
+    language::{gofmt_executable, gopls_executable, hide_console, tool_command},
     store::NODE_TYPES,
 };
 use anyhow::{Context, Result, bail};
@@ -70,7 +70,7 @@ pub fn run(
     } else {
         "cases.test"
     });
-    let mut build = Command::new("go");
+    let mut build = tool_command("go");
     build
         .args(["test", "-c", "-vet=off", "-o"])
         .arg(&executable)
@@ -376,7 +376,7 @@ pub fn execute(
 }
 
 pub fn format_go(source: &str) -> Result<String> {
-    let mut command = Command::new(gofmt_executable());
+    let mut command = tool_command(gofmt_executable());
     hide_console(&mut command);
     let mut child = command
         .stdin(Stdio::piped())
@@ -430,7 +430,7 @@ pub fn organize_go_imports(source: &str, workspace: &Path) -> Result<String> {
         .tempdir_in(workspace)?;
     let path = temporary.path().join("solution.go");
     fs::write(&path, source)?;
-    let mut command = Command::new(gopls_executable());
+    let mut command = tool_command(gopls_executable());
     command.arg("imports").arg("-w").arg(&path);
     let (success, output) = execute(command, Duration::from_secs(45), &AtomicBool::new(false))
         .context("无法整理导入；请安装 gopls")?;

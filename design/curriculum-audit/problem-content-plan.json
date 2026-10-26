@@ -1,0 +1,11 @@
+{
+  "scope": "按当前观察题集及已核对框架例题逐题补充原创中英文解析；不是复制参考站正文。",
+  "observed_question_count": 451,
+  "observed_exercise_question_count": 281,
+  "observed_framework_example_question_count": 181,
+  "original_bodies_present_in_observed_sets": 451,
+  "count_semantics": "题数取题集与已核对框架例题的并集，按正文存在性统计；正确性与全站全集仍须独立验证。",
+  "remaining_count": 0,
+  "remaining": [],
+  "completion_claim": false
+}

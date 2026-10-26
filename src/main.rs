@@ -2,14 +2,16 @@
 
 extern crate gpui_kit as gpui;
 mod auth;
+mod course_browser;
 mod desktop;
 mod markdown;
 mod theme;
 mod ui;
+mod window_chrome;
 
 use anyhow::{Context, Result};
 use leetdesk::store::Store;
-use std::{path::PathBuf, process::Command};
+use std::path::PathBuf;
 
 fn main() {
     // WebView2 is a child HWND; DirectComposition would cover it on Windows.
@@ -27,7 +29,7 @@ fn run() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|arg| arg == "--help" || arg == "-h") {
         println!(
-            "LeetDesk — GPUI + Rust / Go、Java 刷题工作区\n\n启动：leetdesk [--data-dir PATH]\n检查工具：leetdesk --doctor\n导入题目：leetdesk --import-catalog PATH\n\n快捷键：Ctrl+S 保存 · Ctrl+Enter 运行 · Ctrl+Shift+F 格式化\nCtrl+Shift+O 整理 Go 导入 · Ctrl+Space 补全 · F12 定义 · Ctrl+I 导入 MD"
+            "LeetDesk — GPUI + Rust / Go、Java 刷题工作区\n\n启动：leetdesk [--data-dir PATH]\n离线课程：leetdesk --course start\n离线题解：leetdesk --library 或 --lesson two-sum\n检查工具：leetdesk --doctor\n导入题目：leetdesk --import-catalog PATH\n\n快捷键：Ctrl+S 保存 · Ctrl+Enter 运行 · Ctrl+Shift+F 格式化\nCtrl+Shift+O 整理 Go 导入 · Ctrl+Space 补全 · F12 定义 · Ctrl+I 导入 MD"
         );
         return Ok(());
     }
@@ -45,7 +47,7 @@ fn run() -> Result<()> {
                 "--version",
             ),
         ] {
-            let mut command = Command::new(tool);
+            let mut command = leetdesk::language::tool_command(tool);
             leetdesk::language::hide_console(&mut command);
             match command.arg(argument).output() {
                 Ok(output) => println!(
@@ -79,6 +81,25 @@ fn run() -> Result<()> {
         return Ok(());
     }
     let smoke = args.iter().any(|arg| arg == "--smoke-test");
+    let course = args
+        .iter()
+        .position(|arg| arg == "--course")
+        .map(|index| args.get(index + 1).cloned().context("--course 需要课程 ID"))
+        .transpose()?;
+    let article = args
+        .iter()
+        .position(|arg| arg == "--lesson")
+        .map(|index| {
+            args.get(index + 1)
+                .cloned()
+                .context("--lesson 需要题目 slug")
+        })
+        .transpose()?;
+    let library = args.iter().any(|arg| arg == "--library") || article.is_some();
+    anyhow::ensure!(
+        !(course.is_some() && library),
+        "--course 不能与 --library 或 --lesson 同时使用"
+    );
     if let Some(index) = args.iter().position(|arg| arg == "--design-capture") {
         let path = PathBuf::from(
             args.get(index + 1)
@@ -102,12 +123,21 @@ fn run() -> Result<()> {
             );
             Ok(value)
         };
-        return desktop::capture(
-            store,
-            path,
-            dimension("--width", 1488.)?,
-            dimension("--height", 1057.)?,
-        );
+        let width = dimension("--width", 1488.)?;
+        let height = dimension("--height", 1057.)?;
+        return if library {
+            desktop::launch_library(store, article, Some((path, width, height)))
+        } else if let Some(id) = course {
+            desktop::launch_course(store, id, Some((path, width, height)))
+        } else {
+            desktop::capture(store, path, width, height)
+        };
+    }
+    if library {
+        return desktop::launch_library(store, article, None);
+    }
+    if let Some(id) = course {
+        return desktop::launch_course(store, id, None);
     }
     if smoke || args.iter().any(|arg| arg == "--offline") {
         desktop::launch(store, smoke)

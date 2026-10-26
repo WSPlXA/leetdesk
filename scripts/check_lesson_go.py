@@ -4,6 +4,7 @@ Only standard-library imports are used. Each solution gets its own package so
 LeetCode function names and Constructor methods cannot collide across problems.
 Run from the repository root: python scripts/check_lesson_go.py
 """
+import argparse
 import json
 import os
 from pathlib import Path
@@ -62,11 +63,35 @@ func inorderValues(n *TreeNode)[]int{a:=[]int{};var dfs func(*TreeNode);dfs=func
 ''',
     'random': 'type Node struct{Val int;Next,Random *Node}\n',
     'graph': 'type Node struct{Val int;Neighbors []*Node}\n',
+    'nary': 'type Node struct{Val int;Children []*Node}\n',
+    'tree-next': 'type Node struct{Val int;Left,Right,Next *Node}\n',
+    'iterator': r'''
+type Iterator struct{values []int;index,nextCalls int}
+func(i *Iterator)hasNext()bool{return i.index<len(i.values)}
+func(i *Iterator)next()int{v:=i.values[i.index];i.index++;i.nextCalls++;return v}
+''',
+    'nested-integer': r'''
+type NestedInteger struct{integer bool;value int;items []*NestedInteger}
+func(n NestedInteger)IsInteger()bool{return n.integer}
+func(n NestedInteger)GetInteger()int{return n.value}
+func(n NestedInteger)GetList()[]*NestedInteger{return n.items}
+func nestedInt(v int)*NestedInteger{return &NestedInteger{integer:true,value:v}}
+func nestedList(items ...*NestedInteger)*NestedInteger{return &NestedInteger{items:items}}
+''',
 }
+NODES['tree-list'] = NODES['tree'] + NODES['list']
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--only', nargs='+', help='validate only these problem slugs')
+    args = parser.parse_args()
     data = json.loads((ROOT / 'assets/lesson-details.json').read_text(encoding='utf-8'))
+    if args.only:
+        missing = set(args.only) - data.keys()
+        if missing:
+            raise SystemExit(f'Unknown lesson IDs: {sorted(missing)}')
+        data = {key: value for key, value in data.items() if key in args.only}
     target = ROOT / 'target'
     target.mkdir(exist_ok=True)
     directory = Path(tempfile.mkdtemp(prefix='lesson-go-', dir=target))
@@ -104,7 +129,7 @@ def main():
                 print(line.rstrip(), flush=True)
     if process.wait():
         raise SystemExit(process.returncode)
-    print('All displayed Go solutions compiled and passed their checks, including the sliding-median oracle.')
+    print('All selected displayed Go solutions compiled and passed their checks.')
 
 
 if __name__ == '__main__':

@@ -265,7 +265,9 @@ impl AccountShell {
             match event {
                 BrowserEvent::Loaded(site, url) if site == self.site && site.accepts(&url) => {
                     self.loaded = true;
-                    self.check_account(cx);
+                    if self.phase != Phase::Offline {
+                        self.check_account(cx);
+                    }
                 }
                 BrowserEvent::Reply(site, value) if site == self.site => {
                     if self.probe && value["id"] == 0 {
@@ -882,6 +884,7 @@ impl AccountShell {
         cx: &mut gpui_kit::Context<Self>,
         enabled: bool,
     ) {
+        view.update(cx, |workspace, _| workspace.owns_window_chrome = false);
         self._subscription = Some(cx.subscribe(&view, |this, _, event, cx| match event {
             WorkspaceEvent::LoadDetail(problem) => {
                 if this.phase == Phase::Offline {
@@ -1007,15 +1010,45 @@ impl AccountShell {
         }
         cx.notify();
     }
+
+    fn read_library(&mut self, window: &mut Window, cx: &mut gpui_kit::Context<Self>) {
+        match Store::open(self.root.clone()) {
+            Ok(store) => {
+                let view = cx
+                    .new(|cx| Workspace::new(store, window, cx).expect("离线阅读工作区初始化失败"));
+                view.update(cx, |workspace, cx| {
+                    workspace.read_offline_library(window, cx)
+                });
+                self.phase = Phase::Offline;
+                self.username = None;
+                self.pending.clear();
+                self.delayed.clear();
+                self.attach_workspace(view, window, cx, false);
+                self.show_browser(false, cx);
+                self.message = "离线课程与题解".into();
+            }
+            Err(error) => self.message = error.to_string(),
+        }
+        cx.notify();
+    }
 }
 
 impl Render for AccountShell {
-    fn render(&mut self, _: &mut Window, cx: &mut gpui_kit::Context<Self>) -> impl IntoElement {
+    fn render(
+        &mut self,
+        window: &mut Window,
+        cx: &mut gpui_kit::Context<Self>,
+    ) -> impl IntoElement {
         let editing = self.workspace.is_some()
             && matches!(self.phase, Phase::Ready | Phase::Offline | Phase::Syncing);
         let account = self.username.clone().unwrap_or_else(|| {
             if self.phase == Phase::Offline {
-                "离线缓存".into()
+                if ui::language(cx) == leetdesk::i18n::UiLanguage::English {
+                    "Offline"
+                } else {
+                    "离线模式"
+                }
+                .into()
             } else {
                 "等待登录".into()
             }
@@ -1134,53 +1167,38 @@ impl Render for AccountShell {
                             }))
                     }));
         }
-        header =
-            header
-                .child(div().flex().gap_1().when(!editing, |row| {
-                    row.children(leetdesk::appearance::Appearance::ALL.into_iter().map(
-                        |appearance| {
-                            Button::new(gpui_kit::SharedString::from(format!(
-                                "appearance-{}",
-                                appearance.key()
-                            )))
-                            .label(ui::text(
-                                if theme::current(cx) == appearance {
-                                    format!("✓ {}", appearance.label())
-                                } else {
-                                    appearance.label().into()
-                                },
-                                cx,
-                            ))
-                            .small()
-                            .ghost()
-                            .on_click(cx.listener(
-                                move |this, _, _, cx| {
-                                    match leetdesk::store::atomic_write(
-                                        &this.root.join("appearance.json"),
-                                        &serde_json::to_vec(&appearance).unwrap(),
-                                    ) {
-                                        Ok(()) => crate::desktop::apply_appearance(appearance, cx),
-                                        Err(error) => {
-                                            this.message = format!("主题保存失败：{error}")
-                                        }
-                                    }
-                                    cx.notify();
-                                },
-                            ))
-                        },
-                    ))
-                }))
-                .child(
-                    Button::new("close-account-window")
-                        .label(ui::text("关闭", cx))
+        header = header.child(div().flex().gap_1().when(!editing, |row| {
+            row.children(
+                leetdesk::appearance::Appearance::ALL
+                    .into_iter()
+                    .map(|appearance| {
+                        Button::new(gpui_kit::SharedString::from(format!(
+                            "appearance-{}",
+                            appearance.key()
+                        )))
+                        .label(ui::text(
+                            if theme::current(cx) == appearance {
+                                format!("✓ {}", appearance.label())
+                            } else {
+                                appearance.label().into()
+                            },
+                            cx,
+                        ))
                         .small()
                         .ghost()
-                        .on_click(cx.listener(|this, _, window, cx| {
-                            if this.flush(cx) {
-                                window.remove_window();
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            match leetdesk::store::atomic_write(
+                                &this.root.join("appearance.json"),
+                                &serde_json::to_vec(&appearance).unwrap(),
+                            ) {
+                                Ok(()) => crate::desktop::apply_appearance(appearance, cx),
+                                Err(error) => this.message = format!("主题保存失败：{error}"),
                             }
-                        })),
-                );
+                            cx.notify();
+                        }))
+                    }),
+            )
+        }));
         let mut root = div()
             .size_full()
             .flex()
@@ -1188,6 +1206,15 @@ impl Render for AccountShell {
             .bg(theme::color(0x1b1c23, cx))
             .text_color(theme::color(0xf4f5f7, cx))
             .font_family(crate::desktop::ui_font())
+            .child(crate::window_chrome::title_bar(
+                window,
+                cx,
+                cx.listener(|this, _, window, cx| {
+                    if this.flush(cx) {
+                        window.remove_window();
+                    }
+                }),
+            ))
             .child(header);
         if editing {
             root = root.child(
@@ -1227,6 +1254,16 @@ impl Render for AccountShell {
                         .label(ui::text("使用离线缓存", cx))
                         .ghost()
                         .on_click(cx.listener(|this, _, window, cx| this.offline(window, cx))),
+                )
+                .child(
+                    Button::new("read-offline-library")
+                        .label(if ui::language(cx) == leetdesk::i18n::UiLanguage::English {
+                            "Read offline lessons"
+                        } else {
+                            "阅读离线课程与题解"
+                        })
+                        .ghost()
+                        .on_click(cx.listener(|this, _, window, cx| this.read_library(window, cx))),
                 );
             root = root.child(
                 div()
@@ -1295,7 +1332,6 @@ pub fn launch(store: Store, probe: bool, plan_probe: bool) -> Result<()> {
             crate::desktop::bind_keys(cx);
             let (_, view) = gpui_kit::open_window(
                 WindowOptions {
-                    titlebar: None,
                     window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
                         None,
                         size(px(1480.), px(960.)),
@@ -1304,7 +1340,7 @@ pub fn launch(store: Store, probe: bool, plan_probe: bool) -> Result<()> {
                     window_min_size: Some(size(px(1120.), px(720.))),
                     app_id: Some("leetdesk".into()),
                     show: !probe,
-                    ..Default::default()
+                    ..crate::window_chrome::options()
                 },
                 cx,
                 move |window, cx| {
@@ -1348,6 +1384,74 @@ pub fn launch(store: Store, probe: bool, plan_probe: bool) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use gpui_kit::AppContext;
+    use gpui_kit::test::TestWindowExt;
+    #[gpui_kit::test]
+    fn offline_reading_opens_without_account_or_catalogue_cache(cx: &mut gpui_kit::TestAppContext) {
+        use super::*;
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("data");
+        Store::open(root.clone()).unwrap();
+        cx.update(|cx| {
+            gpui_kit::init(cx);
+            crate::desktop::apply_theme(cx);
+        });
+        let (handle, view) = cx.update(|cx| {
+            gpui_kit::open_window(
+                WindowOptions {
+                    window_bounds: Some(WindowBounds::Windowed(Bounds {
+                        origin: Default::default(),
+                        size: size(px(1488.), px(960.)),
+                    })),
+                    ..Default::default()
+                },
+                cx,
+                |_, cx| cx.new(|cx| AccountShell::blank(root.clone(), cx)),
+            )
+            .unwrap()
+        });
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            window.click("read-offline-library", cx);
+            window.render_frame(cx);
+            let shell = view.read(cx);
+            assert!(matches!(shell.phase, Phase::Offline));
+            assert!(shell.workspace.is_some());
+            assert!(
+                !shell
+                    .workspace
+                    .as_ref()
+                    .unwrap()
+                    .read(cx)
+                    .owns_window_chrome
+            );
+            assert!(window.find("title-bar").visible());
+            assert!(shell.username.is_none());
+            assert!(shell.pending.is_empty());
+            assert!(shell.delayed.is_empty());
+            assert!(
+                Store::open(root.clone())
+                    .unwrap()
+                    .online_cache(shell.site)
+                    .unwrap()
+                    .is_none()
+            );
+            view.update(cx, |shell, cx| {
+                let previous_check = shell.last_account_check;
+                let (sender, events) = mpsc::channel();
+                shell.events = events;
+                sender
+                    .send(BrowserEvent::Loaded(shell.site, shell.site.origin().into()))
+                    .unwrap();
+                shell.tick(window, cx);
+                assert!(shell.loaded);
+                assert!(matches!(shell.phase, Phase::Offline));
+                assert_eq!(shell.last_account_check, previous_check);
+                assert_eq!(shell.message, "离线课程与题解");
+                assert!(shell.pending.is_empty());
+            });
+        })
+        .unwrap();
+    }
     #[gpui_kit::test]
     fn international_sign_in_installs_english_ui_and_english_catalog(
         cx: &mut gpui_kit::TestAppContext,

@@ -1,0 +1,530 @@
+{
+  "captured_on": "2026-10-25",
+  "scope": "公开页面显式例题表的标题和题号元数据；无例题表的公开片段不证明全文没有例题。",
+  "articles": [
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/reverse-linked-list-recursion/",
+      "title": "单链表的花式反转方法汇总",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【6†206. Reverse Linked List†leetcode.com】  | 【7†206. 反转链表†leetcode.cn】  |",
+        "【8†92. Reverse Linked List II†leetcode.com】  | 【9†92. 反转链表 II†leetcode.cn】  |",
+        "【10†24. Swap Nodes in Pairs†leetcode.com】  | 【11†24. 两两交换链表中的节点†leetcode.cn】  |",
+        "【12†25. Reverse Nodes in k-Group†leetcode.com】  | 【13†25. K 个一组翻转链表†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/palindrome-linked-list/",
+      "title": "如何判断回文链表",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【6†234. Palindrome Linked List†leetcode.com】  | 【7†234. 回文链表†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/prefix-sum/",
+      "title": "小而美的算法技巧：前缀和数组",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【18†303. Range Sum Query - Immutable†leetcode.com】  | 【19†303. 区域和检索 - 数组不可变†leetcode.cn】  |",
+        "【20†304. Range Sum Query 2D - Immutable†leetcode.com】  | 【21†304. 二维区域和检索 - 矩阵不可变†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/diff-array/",
+      "title": "小而美的算法技巧：差分数组",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【18†Range Addition】  | 【19†区间加法】  |",
+        "【20†1109. Corporate Flight Bookings†leetcode.com】  | 【21†1109. 航班预订统计†leetcode.cn】  |",
+        "【22†1094. Car Pooling†leetcode.com】  | 【23†1094. 拼车†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/stack-queue/",
+      "title": "队列实现栈以及栈实现队列",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【10†232. Implement Queue using Stacks†leetcode.com】  | 【11†232. 用栈实现队列†leetcode.cn】  |",
+        "【12†225. Implement Stack using Queues†leetcode.com】  | 【13†225. 用队列实现栈†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/monotonic-stack/",
+      "title": "单调栈算法模板解决三道例题",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【10†496. Next Greater Element I†leetcode.com】  | 【11†496. 下一个更大元素 I†leetcode.cn】  |",
+        "【12†739. Daily Temperatures†leetcode.com】  | 【13†739. 每日温度†leetcode.cn】  |",
+        "【14†503. Next Greater Element II†leetcode.com】  | 【15†503. 下一个更大元素 II†leetcode.cn】  |",
+        "【16†LCR 038. 每日温度†leetcode.com】  | 【17†LCR 038. 每日温度†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/monotonic-queue/",
+      "title": "单调队列结构解决滑动窗口问题",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【10†239. Sliding Window Maximum†leetcode.com】  | 【11†239. 滑动窗口最大值†leetcode.cn】  |",
+        "【12†LCR 184. 设计自助结算系统†leetcode.com】  | 【13†LCR 184. 设计自助结算系统†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/binary-search-left-open/",
+      "title": "二分搜索左闭右开写法",
+      "capture_method": "public_web_page",
+      "example_table_observed": false,
+      "example_rows": [],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/iterative-traversal-binary-tree/",
+      "title": "拓展：用栈模拟递归迭代遍历二叉树",
+      "capture_method": "public_web_page",
+      "example_table_observed": false,
+      "example_rows": [],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/lru-cache/",
+      "title": "算法就像搭乐高：手撸 LRU 算法",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【17†146. LRU Cache†leetcode.com】  | 【18†146. LRU 缓存†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/segment-tree-implement/",
+      "title": "基本线段树的代码实现",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【20†307. Range Sum Query - Mutable†leetcode.com】  | 【21†307. 区域和检索 - 数组可修改†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/segment-tree-dynamic/",
+      "title": "优化：实现动态线段树",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【20†307. Range Sum Query - Mutable†leetcode.com】  | 【21†307. 区域和检索 - 数组可修改†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/segment-tree-lazy-update/",
+      "title": "优化：实现懒更新线段树",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【20†307. Range Sum Query - Mutable†leetcode.com】  | 【21†307. 区域和检索 - 数组可修改†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/trie-implement/",
+      "title": "Trie 树代码实现",
+      "capture_method": "public_web_page",
+      "example_table_observed": false,
+      "example_rows": [],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/huffman-tree-implementation/",
+      "title": "实现霍夫曼编码压缩算法",
+      "capture_method": "public_web_page",
+      "example_table_observed": false,
+      "example_rows": [],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/implement-calculator/",
+      "title": "拓展：如何实现一个计算器",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【17†224. Basic Calculator†leetcode.com】  | 【18†224. 基本计算器†leetcode.cn】  |",
+        "【19†227. Basic Calculator II†leetcode.com】  | 【20†227. 基本计算器 II†leetcode.cn】  |",
+        "【21†Basic Calculator III】  | 【22†基本计算器 III】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/bipartite-graph/",
+      "title": "什么是二分图？定义、例子与判定算法",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【15†785. Is Graph Bipartite?†leetcode.com】  | 【16†785. 判断二分图†leetcode.cn】  |",
+        "【17†886. Possible Bipartition†leetcode.com】  | 【18†886. 可能的二分法†leetcode.cn】  |",
+        "【19†LCR 106. 判断二分图†leetcode.com】  | 【20†LCR 106. 判断二分图†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/eulerian-graph-hierholzer/",
+      "title": "Hierholzer 算法寻找欧拉路径",
+      "capture_method": "public_web_page",
+      "example_table_observed": false,
+      "example_rows": [],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/cycle-detection/",
+      "title": "环检测算法",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【15†207. Course Schedule†leetcode.com】  | 【16†207. 课程表†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/topological-sort/",
+      "title": "拓扑排序算法",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【15†210. Course Schedule II†leetcode.com】  | 【16†210. 课程表 II†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/union-find/",
+      "title": "Union-Find 并查集算法",
+      "capture_method": "public_web_page",
+      "example_table_observed": false,
+      "example_rows": [],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/dijkstra/",
+      "title": "Dijkstra 算法核心原理及实现",
+      "capture_method": "public_web_page",
+      "example_table_observed": false,
+      "example_rows": [],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/dijkstra-follow-up/",
+      "title": "Dijkstra 拓展：带限制的最短路问题",
+      "capture_method": "public_web_page",
+      "example_table_observed": false,
+      "example_rows": [],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/a-star/",
+      "title": "A* 算法核心原理及实现",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【15†1091. Shortest Path in Binary Matrix†leetcode.com】  | 【16†1091. 二进制矩阵中的最短路径†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/kruskal/",
+      "title": "Kruskal 最小生成树算法",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【15†Graph Valid Tree】  | 【16†以图判树】  |",
+        "【17†Connecting Cities With Minimum Cost】  | 【18†最低成本连通所有城市】  |",
+        "【19†1584. Min Cost to Connect All Points†leetcode.com】  | 【20†1584. 连接所有点的最小费用†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/prim/",
+      "title": "Prim 最小生成树算法",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【15†Connecting Cities With Minimum Cost】  | 【16†最低成本连通所有城市】  |",
+        "【17†1584. Min Cost to Connect All Points†leetcode.com】  | 【18†1584. 连接所有点的最小费用†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/longest-increasing-subsequence/",
+      "title": "动态规划设计：最长递增子序列",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【9†300. Longest Increasing Subsequence†leetcode.com】  | 【10†300. 最长递增子序列†leetcode.cn】  |",
+        "【11†354. Russian Doll Envelopes†leetcode.com】  | 【12†354. 俄罗斯套娃信封问题†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/memo-fundamental/",
+      "title": "base case 和备忘录的初始值怎么定？",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【9†931. Minimum Falling Path Sum†leetcode.com】  | 【10†931. 下降路径最小和†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/two-views-of-dp/",
+      "title": "动态规划穷举的两种视角",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【9†115. Distinct Subsequences†leetcode.com】  | 【10†115. 不同的子序列†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/word-break/",
+      "title": "动态规划和回溯算法的思维转换",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【9†139. Word Break†leetcode.com】  | 【10†139. 单词拆分†leetcode.cn】  |",
+        "【11†140. Word Break II†leetcode.com】  | 【12†140. 单词拆分 II†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/space-optimization/",
+      "title": "对动态规划进行空间压缩",
+      "capture_method": "public_web_page",
+      "example_table_observed": false,
+      "example_rows": [],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/faq-summary/",
+      "title": "最优子结构原理和 dp 数组遍历方向",
+      "capture_method": "public_web_page",
+      "example_table_observed": false,
+      "example_rows": [],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/edit-distance/",
+      "title": "经典动态规划：编辑距离",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【6†72. Edit Distance†leetcode.com】  | 【7†72. 编辑距离†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/maximum-subarray/",
+      "title": "动态规划设计：最大子数组",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【6†53. Maximum Subarray†leetcode.com】  | 【7†53. 最大子数组和†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/longest-common-subsequence/",
+      "title": "经典动态规划：最长公共子序列",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【6†1143. Longest Common Subsequence†leetcode.com】  | 【7†1143. 最长公共子序列†leetcode.cn】  |",
+        "【8†583. Delete Operation for Two Strings†leetcode.com】  | 【9†583. 两个字符串的删除操作†leetcode.cn】  |",
+        "【10†712. Minimum ASCII Delete Sum for Two Strings†leetcode.com】  | 【11†712. 两个字符串的最小ASCII删除和†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/subsequence-problem/",
+      "title": "动态规划之子序列问题解题模板",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【5†516. Longest Palindromic Subsequence†leetcode.com】  | 【6†516. 最长回文子序列†leetcode.cn】  |",
+        "【7†1312. Minimum Insertion Steps to Make a String Palindrome†leetcode.com】  | 【8†1312. 让字符串成为回文串的最少插入次数†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/knapsack1/",
+      "title": "经典动态规划：0-1 背包问题",
+      "capture_method": "public_web_page",
+      "example_table_observed": false,
+      "example_rows": [],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/knapsack2/",
+      "title": "经典动态规划：子集背包问题",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【6†416. Partition Equal Subset Sum†leetcode.com】  | 【7†416. 分割等和子集†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/knapsack3/",
+      "title": "经典动态规划：完全背包问题",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【5†518. Coin Change II†leetcode.com】  | 【6†518. 零钱兑换 II†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/target-sum/",
+      "title": "背包问题的变体：目标和",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【6†494. Target Sum†leetcode.com】  | 【7†494. 目标和†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/regular-expression-matching/",
+      "title": "经典动态规划：正则表达式",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【12†10. Regular Expression Matching†leetcode.com】  | 【13†10. 正则表达式匹配†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/burst-balloons/",
+      "title": "经典动态规划：戳气球",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【12†312. Burst Balloons†leetcode.com】  | 【13†312. 戳气球†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/game-theory/",
+      "title": "经典动态规划：博弈问题",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【12†877. Stone Game†leetcode.com】  | 【13†877. 石子游戏†leetcode.cn】  |",
+        "【14†486. Predict the Winner†leetcode.com】  | 【15†486. 预测赢家†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/house-robber/",
+      "title": "一个方法团灭 LeetCode 打家劫舍问题",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【12†198. House Robber†leetcode.com】  | 【13†198. 打家劫舍†leetcode.cn】  |",
+        "【14†213. House Robber II†leetcode.com】  | 【15†213. 打家劫舍 II†leetcode.cn】  |",
+        "【16†337. House Robber III†leetcode.com】  | 【17†337. 打家劫舍 III†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/dynamic-programming/stock-problem-summary/",
+      "title": "一个方法团灭 LeetCode 股票买卖问题",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【9†714. Best Time to Buy and Sell Stock with Transaction Fee†leetcode.com】  | 【10†714. 买卖股票的最佳时机含手续费†leetcode.cn】  |",
+        "【11†188. Best Time to Buy and Sell Stock IV†leetcode.com】  | 【12†188. 买卖股票的最佳时机 IV†leetcode.cn】  |",
+        "【13†121. Best Time to Buy and Sell Stock†leetcode.com】  | 【14†121. 买卖股票的最佳时机†leetcode.cn】  |",
+        "【15†122. Best Time to Buy and Sell Stock II†leetcode.com】  | 【16†122. 买卖股票的最佳时机 II†leetcode.cn】  |",
+        "【17†309. Best Time to Buy and Sell Stock with Cooldown†leetcode.com】  | 【18†309. 买卖股票的最佳时机含冷冻期†leetcode.cn】  |",
+        "【19†123. Best Time to Buy and Sell Stock III†leetcode.com】  | 【20†123. 买卖股票的最佳时机 III†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/algorithm-summary/",
+      "title": "学习数据结构和算法的框架思维",
+      "capture_method": "public_web_page",
+      "example_table_observed": false,
+      "example_rows": [],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/binary-tree-summary/",
+      "title": "二叉树系列算法核心纲领",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【16†104. Maximum Depth of Binary Tree†leetcode.com】  | 【17†104. 二叉树的最大深度†leetcode.cn】  |",
+        "【18†144. Binary Tree Preorder Traversal†leetcode.com】  | 【19†144. 二叉树的前序遍历†leetcode.cn】  |",
+        "【20†543. Diameter of Binary Tree†leetcode.com】  | 【21†543. 二叉树的直径†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/understand-recursion/",
+      "title": "一个视角 + 两种思维模式搞定递归",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【16†104. Maximum Depth of Binary Tree†leetcode.com】  | 【17†104. 二叉树的最大深度†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/complexity-analysis/",
+      "title": "算法时空复杂度分析实用指南",
+      "capture_method": "public_web_page",
+      "example_table_observed": false,
+      "example_rows": [],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/backtrack-vs-dfs/",
+      "title": "解答回溯算法/DFS算法的若干疑问",
+      "capture_method": "public_web_page",
+      "example_table_observed": false,
+      "example_rows": [],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/essential-technique/math-techniques-summary/",
+      "title": "必知必会数学技巧",
+      "capture_method": "public_web_page",
+      "example_table_observed": false,
+      "example_rows": [],
+      "full_article_reviewed": false
+    },
+    {
+      "url": "https://labuladong.online/zh/algo/data-structure/floyd/",
+      "title": "多源最短路径：Floyd 算法",
+      "capture_method": "public_web_page",
+      "example_table_observed": true,
+      "example_rows": [
+        "【12†1334. Find the City With the Smallest Number of Neighbors at a Threshold Distance†leetcode.com】  | 【13†1334. 阈值距离内邻居最少的城市†leetcode.cn】  |"
+      ],
+      "full_article_reviewed": false
+    }
+  ],
+  "completion_claim": false
+}

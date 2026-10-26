@@ -1,0 +1,22 @@
+{
+  "display_order_authoritative": true,
+  "status": "awaiting_user_selection",
+  "source_screenshot": "design/window-redesign/current-native.png",
+  "target_dimensions": "1440 x 1024",
+  "generated_with": "built-in Image Gen",
+  "directions": [
+    {
+      "displayed_option": 1,
+      "image": "design/window-redesign/option-01.png"
+    },
+    {
+      "displayed_option": 2,
+      "image": "design/window-redesign/option-02.png"
+    },
+    {
+      "displayed_option": 3,
+      "image": "design/window-redesign/option-03.png"
+    }
+  ],
+  "implementation_started": false
+}

@@ -309,3 +309,43 @@ fn go_runner_bounds_infinite_loops_and_handles_panics() {
     assert!(started.elapsed() < Duration::from_secs(30));
     assert!(result.output.contains("执行未完成"));
 }
+
+/// Reproduce Finder's minimal PATH in an isolated process, without changing the
+/// environment of other tests. Exercise gopls and its Go child, gofmt and go test.
+#[cfg(target_os = "macos")]
+#[test]
+#[ignore = "requires Go and gopls in standard macOS installation directories"]
+fn macos_gui_launch_finds_go_tools() {
+    const CHILD: &str = "LEETDESK_GUI_PATH_TEST";
+    if std::env::var_os(CHILD).is_none() {
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "macos_gui_launch_finds_go_tools",
+                "--ignored",
+                "--nocapture",
+            ])
+            .env(CHILD, "1")
+            .env("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
+            .env_remove("GOROOT")
+            .env_remove("GOPATH")
+            .env_remove("GOBIN")
+            .env_remove("LEETDESK_GOPLS")
+            .env_remove("LEETDESK_GOFMT")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
+    assert_eq!(
+        runner::format_go("package solution\nfunc answer()int{return 42}\n").unwrap(),
+        "package solution\n\nfunc answer() int { return 42 }\n"
+    );
+    gopls_diagnostics_completion_hover_and_definition_work_with_node_types();
+    go_runner_executes_arrays_strings_lists_and_trees_and_detects_wrong_answers();
+}

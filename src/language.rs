@@ -67,7 +67,7 @@ impl GoLanguage {
             .join(".go-cache");
         fs::create_dir_all(&cache)?;
         let log = fs::File::create(workspace.join("gopls.log"))?;
-        let mut command = Command::new(gopls_executable());
+        let mut command = tool_command(gopls_executable());
         command
             .arg("serve")
             .current_dir(&workspace)
@@ -338,6 +338,50 @@ pub fn apply_edits(source: &str, edits: &[lsp_types::TextEdit]) -> Result<String
         previous_start = start;
     }
     Ok(result)
+}
+
+/// Give macOS GUI-launched children the standard Go installation paths.
+/// Preserve the inherited order so terminal users keep their chosen toolchain.
+pub fn tool_command(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    #[allow(unused_mut)]
+    let mut command = Command::new(program);
+    #[cfg(target_os = "macos")]
+    {
+        let mut paths: Vec<std::path::PathBuf> = std::env::var_os("PATH")
+            .map(|path| std::env::split_paths(&path).collect())
+            .unwrap_or_default();
+        let mut extra = Vec::new();
+        if let Some(root) = std::env::var_os("GOROOT") {
+            extra.push(std::path::PathBuf::from(root).join("bin"));
+        }
+        if let Some(bin) = std::env::var_os("GOBIN") {
+            extra.push(bin.into());
+        }
+        if let Some(gopath) = std::env::var_os("GOPATH") {
+            extra.extend(std::env::split_paths(&gopath).map(|path| path.join("bin")));
+        }
+        if let Some(home) = std::env::var_os("HOME") {
+            extra.push(std::path::PathBuf::from(home).join("go/bin"));
+        }
+        extra.extend([
+            "/usr/local/go/bin".into(),
+            "/opt/homebrew/bin".into(),
+            "/usr/local/bin".into(),
+            "/usr/bin".into(),
+            "/bin".into(),
+            "/usr/sbin".into(),
+            "/sbin".into(),
+        ]);
+        for path in extra {
+            if path.is_absolute() && path.is_dir() && !paths.contains(&path) {
+                paths.push(path);
+            }
+        }
+        if let Ok(path) = std::env::join_paths(paths) {
+            command.env("PATH", path);
+        }
+    }
+    command
 }
 
 pub fn gopls_executable() -> std::ffi::OsString {
