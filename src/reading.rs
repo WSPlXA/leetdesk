@@ -296,18 +296,6 @@ impl Workspace {
                 )
             })
             .child(
-                Button::new("labuladong-course")
-                    .label("labuladong")
-                    .ghost()
-                    .tooltip("labuladong 全站在线课程")
-                    .on_click(cx.listener(|this, _, _, cx| {
-                        if let Err(error) = crate::course_browser::open(&this.store.root, cx) {
-                            this.notice = format!("打开课程失败：{error:#}");
-                            cx.notify();
-                        }
-                    })),
-            )
-            .child(
                 Button::new("settings")
                     .icon(IconName::Settings)
                     .ghost()

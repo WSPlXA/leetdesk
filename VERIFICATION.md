@@ -183,6 +183,12 @@ release 与 desktop 均已重建。标准 `target/release/leetdesk.exe` 的 SHA-
 
 release 与 desktop 已重新构建。两个版本在深色/中国站、白色/国际站、米色/国际站下共 6 次最终原生启动均退出 0，输出 `SMOKE window=ok gopls=true go_grammar=true problems=6`；记录在 `target/redesign-smoke.log`。最终 `target/release/leetdesk.exe` 的 SHA-256 为 `456CA34790F9DD773E938F09C6BAAB8B5B2164414C4B26A09AE43FA47F9F3EFE`。
 
+## 2026-10-28：移除 labuladong 在线课程按钮
+
+移除顶部 `labuladong-course` 按钮、专用课程浏览器模块及 README 中的入口说明，消除从该按钮打开独立课程窗口的路径。未改动离线课程和逐题讲解的实现。
+
+格式检查、严格 Clippy、阅读模式/草稿保留交互测试通过。release 已重新构建，并在独立数据目录下完成原生启动检查：`SMOKE window=ok gopls=true go_grammar=true problems=6`，退出码 0。最终 release SHA-256：`A3FACCC7571EBCE0F9CB4B5FD8CCC8ADADF87C176EA08AF9C0F7750ACEADB3EA`。
+
 ## 尚未验证或实现的范围
 
 - 微信二维码扫码授权的完整流程及私人账号通过状态尚未人工验证；中国站原生弹窗和公开题库已实测。国际站原生在线检查受当前页面加载或验证状态阻碍，尚未通过。

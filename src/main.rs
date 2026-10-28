@@ -2,7 +2,6 @@
 
 extern crate gpui_kit as gpui;
 mod auth;
-mod course_browser;
 mod desktop;
 mod markdown;
 mod theme;

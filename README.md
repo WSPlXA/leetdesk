@@ -55,10 +55,6 @@ macOS 包已在对应架构的 GitHub Actions runner 上构建。当前使用临
 
 从命令行可用 `leetdesk --course array` 直接打开指定课程。运行 `python3 scripts/check_curriculum_go.py` 会编译并执行页面里的同一份 Go 实验，核对实际输出。已对采集的 210 项参考导航元数据建立逐项主题对应，见 `design/curriculum-audit/topic-coverage.json`。其中 154 项为算法主题、42 项为题集对应、4 项为章节导读，10 项为原站介绍或配套服务。对应表示本地有原创主题正文或样题，不表示复制了原文、会员媒体或导入了原站题集的全部题目。
 
-## labuladong 全站在线课程
-
-工作区顶部点击 **labuladong**，在独立的应用内窗口访问 [labuladong 全站课程](https://labuladong.online/zh/algo/home/)，使用原站目录、搜索、文章和可视化工具。会员内容请直接在原站页面登录，权限由原站账号决定。课程需要联网，不作为离线全文内置；提供后退、全部课程、刷新和系统浏览器入口。再次打开恢复上次阅读的课程页面；“系统浏览器”打开当前文章。Windows 的浏览器数据保存在 `browser/labuladong`；macOS 使用系统持久化 WebView 存储，阅读位置保存在 `browser/labuladong/last-page.txt`。
-
 ## 刷题工作流
 
 - **找题：** 支持热题 100、链表、字符串、双指针、图、树、动态规划等题单与主题。搜索、主题、难度、解题状态可以组合筛选；收藏、待复习和自定义标签用于安排下一轮练习。
