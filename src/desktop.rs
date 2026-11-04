@@ -326,6 +326,8 @@ pub struct Workspace {
     expanded_chapters: HashSet<String>,
     expanded_patterns: HashSet<String>,
     workspace_mode: WorkspaceMode,
+    review_queue_open: bool,
+    review_editor: Option<Entity<InputState>>,
     filters_open: bool,
     plan_menu_open: bool,
     learning_overview: bool,
@@ -600,6 +602,8 @@ impl Workspace {
             expanded_chapters,
             expanded_patterns,
             workspace_mode,
+            review_queue_open: false,
+            review_editor: None,
             filters_open: false,
             plan_menu_open: false,
             learning_overview: false,
@@ -1372,6 +1376,9 @@ impl Workspace {
         }
         self.current = problems.iter().position(|p| p.id == id).unwrap_or(0);
         self.problems = problems;
+        if self.problem().id != id {
+            self.review_editor = None;
+        }
         self.document_view = None;
         self.catalog_view.replace(&self.problems);
         let site = self
@@ -1467,6 +1474,7 @@ impl Workspace {
             return;
         }
         self.current = index;
+        self.review_editor = None;
         self.progress = self.store.progress(problem.id);
         self.selected_note = 0;
         self.reference_path = None;
@@ -2034,6 +2042,9 @@ impl Workspace {
                                 .iter()
                                 .position(|p| p.id == current_id)
                                 .unwrap_or(0);
+                            if this.problem().id != current_id {
+                                this.review_editor = None;
+                            }
                             this.notice = format!("已导入 {count} 道题目");
                         }
                         Err(error) => this.notice = format!("导入失败：{error:#}"),
@@ -2047,19 +2058,6 @@ impl Workspace {
 
     fn toggle_favorite(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
         self.progress.favorite = !self.progress.favorite;
-        let _ = self.store.save_progress(self.problem().id, &self.progress);
-        self.catalog_view
-            .update_progress(self.problem().id, &self.progress);
-        cx.notify();
-    }
-
-    fn mark_review(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
-        self.progress.state = if self.progress.state == "待复习" {
-            "尝试中"
-        } else {
-            "待复习"
-        }
-        .into();
         let _ = self.store.save_progress(self.problem().id, &self.progress);
         self.catalog_view
             .update_progress(self.problem().id, &self.progress);
@@ -5889,6 +5887,42 @@ mod ui_tests {
             assert!(text.as_str().contains("核对思路"));
             assert!(text.as_str().contains("计数器等于已处理部分"));
             assert_eq!(workspace.editor.read(cx).value().as_ref(), draft);
+        })
+        .unwrap();
+    }
+
+    #[gpui_kit::test]
+    fn review_queue_records_obstacle_and_opens_problem_for_coding(cx: &mut TestAppContext) {
+        let (handle, view, _temp) = practice_window(cx);
+        cx.update_window(handle, |_, window, cx| {
+            view.update(cx, |workspace, cx| {
+                workspace.set_workspace_mode(WorkspaceMode::Study, window, cx);
+            });
+            let index = view.read(cx).current;
+            let id = view.read(cx).problem().id;
+            window.render_frame(cx);
+            window.click("review", cx);
+            window.render_frame(cx);
+            window.click("review-obstacle", cx);
+            window.input("missed the boundary case", cx);
+            window.click("review-save", cx);
+            window.render_frame(cx);
+            assert_eq!(
+                view.read(cx).store.review(id).unwrap().unwrap().obstacle,
+                "missed the boundary case"
+            );
+            window.click("review-close", cx);
+            window.render_frame(cx);
+            window.click("today-review", cx);
+            window.render_frame(cx);
+            window.click(("review-question", index), cx);
+            window.render_frame(cx);
+            assert_eq!(view.read(cx).workspace_mode, WorkspaceMode::Coding);
+            assert!(view.read(cx).document_tab == DocumentTab::Description);
+            window.click("review-hint", cx);
+            window.render_frame(cx);
+            assert!(view.read(cx).store.due_reviews().unwrap().is_empty());
+            assert!(window.try_find(("review-question", index)).is_none());
         })
         .unwrap();
     }

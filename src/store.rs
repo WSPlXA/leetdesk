@@ -25,6 +25,18 @@ pub struct Store {
     connection: Connection,
 }
 
+pub struct Review {
+    pub obstacle: String,
+    pub due_on: String,
+    pub due_today: bool,
+}
+
+#[derive(Clone, Copy)]
+pub enum ReviewResult {
+    Independent,
+    NeedsHint,
+}
+
 pub fn selected_site(root: &Path) -> crate::online::Site {
     ["site.json", "online-active.json"]
         .into_iter()
@@ -81,7 +93,69 @@ impl Store {
         fs::create_dir_all(&root)?;
         let connection = Connection::open(root.join("leetdesk.sqlite3"))?;
         connection.execute_batch("PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS progress (problem_id INTEGER PRIMARY KEY, favorite INTEGER NOT NULL DEFAULT 0, state TEXT NOT NULL DEFAULT '', tags TEXT NOT NULL DEFAULT '[]'); CREATE TABLE IF NOT EXISTS runs (id INTEGER PRIMARY KEY, problem_id INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, passed INTEGER NOT NULL, total INTEGER NOT NULL, output TEXT NOT NULL, source TEXT NOT NULL);")?;
+        connection.execute_batch(
+            "CREATE TABLE IF NOT EXISTS reviews (
+                problem_id INTEGER PRIMARY KEY,
+                obstacle TEXT NOT NULL DEFAULT '',
+                due_on TEXT NOT NULL,
+                streak INTEGER NOT NULL DEFAULT 0
+            );
+            INSERT OR IGNORE INTO reviews (problem_id, due_on)
+                SELECT problem_id, date('now', 'localtime') FROM progress WHERE state = '待复习';",
+        )?;
         Ok(Self { root, connection })
+    }
+
+    pub fn due_reviews(&self) -> Result<Vec<u32>> {
+        let mut query = self.connection.prepare(
+            "SELECT problem_id FROM reviews WHERE due_on <= date('now', 'localtime')
+             ORDER BY due_on, problem_id",
+        )?;
+        Ok(query
+            .query_map([], |row| row.get(0))?
+            .collect::<rusqlite::Result<_>>()?)
+    }
+
+    pub fn review(&self, id: u32) -> Result<Option<Review>> {
+        use rusqlite::OptionalExtension;
+        Ok(self
+            .connection
+            .query_row(
+                "SELECT obstacle, due_on, due_on <= date('now', 'localtime')
+             FROM reviews WHERE problem_id = ?1",
+                [id],
+                |row| {
+                    Ok(Review {
+                        obstacle: row.get(0)?,
+                        due_on: row.get(1)?,
+                        due_today: row.get(2)?,
+                    })
+                },
+            )
+            .optional()?)
+    }
+
+    pub fn save_review(&self, id: u32, obstacle: &str) -> Result<()> {
+        self.connection.execute(
+            "INSERT INTO reviews (problem_id, obstacle, due_on) VALUES (?1, ?2, date('now', 'localtime'))
+             ON CONFLICT(problem_id) DO UPDATE SET obstacle = excluded.obstacle",
+            params![id, obstacle],
+        )?;
+        Ok(())
+    }
+
+    pub fn finish_review(&self, id: u32, obstacle: &str, result: ReviewResult) -> Result<bool> {
+        let updated = self.connection.execute(
+            "UPDATE reviews SET obstacle = ?2,
+                due_on = date('now', 'localtime', CASE WHEN NOT ?3 THEN '+1 day'
+                    WHEN streak = 0 THEN '+1 day' WHEN streak = 1 THEN '+3 days'
+                    WHEN streak = 2 THEN '+7 days' WHEN streak = 3 THEN '+14 days'
+                    ELSE '+30 days' END),
+                streak = CASE WHEN ?3 THEN min(streak + 1, 5) ELSE 0 END
+             WHERE problem_id = ?1 AND due_on <= date('now', 'localtime')",
+            params![id, obstacle, matches!(result, ReviewResult::Independent)],
+        )?;
+        Ok(updated != 0)
     }
 
     pub fn workspace(&self, id: u32) -> PathBuf {
@@ -542,6 +616,62 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reviews_keep_legacy_items_and_reschedule_once_per_due_date() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("data");
+        let store = Store::open(root.clone()).unwrap();
+        store
+            .save_progress(
+                42,
+                &Progress {
+                    state: "待复习".into(),
+                    ..Progress::default()
+                },
+            )
+            .unwrap();
+        drop(store);
+
+        let store = Store::open(root.clone()).unwrap();
+        assert_eq!(store.due_reviews().unwrap(), vec![42]);
+        store.save_review(42, "错把单源 BFS 当成多源").unwrap();
+        for (result, expected_days) in [
+            (ReviewResult::Independent, 1),
+            (ReviewResult::Independent, 3),
+            (ReviewResult::NeedsHint, 1),
+            (ReviewResult::Independent, 1),
+        ] {
+            assert!(store.finish_review(42, "多源同时入队", result).unwrap());
+            let review = store.review(42).unwrap().unwrap();
+            let expected: String = store
+                .connection
+                .query_row(
+                    "SELECT date('now', 'localtime', ?1)",
+                    [format!("+{expected_days} days")],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(review.due_on, expected);
+            assert_eq!(review.obstacle, "多源同时入队");
+            assert!(!review.due_today);
+            assert!(!store.finish_review(42, "重复提交", result).unwrap());
+            assert!(store.due_reviews().unwrap().is_empty());
+            store
+                .connection
+                .execute("UPDATE reviews SET due_on = '2000-01-01'", [])
+                .unwrap();
+        }
+        store.save_review(42, "边界处理").unwrap();
+        drop(store);
+        let store = Store::open(root).unwrap();
+        let review = store.review(42).unwrap().unwrap();
+        assert_eq!(review.obstacle, "边界处理");
+        assert_eq!(review.due_on, "2000-01-01");
+        assert_eq!(store.due_reviews().unwrap(), vec![42]);
+        assert_eq!(store.progress(42).state, "待复习");
+    }
+
     #[test]
     fn site_selection_keeps_catalogs_separate_and_editor_preferences_survive_restart() {
         use crate::{

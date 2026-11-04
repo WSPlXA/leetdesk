@@ -1,6 +1,7 @@
 //! Reading-first native workspace. The editor entities live across mode changes.
 use super::*;
 use gpui_kit::{AnyElement, assets::IconName, component::Icon, img};
+use leetdesk::store::ReviewResult;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 
@@ -42,6 +43,228 @@ const SECTIONS: [(&str, &str); 6] = [
 ];
 
 impl Workspace {
+    fn open_review_editor(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        match self.store.review(self.problem().id) {
+            Ok(review) => {
+                let obstacle = review.map_or_else(String::new, |review| review.obstacle);
+                self.review_editor = Some(cx.new(|cx| {
+                    InputState::new(window, cx)
+                        .placeholder(label(
+                            "例如：没认出多源 BFS",
+                            "E.g. missed multi-source BFS",
+                            cx,
+                        ))
+                        .default_value(obstacle)
+                }));
+            }
+            Err(error) => self.notice = format!("读取复习记录失败：{error}"),
+        }
+        cx.notify();
+    }
+
+    fn mark_review(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
+        if self.review_editor.is_none() {
+            self.open_review_editor(window, cx);
+        } else {
+            self.review_editor = None;
+            cx.notify();
+        }
+    }
+
+    fn save_review(&mut self, result: Option<ReviewResult>, cx: &mut Context<Self>) {
+        let Some(editor) = &self.review_editor else {
+            return;
+        };
+        let value = editor.read(cx).value();
+        let id = self.problem().id;
+        let saved = match result {
+            Some(result) => self.store.finish_review(id, value.trim(), result),
+            None => self.store.save_review(id, value.trim()).map(|()| true),
+        };
+        self.notice = match saved {
+            Ok(true) => label("复习记录已保存", "Review saved", cx),
+            Ok(false) => label(
+                "这道题今天已安排过复习",
+                "This review has already been scheduled",
+                cx,
+            ),
+            Err(error) => format!("保存复习失败：{error}"),
+        };
+        cx.notify();
+    }
+
+    fn review_panel(
+        &self,
+        editor: &Entity<InputState>,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let review = self.store.review(self.problem().id);
+        let status = match &review {
+            Ok(Some(review)) if review.due_today => label("今日到期", "Due today", cx),
+            Ok(Some(review)) => {
+                format!("{} {}", label("下次复习", "Next review", cx), review.due_on)
+            }
+            Ok(None) => label("保存后加入今日复习", "Save to add to today's reviews", cx),
+            Err(error) => format!("读取复习记录失败：{error}"),
+        };
+        let can_grade = matches!(&review, Ok(Some(review)) if review.due_today);
+        let save_label = if matches!(review, Ok(None)) {
+            label("加入复习", "Add to review", cx)
+        } else {
+            label("保存卡点", "Save obstacle", cx)
+        };
+        div()
+            .px_4()
+            .py_2()
+            .flex()
+            .flex_col()
+            .gap_2()
+            .border_b_1()
+            .border_color(theme::color(LINE, cx))
+            .bg(theme::color(PANEL, cx))
+            .child(div().text_sm().child(format!(
+                "{} · {} · {}",
+                self.problem().title,
+                label("复习卡点", "Review obstacle", cx),
+                status,
+            )))
+            .child(Input::new(editor).id("review-obstacle").small())
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .gap_2()
+                    .child(
+                        Button::new("review-save")
+                            .label(save_label)
+                            .small()
+                            .on_click(cx.listener(|this, _, _, cx| this.save_review(None, cx))),
+                    )
+                    .when(can_grade, |el| {
+                        el.child(
+                            Button::new("review-independent")
+                                .label(label("独立做出", "Solved independently", cx))
+                                .small()
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.save_review(Some(ReviewResult::Independent), cx)
+                                })),
+                        )
+                        .child(
+                            Button::new("review-hint")
+                                .label(label("还需要提示", "Still need a hint", cx))
+                                .small()
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.save_review(Some(ReviewResult::NeedsHint), cx)
+                                })),
+                        )
+                    })
+                    .child(
+                        Button::new("review-close")
+                            .label(label("收起", "Close", cx))
+                            .small()
+                            .ghost()
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.review_editor = None;
+                                cx.notify();
+                            })),
+                    ),
+            )
+    }
+
+    fn review_queue(&self, cx: &mut Context<Self>) -> AnyElement {
+        let due = self.store.due_reviews();
+        let indices = match &due {
+            Ok(ids) => {
+                let by_id: HashMap<_, _> = self
+                    .problems
+                    .iter()
+                    .enumerate()
+                    .map(|(i, p)| (p.id, i))
+                    .collect();
+                ids.iter()
+                    .filter_map(|id| by_id.get(id).copied())
+                    .collect::<Vec<_>>()
+            }
+            Err(_) => Vec::new(),
+        };
+        div()
+            .size_full()
+            .flex()
+            .flex_col()
+            .gap_2()
+            .p_3()
+            .bg(theme::color(PANEL, cx))
+            .child(
+                Button::new("review-back")
+                    .label(label("返回题单", "Back to problems", cx))
+                    .ghost()
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.review_queue_open = false;
+                        cx.notify();
+                    })),
+            )
+            .child(div().font_weight(FontWeight::BOLD).child(format!(
+                "{} · {}",
+                label("今日复习", "Today's reviews", cx),
+                indices.len()
+            )))
+            .when(indices.is_empty(), |el| {
+                el.child(div().text_sm().child(match &due {
+                    Ok(_) => label(
+                        "没有到期的题。可通过题目的「复习」按钮加入。",
+                        "No reviews due. Use a problem's Review button to add it.",
+                        cx,
+                    ),
+                    Err(error) => format!(
+                        "{} {error}",
+                        label("读取复习队列失败", "Could not load reviews", cx)
+                    ),
+                }))
+            })
+            .when(!indices.is_empty(), |el| {
+                el.child(
+                    uniform_list(
+                        "review-list",
+                        indices.len(),
+                        cx.processor(move |this, range: std::ops::Range<usize>, _, cx| {
+                            range
+                                .map(|row| {
+                                    let index = indices[row];
+                                    let problem = &this.problems[index];
+                                    let number = problem.online.as_ref().map_or_else(
+                                        || problem.id.to_string(),
+                                        |remote| remote.frontend_id.clone(),
+                                    );
+                                    Button::new(("review-question", index))
+                                        .label(format!("{number}. {}", problem.title))
+                                        .w_full()
+                                        .justify_start()
+                                        .ghost()
+                                        .on_click(cx.listener(move |this, _, window, cx| {
+                                            this.select_problem(index, window, cx);
+                                            if this.current == index {
+                                                this.document_tab = DocumentTab::Description;
+                                                this.set_workspace_mode(
+                                                    WorkspaceMode::Coding,
+                                                    window,
+                                                    cx,
+                                                );
+                                                if this.review_editor.is_none() {
+                                                    this.open_review_editor(window, cx);
+                                                }
+                                            }
+                                        }))
+                                })
+                                .collect::<Vec<_>>()
+                        }),
+                    )
+                    .flex_1()
+                    .min_h_0(),
+                )
+            })
+            .into_any_element()
+    }
+
     pub(super) fn set_workspace_mode(
         &mut self,
         mode: WorkspaceMode,
@@ -199,9 +422,14 @@ impl Workspace {
                 .child(
                     Button::new("review")
                         .icon(IconName::BookOpen)
+                        .label(label("复习", "Review", cx))
                         .small()
                         .ghost()
-                        .tooltip(label("标记待复习", "Mark for review", cx))
+                        .tooltip(label(
+                            "记录卡点与复习结果",
+                            "Record review obstacle and result",
+                            cx,
+                        ))
                         .on_click(cx.listener(Self::mark_review)),
                 )
                 .child(
@@ -754,6 +982,9 @@ impl Workspace {
     }
 
     fn reading_sidebar(&self, cx: &mut Context<Self>) -> AnyElement {
+        if self.review_queue_open {
+            return self.review_queue(cx);
+        }
         let flat = !self.query.trim().is_empty()
             || !self.learning_navigation
             || self.filter == "@unclassified";
@@ -775,6 +1006,18 @@ impl Workspace {
                     .flex()
                     .flex_col()
                     .gap_2()
+                    .child(
+                        Button::new("today-review")
+                            .icon(IconName::BookOpen)
+                            .label(label("今日复习", "Today's reviews", cx))
+                            .w_full()
+                            .justify_start()
+                            .outline()
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.review_queue_open = true;
+                                cx.notify();
+                            })),
+                    )
                     .child(
                         div()
                             .flex()
@@ -1078,9 +1321,14 @@ impl Workspace {
                     .child(
                         Button::new("review")
                             .icon(IconName::BookOpen)
+                            .label(label("复习", "Review", cx))
                             .small()
                             .ghost()
-                            .tooltip(label("标记待复习", "Mark for review", cx))
+                            .tooltip(label(
+                                "记录卡点与复习结果",
+                                "Record review obstacle and result",
+                                cx,
+                            ))
                             .on_click(cx.listener(Self::mark_review)),
                     ),
             )
@@ -1317,6 +1565,11 @@ impl Workspace {
                 ))
             })
             .child(self.reading_toolbar(cx))
+            .when(!self.settings_open, |el| {
+                el.when_some(self.review_editor.as_ref(), |el, editor| {
+                    el.child(self.review_panel(editor, cx))
+                })
+            })
             .child(div().flex_1().min_h_0().child(body))
             .child(
                 div()
