@@ -1,7 +1,6 @@
 //! Reading-first native workspace. The editor entities live across mode changes.
 use super::*;
 use gpui_kit::{AnyElement, assets::IconName, component::Icon, img};
-use leetdesk::store::ReviewResult;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 
@@ -43,6 +42,127 @@ const SECTIONS: [(&str, &str); 6] = [
 ];
 
 impl Workspace {
+    fn hint_depth(&self) -> usize {
+        self.hint_depths
+            .get(&self.problem().id)
+            .copied()
+            .unwrap_or(0)
+    }
+
+    pub(super) fn hint_button(&self, cx: &mut Context<Self>) -> Button {
+        let depth = self.hint_depth();
+        let title = match (self.hints_open, depth) {
+            (_, 0) => label("要一点提示", "Get a hint", cx),
+            (false, _) => label("展开提示", "Show hints", cx),
+            (true, _) => label("下一层提示", "Next hint", cx),
+        };
+        Button::new("reveal-hint")
+            .label(title)
+            .small()
+            .outline()
+            .disabled(self.hints_open && depth == 3)
+            .on_click(cx.listener(|this, _, _, cx| {
+                let id = this.problem().id;
+                let depth = this.hint_depths.entry(id).or_default();
+                if *depth == 0 || this.hints_open {
+                    if *depth == 0 {
+                        this.review_result = None;
+                    }
+                    *depth = (*depth + 1).min(3);
+                }
+                this.hints_open = true;
+                cx.notify();
+            }))
+    }
+
+    pub(super) fn hint_panel(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let depth = self.hint_depth();
+        let levels = leetdesk::learning::hints(&self.problem().slug)
+            .and_then(|levels| levels.get(..depth))
+            .unwrap_or_default();
+        let titles = [
+            ("识别题型", "Recognize the pattern"),
+            ("搭建思路", "Build the approach"),
+            ("突破卡点", "Handle the tricky step"),
+        ];
+        div()
+            .flex()
+            .flex_col()
+            .flex_shrink_0()
+            .border_b_1()
+            .border_color(theme::color(LINE, cx))
+            .bg(theme::color(PANEL, cx))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .px_3()
+                    .child(div().text_sm().font_weight(FontWeight::BOLD).child(format!(
+                        "{} {depth}/3",
+                        label("分级提示", "Progressive hints", cx)
+                    )))
+                    .child(
+                        Button::new("close-hints")
+                            .label(label("收起", "Close", cx))
+                            .small()
+                            .ghost()
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.hints_open = false;
+                                cx.notify();
+                            })),
+                    ),
+            )
+            .child(
+                div()
+                    .id("hint-steps")
+                    .max_h(px(124.))
+                    .overflow_y_scroll()
+                    .px_3()
+                    .pb_2()
+                    .children(levels.iter().enumerate().rev().map(|(index, level)| {
+                        let (zh, en) = titles[index];
+                        div()
+                            .id(("hint-level", index))
+                            .test_support()
+                            .text_sm()
+                            .pb_1()
+                            .child(div().font_weight(FontWeight::SEMIBOLD).child(format!(
+                                "{}. {}",
+                                index + 1,
+                                label(zh, en, cx)
+                            )))
+                            .child(level.get(ui::language(cx)))
+                    })),
+            )
+            .when(depth == 3, |el| {
+                el.child(
+                    div().px_3().pb_2().child(
+                        Button::new("hint-full-lesson")
+                            .label(label("查看完整题解", "Open full walkthrough", cx))
+                            .small()
+                            .ghost()
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.document_tab = DocumentTab::Explanation;
+                                this.document_view = None;
+                                this.selected_note = 0;
+                                this.focus_mode = false;
+                                this.hints_open = false;
+                                cx.notify();
+                            })),
+                    ),
+                )
+            })
+    }
+
+    pub(super) fn chosen_review_result(&self) -> ReviewResult {
+        self.review_result.unwrap_or(if self.hint_depth() > 0 {
+            ReviewResult::NeedsHint
+        } else {
+            ReviewResult::Independent
+        })
+    }
+
     fn open_review_editor(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         match self.store.review(self.problem().id) {
             Ok(review) => {
@@ -78,9 +198,16 @@ impl Workspace {
         let value = editor.read(cx).value();
         let id = self.problem().id;
         let saved = match result {
-            Some(result) => self.store.finish_review(id, value.trim(), result),
+            Some(result) => self
+                .store
+                .finish_review(id, value.trim(), result, self.hint_depth()),
             None => self.store.save_review(id, value.trim()).map(|()| true),
         };
+        if matches!(saved, Ok(true)) && result.is_some() {
+            self.review_result = None;
+            self.hint_depths.remove(&id);
+            self.hints_open = false;
+        }
         self.notice = match saved {
             Ok(true) => label("复习记录已保存", "Review saved", cx),
             Ok(false) => label(
@@ -108,6 +235,7 @@ impl Workspace {
             Err(error) => format!("读取复习记录失败：{error}"),
         };
         let can_grade = matches!(&review, Ok(Some(review)) if review.due_today);
+        let chosen = self.chosen_review_result();
         let save_label = if matches!(review, Ok(None)) {
             label("加入复习", "Add to review", cx)
         } else {
@@ -145,16 +273,34 @@ impl Workspace {
                             Button::new("review-independent")
                                 .label(label("独立做出", "Solved independently", cx))
                                 .small()
+                                .when(chosen == ReviewResult::Independent, |button| {
+                                    button.primary()
+                                })
+                                .when(chosen != ReviewResult::Independent, |button| {
+                                    button.outline()
+                                })
                                 .on_click(cx.listener(|this, _, _, cx| {
-                                    this.save_review(Some(ReviewResult::Independent), cx)
+                                    this.review_result = Some(ReviewResult::Independent);
+                                    cx.notify();
                                 })),
                         )
                         .child(
                             Button::new("review-hint")
                                 .label(label("还需要提示", "Still need a hint", cx))
                                 .small()
+                                .when(chosen == ReviewResult::NeedsHint, |button| button.primary())
+                                .when(chosen != ReviewResult::NeedsHint, |button| button.outline())
                                 .on_click(cx.listener(|this, _, _, cx| {
-                                    this.save_review(Some(ReviewResult::NeedsHint), cx)
+                                    this.review_result = Some(ReviewResult::NeedsHint);
+                                    cx.notify();
+                                })),
+                        )
+                        .child(
+                            Button::new("review-submit")
+                                .label(label("确认复习结果", "Confirm review result", cx))
+                                .small()
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.save_review(Some(this.chosen_review_result()), cx);
                                 })),
                         )
                     })
@@ -169,6 +315,77 @@ impl Workspace {
                             })),
                     ),
             )
+            .child(self.review_history_panel(cx))
+    }
+
+    fn review_history_panel(&self, cx: &App) -> impl IntoElement {
+        let timeline = div()
+            .id("review-history")
+            .test_support()
+            .max_h(px(124.))
+            .overflow_y_scroll()
+            .text_sm();
+        let timeline = match self.store.review_history(self.problem().id) {
+            Ok(attempts) if attempts.is_empty() => {
+                timeline.child(div().text_color(theme::color(MUTED, cx)).child(label(
+                    "确认复习结果后，记录会显示在这里。",
+                    "Completed reviews will appear here.",
+                    cx,
+                )))
+            }
+            Ok(attempts) => {
+                timeline.children(attempts.into_iter().enumerate().map(|(index, attempt)| {
+                    let result = match attempt.result {
+                        ReviewResult::Independent => label("独立做出", "Solved independently", cx),
+                        ReviewResult::NeedsHint => label("还需要提示", "Still need a hint", cx),
+                    };
+                    let obstacle = if attempt.obstacle.is_empty() {
+                        label("未记录", "None recorded", cx)
+                    } else {
+                        attempt.obstacle
+                    };
+                    div()
+                        .id(("review-history-entry", index))
+                        .test_support()
+                        .border_l_2()
+                        .border_color(theme::color(LINE, cx))
+                        .pl_3()
+                        .py_1()
+                        .child(
+                            div()
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(attempt.reviewed_on),
+                        )
+                        .child(format!(
+                            "{} {result} · {} {}/3 · {} {}",
+                            label("自评", "Self-assessment", cx),
+                            label("已展开提示", "Hints revealed", cx),
+                            attempt.hint_depth,
+                            label("下次复习", "Next review", cx),
+                            attempt.next_due_on,
+                        ))
+                        .child(format!("{} · {obstacle}", label("卡点", "Obstacle", cx)))
+                }))
+            }
+            Err(error) => timeline.child(format!(
+                "{} {error}",
+                label("读取复习历史失败", "Could not load review history", cx,)
+            )),
+        };
+        div()
+            .flex()
+            .flex_col()
+            .gap_1()
+            .border_t_1()
+            .border_color(theme::color(LINE, cx))
+            .pt_2()
+            .child(
+                div()
+                    .text_sm()
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(label("复习历史", "Review history", cx)),
+            )
+            .child(timeline)
     }
 
     fn review_queue(&self, cx: &mut Context<Self>) -> AnyElement {

@@ -22,11 +22,11 @@ use leetdesk::{
     appearance::Appearance,
     catalog::{self, Case, PracticeLanguage, Problem},
     catalog_view::CatalogView,
-    language::{self, GoLanguage},
+    language::{self, LanguageService},
     note_bundle,
     preferences::{EditorPreferences, EditorTheme, InterfaceLanguage},
     runner, snippets,
-    store::{Progress, Store},
+    store::{Progress, ReviewResult, Store},
     sync,
 };
 use lsp_types::{CompletionContext, CompletionResponse, Hover, LocationLink, Position};
@@ -112,8 +112,8 @@ enum NotesView {
     Preview,
 }
 
-struct GoProvider {
-    service: GoLanguage,
+struct LanguageProvider {
+    service: LanguageService,
 }
 
 struct JavaProvider;
@@ -151,7 +151,7 @@ impl CompletionProvider for JavaProvider {
     }
 }
 
-impl CompletionProvider for GoProvider {
+impl CompletionProvider for LanguageProvider {
     fn completions(
         &self,
         text: &Rope,
@@ -162,7 +162,11 @@ impl CompletionProvider for GoProvider {
     ) -> Task<Result<CompletionResponse>> {
         let source = text.to_string();
         let locale = ui::language(cx);
-        let local = snippets::completions(&source, offset);
+        let language = self.service.language();
+        let local = match language {
+            PracticeLanguage::Go => snippets::completions(&source, offset),
+            PracticeLanguage::Java => snippets::java_completions(&source, offset),
+        };
         if let Err(error) = self.service.sync(&source) {
             if local.is_empty() {
                 return Task::ready(Err(error));
@@ -200,7 +204,10 @@ impl CompletionProvider for GoProvider {
                 }
             }
             Ok(CompletionResponse::Array(localize_completions(
-                snippets::merge_go_completions(&source, local, items),
+                match language {
+                    PracticeLanguage::Go => snippets::merge_go_completions(&source, local, items),
+                    PracticeLanguage::Java => snippets::merge_java_completions(local, items),
+                },
                 locale,
             )))
         })
@@ -212,7 +219,7 @@ impl CompletionProvider for GoProvider {
     }
 }
 
-impl HoverProvider for GoProvider {
+impl HoverProvider for LanguageProvider {
     fn hover(
         &self,
         text: &Rope,
@@ -234,7 +241,7 @@ impl HoverProvider for GoProvider {
     }
 }
 
-impl DefinitionProvider for GoProvider {
+impl DefinitionProvider for LanguageProvider {
     fn definitions(
         &self,
         text: &Rope,
@@ -328,6 +335,9 @@ pub struct Workspace {
     workspace_mode: WorkspaceMode,
     review_queue_open: bool,
     review_editor: Option<Entity<InputState>>,
+    review_result: Option<ReviewResult>,
+    hint_depths: HashMap<u32, usize>,
+    hints_open: bool,
     filters_open: bool,
     plan_menu_open: bool,
     learning_overview: bool,
@@ -348,7 +358,7 @@ pub struct Workspace {
     output: String,
     notice: String,
     language_status: String,
-    language: Option<GoLanguage>,
+    language: Option<LanguageService>,
     practice_language: PracticeLanguage,
     language_epoch: u64,
     diagnostic_generation: u64,
@@ -604,6 +614,9 @@ impl Workspace {
             workspace_mode,
             review_queue_open: false,
             review_editor: None,
+            review_result: None,
+            hint_depths: HashMap::new(),
+            hints_open: false,
             filters_open: false,
             plan_menu_open: false,
             learning_overview: false,
@@ -894,7 +907,13 @@ impl Workspace {
         self.hint_task = None;
         self.diagnostic_generation = 0;
         self.diagnostics.clear();
-        self.language_status = "正在连接 gopls…".into();
+        let language = self.practice_language;
+        let name = if language == PracticeLanguage::Go {
+            "gopls"
+        } else {
+            "JDT LS"
+        };
+        self.language_status = format!("正在连接 {name}…");
         self.editor.update(cx, |state, cx| {
             state.set_inlay_hints(Vec::new(), cx);
             *state.lsp_mut() = Default::default();
@@ -904,19 +923,16 @@ impl Workspace {
             cx.notify();
         });
         if self.practice_language == PracticeLanguage::Java {
-            self.language_status = "Java 语法高亮与模板补全".into();
             self.editor.update(cx, |state, cx| {
                 state.lsp_mut().completion_provider = Some(Rc::new(JavaProvider));
                 state.refresh(cx);
             });
-            cx.notify();
-            return;
         }
         let path = self.store.workspace(self.problem().id);
         let source = self.editor.read(cx).value().to_string();
         let task = cx
             .background_executor()
-            .spawn(async move { GoLanguage::start(&path, &source) });
+            .spawn(async move { LanguageService::start_for(&path, &source, language) });
         cx.spawn_in(window, async move |this, cx| {
             let result = task.await;
             _ = this.update_in(cx, |this, _window, cx| {
@@ -926,7 +942,7 @@ impl Workspace {
                 match result {
                     Ok(service) => {
                         let _ = service.sync(&this.editor.read(cx).value());
-                        let provider = Rc::new(GoProvider {
+                        let provider = Rc::new(LanguageProvider {
                             service: service.clone(),
                         });
                         let owner = cx.entity().downgrade();
@@ -937,7 +953,10 @@ impl Workspace {
                             state.lsp_mut().definition_provider = Some(provider);
                             state.lsp_mut().show_document =
                                 Some(Rc::new(move |params, window, cx| {
-                                    if params.uri.as_str() == current_uri {
+                                    if language::same_document_uri(
+                                        params.uri.as_str(),
+                                        &current_uri,
+                                    ) {
                                         return false;
                                     }
                                     if let Ok(url) = url::Url::parse(params.uri.as_str())
@@ -964,12 +983,12 @@ impl Workspace {
                                 }));
                             state.refresh(cx);
                         });
-                        this.language_status = "gopls 已连接".into();
+                        this.language_status = format!("{name} 已连接");
                         this.language = Some(service);
                         this.schedule_type_hints(cx);
                     }
                     Err(error) => {
-                        this.language_status = "gopls 连接失败".into();
+                        this.language_status = format!("{name} 连接失败");
                         this.notice = format!("{error:#}");
                     }
                 }
@@ -1378,6 +1397,8 @@ impl Workspace {
         self.problems = problems;
         if self.problem().id != id {
             self.review_editor = None;
+            self.review_result = None;
+            self.hints_open = false;
         }
         self.document_view = None;
         self.catalog_view.replace(&self.problems);
@@ -1423,8 +1444,9 @@ impl Workspace {
             return;
         };
         if let Some(error) = service.error() {
-            if self.language_status != "gopls 已断开" {
-                self.language_status = "gopls 已断开".into();
+            let status = format!("{} 已断开", service.name());
+            if self.language_status != status {
+                self.language_status = status;
                 self.notice = error;
                 cx.notify();
             }
@@ -1475,6 +1497,8 @@ impl Workspace {
         }
         self.current = index;
         self.review_editor = None;
+        self.review_result = None;
+        self.hints_open = false;
         self.progress = self.store.progress(problem.id);
         self.selected_note = 0;
         self.reference_path = None;
@@ -2044,6 +2068,8 @@ impl Workspace {
                                 .unwrap_or(0);
                             if this.problem().id != current_id {
                                 this.review_editor = None;
+                                this.review_result = None;
+                                this.hints_open = false;
                             }
                             this.notice = format!("已导入 {count} 道题目");
                         }
@@ -2108,8 +2134,14 @@ impl Workspace {
         let source = self.editor.read(cx).value().to_string();
         let revision = self.editor.read(cx).document_revision();
         let practice_language = self.practice_language;
+        let java_service = self
+            .language
+            .clone()
+            .filter(|service| service.language() == PracticeLanguage::Java);
         let formatter = if practice_language == PracticeLanguage::Go {
             "gofmt"
+        } else if java_service.is_some() {
+            "JDT LS"
         } else {
             "google-java-format"
         };
@@ -2118,7 +2150,10 @@ impl Workspace {
         let task = cx.background_executor().spawn(async move {
             (match practice_language {
                 PracticeLanguage::Go => runner::format_go(&input),
-                PracticeLanguage::Java => runner::format_java(&input),
+                PracticeLanguage::Java => match java_service {
+                    Some(service) => service.format_java(&input),
+                    None => runner::format_java(&input),
+                },
             })
             .map(|text| {
                 let edits = leetdesk::editing::diff(&input, &text);
@@ -3205,8 +3240,13 @@ impl Workspace {
                             .small()
                             .ghost()
                             .on_click(cx.listener(Self::copy_submission)),
+                    )
+                    .when(
+                        leetdesk::learning::hints(&self.problem().slug).is_some(),
+                        |el| el.child(self.hint_button(cx)),
                     ),
             )
+            .when(self.hints_open, |el| el.child(self.hint_panel(cx)))
             .child(
                 Editor::new(&self.editor)
                     .readonly(
@@ -3491,9 +3531,7 @@ impl Workspace {
                                     .text_sm()
                                     .font_weight(FontWeight::SEMIBOLD)
                                     .text_color(theme::color(
-                                        if self.language.is_some()
-                                            || self.practice_language == PracticeLanguage::Java
-                                        {
+                                        if self.language.is_some() {
                                             ACCENT
                                         } else {
                                             MUTED
@@ -3501,21 +3539,17 @@ impl Workspace {
                                         cx,
                                     ))
                                     .child(ui::text(
-                                        if self.practice_language == PracticeLanguage::Java {
-                                            "Java 本地编译时检查代码"
-                                        } else if self.language.is_some() {
+                                        if self.language.is_some() {
                                             "✓ 暂无代码问题"
                                         } else {
-                                            "等待 Go 语言服务"
+                                            "等待语言服务"
                                         },
                                         cx,
                                     )),
                             )
                             .child(div().text_xs().text_color(theme::color(MUTED, cx)).child(
                                 ui::text(
-                                    if self.practice_language == PracticeLanguage::Java {
-                                        "运行用例后，编译错误会显示在运行结果中。"
-                                    } else if self.language.is_some() {
+                                    if self.language.is_some() {
                                         "继续编写代码，检查结果会实时更新。"
                                     } else {
                                         "连接后会在这里显示错误和警告。"
@@ -5143,6 +5177,113 @@ mod ui_tests {
     }
 
     #[gpui_kit::test]
+    fn typing_a_java_member_opens_completion_and_tab_inserts_it(cx: &mut TestAppContext) {
+        if language::jdtls_home().is_none() {
+            return;
+        }
+        let (handle, view, _temp) = practice_window(cx);
+        let java_temp = tempfile::tempdir_in("target").unwrap();
+        let store = Store::open(java_temp.path().join("data")).unwrap();
+        let source = "class Solution { ListNode next(ListNode head) { return head. } }";
+        cx.update_window(handle, |_, window, cx| {
+            view.update(cx, |workspace, cx| {
+                store.prepare(workspace.problem()).unwrap();
+                workspace.store = store;
+                workspace.practice_language = PracticeLanguage::Java;
+                workspace.editor.update(cx, |state, cx| {
+                    state.set_highlighter("java", cx);
+                    state.set_value(source, window, cx);
+                    state.set_cursor_position(
+                        language::byte_position(source, source.find("head.").unwrap() + 5),
+                        window,
+                        cx,
+                    );
+                    state.focus(window, cx);
+                });
+                workspace.connect_language(window, cx);
+            });
+        })
+        .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle, |_, window, cx| {
+            assert_eq!(
+                view.read(cx).language_status,
+                "JDT LS 已连接",
+                "{}",
+                view.read(cx).notice
+            );
+            assert!(view.read(cx).editor.read(cx).lsp().hover_provider.is_some());
+            assert!(
+                view.read(cx)
+                    .editor
+                    .read(cx)
+                    .lsp()
+                    .definition_provider
+                    .is_some()
+            );
+            window.render_frame(cx);
+            window.input("n", cx);
+        })
+        .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            let editor = view.read(cx).editor.read(cx);
+            assert!(editor.completion_menu_state().open);
+            assert!(
+                editor
+                    .completion_menu_state()
+                    .items
+                    .iter()
+                    .any(|item| item.label.starts_with("next")),
+                "{:?}",
+                editor.completion_menu_state().items
+            );
+            window.press("tab", cx);
+        })
+        .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle, |_, _, cx| {
+            assert!(
+                view.read(cx)
+                    .editor
+                    .read(cx)
+                    .value()
+                    .contains("return head.next")
+            );
+        })
+        .unwrap();
+        cx.update_window(handle, |_, window, cx| {
+            view.update(cx, |workspace, cx| {
+                workspace.editor.update(cx, |state, cx| {
+                    state.set_value("class Solution{int solve(){return 1;}}", window, cx)
+                });
+                workspace.format_on_save(window, cx);
+            });
+        })
+        .unwrap();
+        cx.run_until_parked();
+        cx.update_window(handle, |_, _, cx| {
+            let workspace = view.read(cx);
+            let formatted = workspace.editor.read(cx).value();
+            assert!(
+                formatted.contains("class Solution {"),
+                "{}: {formatted}",
+                workspace.notice
+            );
+            assert!(!formatted.contains("import java.util"));
+            assert_eq!(
+                workspace
+                    .store
+                    .source_for(workspace.problem().id, PracticeLanguage::Java)
+                    .unwrap(),
+                formatted.as_ref()
+            );
+        })
+        .unwrap();
+    }
+
+    #[gpui_kit::test]
     fn typing_a_go_member_opens_completion_and_tab_inserts_it(cx: &mut TestAppContext) {
         let (handle, view, _temp) = practice_window(cx);
         let source = "package solution\n\nfunc next(head *ListNode) *ListNode { _ = \"中文🙂\"; return head. }";
@@ -5919,10 +6060,46 @@ mod ui_tests {
             window.render_frame(cx);
             assert_eq!(view.read(cx).workspace_mode, WorkspaceMode::Coding);
             assert!(view.read(cx).document_tab == DocumentTab::Description);
-            window.click("review-hint", cx);
+            assert!(window.try_find(("hint-level", 0usize)).is_none());
+            window.click("reveal-hint", cx);
             window.render_frame(cx);
-            assert!(view.read(cx).store.due_reviews().unwrap().is_empty());
+            assert!(window.find(("hint-level", 0usize)).visible());
+            assert!(window.try_find(("hint-level", 1usize)).is_none());
+            assert!(window.try_find("hint-full-lesson").is_none());
+            assert!(view.read(cx).chosen_review_result() == ReviewResult::NeedsHint);
+            window.click("close-hints", cx);
+            window.render_frame(cx);
+            window.click("reveal-hint", cx);
+            window.render_frame(cx);
+            assert!(window.try_find(("hint-level", 1usize)).is_none());
+            window.click("reveal-hint", cx);
+            window.render_frame(cx);
+            assert!(window.find(("hint-level", 1usize)).visible());
+            assert!(window.try_find(("hint-level", 2usize)).is_none());
+            window.click("reveal-hint", cx);
+            window.render_frame(cx);
+            assert!(window.find(("hint-level", 2usize)).visible());
+            window.click("hint-full-lesson", cx);
+            window.render_frame(cx);
+            assert!(view.read(cx).document_tab == DocumentTab::Explanation);
+            window.click("review-independent", cx);
+            assert!(view.read(cx).chosen_review_result() == ReviewResult::Independent);
+            assert_eq!(view.read(cx).store.due_reviews().unwrap(), vec![id]);
+            window.click("review-submit", cx);
+            window.render_frame(cx);
+            let store = &view.read(cx).store;
+            assert!(store.due_reviews().unwrap().is_empty());
             assert!(window.try_find(("review-question", index)).is_none());
+            assert!(window.find(("review-history-entry", 0usize)).visible());
+            let history = store.review_history(id).unwrap();
+            assert_eq!(history.len(), 1);
+            assert_eq!(history[0].hint_depth, 3);
+            assert!(history[0].result == ReviewResult::Independent);
+            assert_eq!(history[0].obstacle, "missed the boundary case");
+            assert_eq!(
+                history[0].next_due_on,
+                store.review(id).unwrap().unwrap().due_on
+            );
         })
         .unwrap();
     }

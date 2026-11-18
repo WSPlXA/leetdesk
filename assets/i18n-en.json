@@ -54,6 +54,8 @@
   "Go 工作区已就绪 · 可导入你的 Markdown 讲解": "Workspace ready · Import Markdown explanations to get started",
   "正在连接 gopls…": "Connecting to gopls…", "gopls 已连接": "gopls connected", "gopls 连接失败": "gopls connection failed", "gopls 已断开": "gopls disconnected",
   "Java 语法高亮与模板补全": "Java syntax highlighting and snippets",
+  "正在连接 JDT LS…": "Connecting to JDT LS…", "JDT LS 已连接": "JDT LS connected", "JDT LS 连接失败": "JDT LS connection failed", "JDT LS 已断开": "JDT LS disconnected",
+  "等待语言服务": "Waiting for the language server",
   "主题保存失败：{error}": "Could not save theme: {error}", "已切换为{}主题": "Switched to {} theme",
   "黑色": "Dark", "白色": "White", "米色": "Beige", "✓ 黑色": "✓ Dark", "✓ 白色": "✓ White", "✓ 米色": "✓ Beige",
   "笔记已保存为 notes.md · Markdown 预览已更新": "Saved notes.md · Markdown preview updated",

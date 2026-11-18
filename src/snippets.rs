@@ -185,7 +185,7 @@ pub fn merge_go_completions(
     let local_append = local
         .iter()
         .any(|item| item.filter_text.as_deref() == Some("append"));
-    for mut item in remote {
+    for item in remote {
         if local_append && item.label == "append" {
             continue;
         }
@@ -195,34 +195,46 @@ pub fn merge_go_completions(
         if let Some((call, true)) = &call {
             local.push(call.clone());
         }
-        if item.insert_text_format == Some(InsertTextFormat::SNIPPET) {
-            let text = match item.text_edit.as_mut() {
-                Some(CompletionTextEdit::Edit(edit)) => &mut edit.new_text,
-                Some(CompletionTextEdit::InsertAndReplace(edit)) => &mut edit.new_text,
-                None => item.insert_text.get_or_insert_with(|| item.label.clone()),
-            };
-            let (body, fields) = expand(text, "");
-            *text = body;
-            item.insert_text_format = Some(InsertTextFormat::PLAIN_TEXT);
-            let mut data = item
-                .data
-                .take()
-                .filter(|value| value.is_object())
-                .unwrap_or_else(|| json!({}));
-            data["leetdesk_tabstops"] = json!(
-                fields
-                    .iter()
-                    .map(|range| [range.start, range.end])
-                    .collect::<Vec<_>>()
-            );
-            item.data = Some(data);
-        }
-        local.push(item);
+        local.push(expand_completion(item));
         if let Some((call, false)) = call {
             local.push(call);
         }
     }
     local
+}
+
+pub fn merge_java_completions(
+    mut local: Vec<CompletionItem>,
+    remote: Vec<CompletionItem>,
+) -> Vec<CompletionItem> {
+    local.extend(remote.into_iter().map(expand_completion));
+    local
+}
+
+fn expand_completion(mut item: CompletionItem) -> CompletionItem {
+    if item.insert_text_format == Some(InsertTextFormat::SNIPPET) {
+        let text = match item.text_edit.as_mut() {
+            Some(CompletionTextEdit::Edit(edit)) => &mut edit.new_text,
+            Some(CompletionTextEdit::InsertAndReplace(edit)) => &mut edit.new_text,
+            None => item.insert_text.get_or_insert_with(|| item.label.clone()),
+        };
+        let (body, fields) = expand(text, "");
+        *text = body;
+        item.insert_text_format = Some(InsertTextFormat::PLAIN_TEXT);
+        let mut data = item
+            .data
+            .take()
+            .filter(|value| value.is_object())
+            .unwrap_or_else(|| json!({}));
+        data["leetdesk_tabstops"] = json!(
+            fields
+                .iter()
+                .map(|range| [range.start, range.end])
+                .collect::<Vec<_>>()
+        );
+        item.data = Some(data);
+    }
+    item
 }
 
 fn callable_variable(source: &str, item: &CompletionItem) -> Option<(CompletionItem, bool)> {
@@ -377,6 +389,29 @@ fn complete(source: &str, offset: usize, templates: &[Template]) -> Vec<Completi
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn java_method_snippets_keep_import_edits_and_tab_stops() {
+        let import = TextEdit {
+            range: lsp_types::Range::default(),
+            new_text: "import java.io.File;\n".into(),
+        };
+        let item = CompletionItem {
+            label: "add(Integer value)".into(),
+            insert_text: Some("add(${1:value})$0".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            additional_text_edits: Some(vec![import.clone()]),
+            data: Some(json!({"requestId":"42"})),
+            ..Default::default()
+        };
+        let items = merge_java_completions(vec![], vec![item]);
+        assert_eq!(items[0].insert_text.as_deref(), Some("add(value)"));
+        assert_eq!(items[0].additional_text_edits, Some(vec![import]));
+        assert_eq!(items[0].data.as_ref().unwrap()["requestId"], "42");
+        assert_eq!(
+            items[0].data.as_ref().unwrap()["leetdesk_tabstops"],
+            json!([[4, 9], [10, 10]])
+        );
+    }
 
     #[test]
     fn append_reuses_assignment_target_and_starts_at_value() {

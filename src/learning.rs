@@ -63,6 +63,14 @@ pub static LESSONS: LazyLock<HashMap<String, ProblemLesson>> = LazyLock::new(|| 
         .expect("valid original problem walkthroughs")
 });
 
+static HINTS: LazyLock<HashMap<String, [Text; 3]>> = LazyLock::new(|| {
+    serde_json::from_str(include_str!("../assets/problem-hints.json")).expect("valid Hot 100 hints")
+});
+
+pub fn hints(slug: &str) -> Option<&'static [Text; 3]> {
+    HINTS.get(slug)
+}
+
 #[derive(Deserialize)]
 pub struct LessonDetails {
     pub mapping: Text,
@@ -1098,6 +1106,12 @@ mod tests {
             assert!(
                 !memberships(slug).is_empty(),
                 "unclassified Hot 100 problem: {slug}"
+            );
+            assert!(
+                hints(slug).is_some_and(|levels| levels
+                    .iter()
+                    .all(|level| { !level.zh.trim().is_empty() && !level.en.trim().is_empty() })),
+                "missing bilingual hint: {slug}"
             );
         }
         let water = memberships("trapping-rain-water");

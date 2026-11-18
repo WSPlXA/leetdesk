@@ -1,6 +1,6 @@
 use crate::catalog::{self, PracticeLanguage, Problem};
 use anyhow::{Context, Result, bail};
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
@@ -31,10 +31,18 @@ pub struct Review {
     pub due_today: bool,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ReviewResult {
     Independent,
     NeedsHint,
+}
+
+pub struct ReviewAttempt {
+    pub reviewed_on: String,
+    pub obstacle: String,
+    pub hint_depth: u8,
+    pub result: ReviewResult,
+    pub next_due_on: String,
 }
 
 pub fn selected_site(root: &Path) -> crate::online::Site {
@@ -101,7 +109,17 @@ impl Store {
                 streak INTEGER NOT NULL DEFAULT 0
             );
             INSERT OR IGNORE INTO reviews (problem_id, due_on)
-                SELECT problem_id, date('now', 'localtime') FROM progress WHERE state = '待复习';",
+                SELECT problem_id, date('now', 'localtime') FROM progress WHERE state = '待复习';
+            CREATE TABLE IF NOT EXISTS review_history (
+                id INTEGER PRIMARY KEY,
+                problem_id INTEGER NOT NULL,
+                reviewed_on TEXT NOT NULL,
+                obstacle TEXT NOT NULL,
+                hint_depth INTEGER NOT NULL CHECK (hint_depth BETWEEN 0 AND 3),
+                independent INTEGER NOT NULL CHECK (independent IN (0, 1)),
+                next_due_on TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS review_history_by_problem ON review_history (problem_id, id);",
         )?;
         Ok(Self { root, connection })
     }
@@ -117,7 +135,6 @@ impl Store {
     }
 
     pub fn review(&self, id: u32) -> Result<Option<Review>> {
-        use rusqlite::OptionalExtension;
         Ok(self
             .connection
             .query_row(
@@ -144,18 +161,62 @@ impl Store {
         Ok(())
     }
 
-    pub fn finish_review(&self, id: u32, obstacle: &str, result: ReviewResult) -> Result<bool> {
-        let updated = self.connection.execute(
-            "UPDATE reviews SET obstacle = ?2,
+    pub fn finish_review(
+        &self,
+        id: u32,
+        obstacle: &str,
+        result: ReviewResult,
+        hint_depth: usize,
+    ) -> Result<bool> {
+        let hint_depth = u8::try_from(hint_depth)?;
+        let transaction = self.connection.unchecked_transaction()?;
+        let independent = result == ReviewResult::Independent;
+        let dates: Option<(String, String)> = transaction
+            .query_row(
+                "UPDATE reviews SET obstacle = ?2,
                 due_on = date('now', 'localtime', CASE WHEN NOT ?3 THEN '+1 day'
                     WHEN streak = 0 THEN '+1 day' WHEN streak = 1 THEN '+3 days'
                     WHEN streak = 2 THEN '+7 days' WHEN streak = 3 THEN '+14 days'
                     ELSE '+30 days' END),
                 streak = CASE WHEN ?3 THEN min(streak + 1, 5) ELSE 0 END
-             WHERE problem_id = ?1 AND due_on <= date('now', 'localtime')",
-            params![id, obstacle, matches!(result, ReviewResult::Independent)],
+             WHERE problem_id = ?1 AND due_on <= date('now', 'localtime')
+             RETURNING date('now', 'localtime'), due_on",
+                params![id, obstacle, independent],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        let Some((reviewed_on, next_due_on)) = dates else {
+            return Ok(false);
+        };
+        transaction.execute(
+            "INSERT INTO review_history (problem_id, reviewed_on, obstacle, hint_depth, independent, next_due_on)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![id, reviewed_on, obstacle, hint_depth, independent, next_due_on],
         )?;
-        Ok(updated != 0)
+        transaction.commit()?;
+        Ok(true)
+    }
+
+    pub fn review_history(&self, id: u32) -> Result<Vec<ReviewAttempt>> {
+        let mut query = self.connection.prepare(
+            "SELECT reviewed_on, obstacle, hint_depth, independent, next_due_on
+             FROM review_history WHERE problem_id = ?1 ORDER BY id DESC",
+        )?;
+        Ok(query
+            .query_map([id], |row| {
+                Ok(ReviewAttempt {
+                    reviewed_on: row.get(0)?,
+                    obstacle: row.get(1)?,
+                    hint_depth: row.get(2)?,
+                    result: if row.get::<_, bool>(3)? {
+                        ReviewResult::Independent
+                    } else {
+                        ReviewResult::NeedsHint
+                    },
+                    next_due_on: row.get(4)?,
+                })
+            })?
+            .collect::<rusqlite::Result<_>>()?)
     }
 
     pub fn workspace(&self, id: u32) -> PathBuf {
@@ -636,13 +697,28 @@ mod tests {
         let store = Store::open(root.clone()).unwrap();
         assert_eq!(store.due_reviews().unwrap(), vec![42]);
         store.save_review(42, "错把单源 BFS 当成多源").unwrap();
-        for (result, expected_days) in [
-            (ReviewResult::Independent, 1),
-            (ReviewResult::Independent, 3),
-            (ReviewResult::NeedsHint, 1),
-            (ReviewResult::Independent, 1),
+        assert!(
+            store
+                .finish_review(42, "不应保存", ReviewResult::Independent, 4)
+                .is_err()
+        );
+        assert_eq!(store.due_reviews().unwrap(), vec![42]);
+        assert_eq!(
+            store.review(42).unwrap().unwrap().obstacle,
+            "错把单源 BFS 当成多源"
+        );
+        assert!(store.review_history(42).unwrap().is_empty());
+        for (result, expected_days, hint_depth) in [
+            (ReviewResult::Independent, 1, 2),
+            (ReviewResult::Independent, 3, 0),
+            (ReviewResult::NeedsHint, 1, 1),
+            (ReviewResult::Independent, 1, 3),
         ] {
-            assert!(store.finish_review(42, "多源同时入队", result).unwrap());
+            assert!(
+                store
+                    .finish_review(42, "多源同时入队", result, hint_depth)
+                    .unwrap()
+            );
             let review = store.review(42).unwrap().unwrap();
             let expected: String = store
                 .connection
@@ -655,7 +731,11 @@ mod tests {
             assert_eq!(review.due_on, expected);
             assert_eq!(review.obstacle, "多源同时入队");
             assert!(!review.due_today);
-            assert!(!store.finish_review(42, "重复提交", result).unwrap());
+            assert!(
+                !store
+                    .finish_review(42, "重复提交", result, hint_depth)
+                    .unwrap()
+            );
             assert!(store.due_reviews().unwrap().is_empty());
             store
                 .connection
@@ -670,6 +750,18 @@ mod tests {
         assert_eq!(review.due_on, "2000-01-01");
         assert_eq!(store.due_reviews().unwrap(), vec![42]);
         assert_eq!(store.progress(42).state, "待复习");
+        let history = store.review_history(42).unwrap();
+        assert_eq!(
+            history
+                .iter()
+                .map(|attempt| attempt.hint_depth)
+                .collect::<Vec<_>>(),
+            vec![3, 1, 0, 2]
+        );
+        assert!(history[0].result == ReviewResult::Independent);
+        assert_eq!(history[0].obstacle, "多源同时入队");
+        assert!(history[0].reviewed_on < history[0].next_due_on);
+        assert!(store.review_history(43).unwrap().is_empty());
     }
 
     #[test]

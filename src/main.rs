@@ -61,6 +61,12 @@ fn run() -> Result<()> {
                 Err(error) => println!("{label}: 不可用 ({error})"),
             }
         }
+        match leetdesk::language::jdtls_home() {
+            Some(path) => println!("JDT LS: {}", path.display()),
+            None => {
+                println!("JDT LS: 使用 PATH 中的 jdtls；也可设置 LEETDESK_JDTLS_HOME 指向解压目录")
+            }
+        }
         return Ok(());
     }
     let root = if let Some(index) = args.iter().position(|arg| arg == "--data-dir") {

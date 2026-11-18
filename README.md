@@ -20,7 +20,9 @@
    go install golang.org/x/tools/gopls@latest
    ```
 
-   确保 `go`、`gofmt`、`gopls` 可以从终端运行。若它们不在 `PATH` 中，可用 `LEETDESK_GOPLS` 和 `LEETDESK_GOFMT` 指向对应程序。使用 Java 本地用例时安装 JDK 17 或更新版本，并让 `java`、`javac` 位于 `PATH`。Java 格式化需要安装 `google-java-format`，或设置 `LEETDESK_JAVA_FORMAT` 指向该命令。Windows 登录窗口还需要 WebView2 Runtime。
+   确保 `go`、`gofmt`、`gopls` 可以从终端运行。若它们不在 `PATH` 中，可用 `LEETDESK_GOPLS` 和 `LEETDESK_GOFMT` 指向对应程序。使用 Java 本地用例时安装 JDK 17 或更新版本，并让 `java`、`javac` 位于 `PATH`。Java 格式化优先使用已连接的 JDT LS；未连接时可安装 `google-java-format`，或设置 `LEETDESK_JAVA_FORMAT` 指向该命令。Windows 登录窗口还需要 WebView2 Runtime。
+
+   Java 实时错误/警告、成员与方法补全、悬浮说明和定义跳转使用 [Eclipse JDT Language Server](https://github.com/eclipse-jdtls/eclipse.jdt.ls)。使用 Java 25+ 启动语言服务；Windows 源码目录中运行 `powershell -File scripts/install-java-lsp.ps1` 安装到 `tools/jdtls`，应用会自动发现。其他安装方式可将 JDT LS 解压到程序旁的 `tools/jdtls`，或设置 `LEETDESK_JDTLS_HOME` 为解压目录；也支持 `PATH` 中的 `jdtls` / `LEETDESK_JDTLS` 指定的启动器。`LEETDESK_JAVA` 可单独指定语言服务使用的 Java 可执行文件。连接状态显示在编辑器中，连接失败会显示具体原因并保留模板补全。
 
 3. 启动应用，在 LeetCode 中国站或国际站的官方页面登录。选择国际站后自动使用英文界面、英文题名和英文题面，中国站使用中文；站点偏好在重启后恢复。两个站点分别缓存题库、题面和账号通过状态，普通题目按题号和 slug 对应。登录后同步题库、分类和当前账号的解题状态；后续启动先读取本地缓存，需要更新时点击 **同步题库**。登录暂时不可用时，可选择使用离线缓存。
 
@@ -60,11 +62,11 @@ macOS 包已在对应架构的 GitHub Actions runner 上构建。当前使用临
 - **找题：** 支持热题 100、链表、字符串、双指针、图、树、动态规划等题单与主题。搜索、主题、难度、解题状态可以组合筛选；收藏、待复习和自定义标签用于安排下一轮练习。
 - **读题：** 在线加载题面与官方 Go / Java 模板，下载后缓存。题面、做法讲解、个人笔记和代码可在同一工作区查看，面板宽度可调整。
 - **写代码：** Tree-sitter 语法高亮随主题使用高对比度红色系，关键字加粗、注释使用灰色斜体，并提高行号、边框和选区对比度。`gopls` 提供诊断、补全、类型提示与跳转定义。内置 `for`、`make`、`append` 等模板补全；输入 `q = app` 可补成 `append(q, value)`，直接选中待填写的元素。`var xxx func(int)` 提供 `xxx(…)` 调用候选和参数填写位置，同时保留函数变量候选以便传递回调；`Tab` 依次切换参数。支持自动缩进、括号配对、长行折行、撤销及搜索。`Ctrl+S`（Mac 为 `Cmd+S`）保存并用 `gofmt` 格式化 Go 代码。
-- **代码工具：** 编辑器上方始终显示 **恢复初始模板**，按当前语言恢复模板，并先将原代码备份为 `solution-before-reset-*.go` 或 `.java`。Go 的 **整理导入** 使用 `gopls imports`；**格式化** 对 Go 使用 `gofmt`，对 Java 使用可选的 `google-java-format`。格式化失败时，原草稿仍会保存，底部状态栏显示具体错误。
+- **代码工具：** 编辑器上方始终显示 **恢复初始模板**，按当前语言恢复模板，并先将原代码备份为 `solution-before-reset-*.go` 或 `.java`。Go 的 **整理导入** 使用 `gopls imports`；**格式化** 对 Go 使用 `gofmt`，对 Java 优先使用 JDT LS，未连接时使用可选的 `google-java-format`。格式化失败时，原草稿仍会保存，底部状态栏显示具体错误。
 - **验证：** 本地用例会实际编译并运行当前语言，逐例显示预期值、实际值和错误。运行结果中保留本次测试输入的只读快照；运行时可切回测试用例页查看或编辑下一次输入，结果返回不会切走当前页面。在线题目按当前语言调用平台测试与提交接口；通过后更新当前题目的状态缓存。正在判题时停止等待不会撤销平台已接收的任务。
 - **复盘：** 每道题有独立的 Markdown 笔记，保存后更新预览；也可导入已有的 MD 做法讲解。代码、笔记与进度会自动保存，重新打开继续上次练习。
 
-LeetDesk 通过系统 WebView 展示官方登录页；密码和验证码由你在该页面输入。账号数据与题目缓存在本机保存。会员题目及语言模板是否可用取决于平台。Java 当前提供语法高亮和内置模板补全；语义诊断、类型提示和跳转定义仍由 Go 的 `gopls` 提供，Java 暂无对应语言服务。
+LeetDesk 通过系统 WebView 展示官方登录页；密码和验证码由你在该页面输入。账号数据与题目缓存在本机保存。会员题目及语言模板是否可用取决于平台。Go 的 `gopls` 和 Java 的 JDT LS 分别提供语言服务，诊断随未保存的草稿更新。Java 分析工作区自动提供 `java.util.*`、`java.math.*` 导入及 `ListNode` / `TreeNode` 辅助类型，不会把这些分析用内容写进个人草稿；Java 方法补全支持参数占位和 Tab 切换。
 
 ## 常用快捷键
 
@@ -76,7 +78,7 @@ LeetDesk 通过系统 WebView 展示官方登录页；密码和验证码由你�
 | 保存代码并格式化 / 保存笔记 | `Ctrl+S` | `Cmd+S` |
 | 运行用例 | `Ctrl+Enter` | `Cmd+Enter` |
 | 提交解答 | `Ctrl+Shift+Enter` | `Cmd+Shift+Enter` |
-| 格式化 Go 代码 | `Ctrl+Shift+F` | `Cmd+Shift+F` |
+| 格式化当前语言代码 | `Ctrl+Shift+F` | `Cmd+Shift+F` |
 | 整理 Go 导入 | `Ctrl+Shift+O` | `Cmd+Shift+O` |
 | 手动补全 | `Ctrl+Space` | `Cmd+J` |
 | 导入 Markdown | `Ctrl+I` | `Cmd+I` |
